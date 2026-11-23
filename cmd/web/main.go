@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/bryanfks-dev/di"
-	_ "github.com/bryanfks-dev/docs"
+	"github.com/bryanfks-dev/selah/di"
+	_ "github.com/bryanfks-dev/selah/docs"
 )
 
 // @title Skeleton Service API

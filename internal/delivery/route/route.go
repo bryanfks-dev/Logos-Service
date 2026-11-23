@@ -3,7 +3,7 @@ package route
 import (
 	"net/http"
 
-	"github.com/bryanfks-dev/internal/delivery"
+	"github.com/bryanfks-dev/selah/internal/delivery"
 	"github.com/labstack/echo/v5"
 	echoSwagger "github.com/swaggo/echo-swagger/v2"
 )

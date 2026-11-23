@@ -7,9 +7,9 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/internal/delivery"
-	"github.com/bryanfks-dev/internal/delivery/route"
-	"github.com/bryanfks-dev/pkg/config"
+	"github.com/bryanfks-dev/selah/internal/delivery"
+	"github.com/bryanfks-dev/selah/internal/delivery/route"
+	"github.com/bryanfks-dev/selah/pkg/config"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

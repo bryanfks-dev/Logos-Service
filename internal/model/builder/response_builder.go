@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bryanfks-dev/internal/model"
+	"github.com/bryanfks-dev/selah/internal/model"
 )
 
 type ApiResponseBuilder[T any] struct {

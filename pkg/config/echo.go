@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/bryanfks-dev/internal/delivery/middleware"
+	"github.com/bryanfks-dev/selah/internal/delivery/middleware"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
 )

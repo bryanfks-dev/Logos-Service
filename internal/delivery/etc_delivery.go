@@ -3,9 +3,9 @@ package delivery
 import (
 	"net/http"
 
-	"github.com/bryanfks-dev/internal/delivery/middleware"
-	_ "github.com/bryanfks-dev/internal/model"
-	"github.com/bryanfks-dev/internal/model/builder"
+	"github.com/bryanfks-dev/selah/internal/delivery/middleware"
+	_ "github.com/bryanfks-dev/selah/internal/model"
+	"github.com/bryanfks-dev/selah/internal/model/builder"
 	"github.com/labstack/echo/v5"
 )
 
