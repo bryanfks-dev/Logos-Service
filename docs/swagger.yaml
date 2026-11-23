@@ -1,0 +1,65 @@
+definitions:
+  github_com_bryanfks-dev_internal_model.ApiError:
+    properties:
+      code:
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/github_com_bryanfks-dev_internal_model.FieldError'
+        type: array
+    type: object
+  github_com_bryanfks-dev_internal_model.ApiMeta:
+    properties:
+      page:
+        description: "*\n\t * Pagination properties"
+        type: integer
+      request_id:
+        type: string
+      size:
+        type: integer
+      timestamp:
+        type: string
+      total_item:
+        type: integer
+      total_page:
+        type: integer
+    type: object
+  github_com_bryanfks-dev_internal_model.ApiResponse-any:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiError'
+      meta:
+        $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiMeta'
+      success:
+        type: boolean
+    type: object
+  github_com_bryanfks-dev_internal_model.FieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API documentation for Skeleton Service
+  title: Skeleton Service API
+  version: "1.0"
+paths:
+  /api/healthz:
+    get:
+      consumes:
+      - application/json
+      description: Check service health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiResponse-any'
+      summary: Health check
+      tags:
+      - API / etc
+swagger: "2.0"

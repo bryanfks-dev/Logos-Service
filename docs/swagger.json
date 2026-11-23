@@ -1,0 +1,100 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API documentation for Skeleton Service",
+        "title": "Skeleton Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/healthz": {
+            "get": {
+                "description": "Check service health status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API / etc"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiResponse-any"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_bryanfks-dev_internal_model.ApiError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.FieldError"
+                    }
+                }
+            }
+        },
+        "github_com_bryanfks-dev_internal_model.ApiMeta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "description": "*\n\t * Pagination properties",
+                    "type": "integer"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "total_item": {
+                    "type": "integer"
+                },
+                "total_page": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_internal_model.ApiResponse-any": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiMeta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_internal_model.FieldError": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

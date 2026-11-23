@@ -1,0 +1,19 @@
+app:
+  name: skeleton
+
+web:
+  port: 3333
+
+log:
+  level: debug
+
+database:
+  username: root
+  password: ""
+  host: localhost
+  port: 5432
+  name: skeleton
+  pool:
+    idle: 10
+    max: 100
+    lifetime: 300
