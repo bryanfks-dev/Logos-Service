@@ -8,13 +8,13 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(viper *viper.Viper) *zap.Logger {
-	config := zap.NewProductionConfig()
+func NewLogger(config *viper.Viper) *zap.Logger {
+	zapConfig := zap.NewProductionConfig()
 
-	level := loggerLevel[viper.GetString("log.level")]
-	config.Level = zap.NewAtomicLevelAt(level)
+	level := loggerLevel[config.GetString("log.level")]
+	zapConfig.Level = zap.NewAtomicLevelAt(level)
 
-	logger, err := config.Build()
+	logger, err := zapConfig.Build()
 	if err != nil {
 		message := fmt.Sprintf("Fatal error logger: %v\n", err)
 		panic(message)
