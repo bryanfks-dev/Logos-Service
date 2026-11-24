@@ -4,8 +4,8 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/internal/delivery"
-	"github.com/bryanfks-dev/internal/delivery/route"
+	"github.com/bryanfks-dev/selah/internal/delivery"
+	"github.com/bryanfks-dev/selah/internal/delivery/route"
 	"github.com/google/wire"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
@@ -19,7 +19,8 @@ type Container struct {
 
 	RouteConfig *route.RouteConfig
 
-	EtcController *delivery.EtcController
+	EtcController   *delivery.EtcController
+	ErrorController *delivery.ErrorController
 }
 
 func NewContainer() (*Container, error) {

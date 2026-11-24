@@ -20,6 +20,7 @@ var UsecaseSet = wire.NewSet()
 
 var DeliverySet = wire.NewSet(
 	delivery.NewEtcController,
+	delivery.NewErrorController,
 )
 
 var RouteSet = wire.NewSet(

@@ -22,13 +22,15 @@ func NewContainer() (*Container, error) {
 	logger := config.NewLogger(viper)
 	echo := config.NewServer(viper)
 	etcController := delivery.NewEtcController()
-	routeConfig := route.NewRouteConfig(echo, etcController)
+	errorController := delivery.NewErrorController(logger)
+	routeConfig := route.NewRouteConfig(echo, etcController, errorController)
 	container := &Container{
-		Config:        viper,
-		Log:           logger,
-		App:           echo,
-		RouteConfig:   routeConfig,
-		EtcController: etcController,
+		Config:          viper,
+		Log:             logger,
+		App:             echo,
+		RouteConfig:     routeConfig,
+		EtcController:   etcController,
+		ErrorController: errorController,
 	}
 	return container, nil
 }
@@ -42,5 +44,6 @@ type Container struct {
 
 	RouteConfig *route.RouteConfig
 
-	EtcController *delivery.EtcController
+	EtcController   *delivery.EtcController
+	ErrorController *delivery.ErrorController
 }

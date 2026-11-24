@@ -7,7 +7,7 @@ import (
 	echomiddleware "github.com/labstack/echo/v5/middleware"
 )
 
-func CORSMiddleware() echo.MiddlewareFunc {
+func CorsMiddleware() echo.MiddlewareFunc {
 	allowedMethods := []string{
 		http.MethodGet,
 		http.MethodPost,

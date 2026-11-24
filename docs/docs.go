@@ -32,7 +32,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any"
                         }
                     }
                 }
@@ -40,7 +40,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_bryanfks-dev_internal_model.ApiError": {
+        "github_com_bryanfks-dev_selah_internal_model.ApiError": {
             "type": "object",
             "properties": {
                 "code": {
@@ -49,12 +49,12 @@ const docTemplate = `{
                 "fields": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.FieldError"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.FieldError"
                     }
                 }
             }
         },
-        "github_com_bryanfks-dev_internal_model.ApiMeta": {
+        "github_com_bryanfks-dev_selah_internal_model.ApiMeta": {
             "type": "object",
             "properties": {
                 "page": {
@@ -78,22 +78,22 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_internal_model.ApiResponse-any": {
+        "github_com_bryanfks-dev_selah_internal_model.ApiResponse-any": {
             "type": "object",
             "properties": {
                 "data": {},
                 "error": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiError"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiError"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_internal_model.ApiMeta"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiMeta"
                 },
                 "success": {
                     "type": "boolean"
                 }
             }
         },
-        "github_com_bryanfks-dev_internal_model.FieldError": {
+        "github_com_bryanfks-dev_selah_internal_model.FieldError": {
             "type": "object",
             "properties": {
                 "field": {

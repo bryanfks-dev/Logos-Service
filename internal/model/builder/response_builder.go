@@ -9,7 +9,7 @@ import (
 
 type ApiResponseBuilder[T any] struct {
 	success   bool
-	data      T
+	data      *T
 	requestID string
 	error     *model.ApiError
 }
@@ -46,7 +46,7 @@ func (b *ApiResponseBuilder[T]) Build() *model.ApiResponse[T] {
 
 	return &model.ApiResponse[T]{
 		Success: success,
-		Data:    &b.data,
+		Data:    b.data,
 		Error:   b.error,
 		Meta:    meta,
 	}

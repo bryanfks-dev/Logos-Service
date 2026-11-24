@@ -1,14 +1,14 @@
 definitions:
-  github_com_bryanfks-dev_internal_model.ApiError:
+  github_com_bryanfks-dev_selah_internal_model.ApiError:
     properties:
       code:
         type: string
       fields:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_internal_model.FieldError'
+          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.FieldError'
         type: array
     type: object
-  github_com_bryanfks-dev_internal_model.ApiMeta:
+  github_com_bryanfks-dev_selah_internal_model.ApiMeta:
     properties:
       page:
         description: "*\n\t * Pagination properties"
@@ -24,17 +24,17 @@ definitions:
       total_page:
         type: integer
     type: object
-  github_com_bryanfks-dev_internal_model.ApiResponse-any:
+  github_com_bryanfks-dev_selah_internal_model.ApiResponse-any:
     properties:
       data: {}
       error:
-        $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiError'
+        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiError'
       meta:
-        $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiMeta'
+        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiMeta'
       success:
         type: boolean
     type: object
-  github_com_bryanfks-dev_internal_model.FieldError:
+  github_com_bryanfks-dev_selah_internal_model.FieldError:
     properties:
       field:
         type: string
@@ -58,7 +58,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_internal_model.ApiResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any'
       summary: Health check
       tags:
       - API / etc

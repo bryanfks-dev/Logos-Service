@@ -8,11 +8,11 @@ log:
   level: debug
 
 database:
-  username: root
-  password: ""
-  host: localhost
+  username: selah_dev
+  password: vcVBncknc5FBmxrJ
+  host: postgres-db.pve.lab
   port: 5432
-  name: skeleton
+  name: selah_dev
   pool:
     idle: 10
     max: 100

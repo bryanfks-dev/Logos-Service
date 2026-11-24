@@ -9,8 +9,10 @@ import (
 func NewServer(config *viper.Viper) *echo.Echo {
 	echo := echo.New()
 
-	echo.Use(middleware.CORSMiddleware())
+	echo.Use(middleware.CorsMiddleware())
+	echo.Use(middleware.LogRequestMiddleware())
 	echo.Use(middleware.AddRequestIDMiddleware())
+	echo.Use(middleware.RecoveryMiddleware())
 
 	return echo
 }

@@ -9,20 +9,27 @@ import (
 )
 
 type RouteConfig struct {
-	App           *echo.Echo
-	EtcController *delivery.EtcController
+	App             *echo.Echo
+	EtcController   *delivery.EtcController
+	ErrorController *delivery.ErrorController
 }
 
-func NewRouteConfig(app *echo.Echo, etcController *delivery.EtcController) *RouteConfig {
+func NewRouteConfig(
+	app *echo.Echo,
+	etcController *delivery.EtcController,
+	errorController *delivery.ErrorController,
+) *RouteConfig {
 	return &RouteConfig{
-		App:           app,
-		EtcController: etcController,
+		App:             app,
+		EtcController:   etcController,
+		ErrorController: errorController,
 	}
 }
 
 func (c *RouteConfig) Setup() {
 	c.SetupSwaggerRoute()
 	c.SetupEtcRoute()
+	c.SetupErrorHandler()
 }
 
 func (c *RouteConfig) SetupSwaggerRoute() {
@@ -35,4 +42,8 @@ func (c *RouteConfig) SetupSwaggerRoute() {
 func (c *RouteConfig) SetupEtcRoute() {
 	api := c.App.Group("/api")
 	api.GET("/healthz", c.EtcController.HealthCheck)
+}
+
+func (c *RouteConfig) SetupErrorHandler() {
+	c.App.HTTPErrorHandler = c.ErrorController.HTTPErrorHandler
 }
