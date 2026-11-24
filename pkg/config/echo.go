@@ -11,7 +11,7 @@ func NewServer(config *viper.Viper) *echo.Echo {
 
 	echo.Use(middleware.CorsMiddleware())
 	echo.Use(middleware.LogRequestMiddleware())
-	echo.Use(middleware.AddRequestIDMiddleware())
+	echo.Use(middleware.RequestIDMiddleware())
 	echo.Use(middleware.RecoveryMiddleware())
 
 	return echo

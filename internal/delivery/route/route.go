@@ -9,26 +9,30 @@ import (
 )
 
 type RouteConfig struct {
-	App             *echo.Echo
-	EtcController   *delivery.EtcController
-	ErrorController *delivery.ErrorController
+	App                  *echo.Echo
+	EtcController        *delivery.EtcController
+	ErrorController      *delivery.ErrorController
+	SermonNoteController *delivery.SermonNoteController
 }
 
 func NewRouteConfig(
 	app *echo.Echo,
 	etcController *delivery.EtcController,
 	errorController *delivery.ErrorController,
+	sermonNoteController *delivery.SermonNoteController,
 ) *RouteConfig {
 	return &RouteConfig{
-		App:             app,
-		EtcController:   etcController,
-		ErrorController: errorController,
+		App:                  app,
+		EtcController:        etcController,
+		ErrorController:      errorController,
+		SermonNoteController: sermonNoteController,
 	}
 }
 
 func (c *RouteConfig) Setup() {
 	c.SetupSwaggerRoute()
 	c.SetupEtcRoute()
+	c.SetupSermonNoteRoute()
 	c.SetupErrorHandler()
 }
 
@@ -42,6 +46,15 @@ func (c *RouteConfig) SetupSwaggerRoute() {
 func (c *RouteConfig) SetupEtcRoute() {
 	api := c.App.Group("/api")
 	api.GET("/healthz", c.EtcController.HealthCheck)
+}
+
+func (c *RouteConfig) SetupSermonNoteRoute() {
+	if c.SermonNoteController == nil {
+		return
+	}
+
+	api := c.App.Group("/api")
+	api.POST("/sync/notes", c.SermonNoteController.SyncNotes)
 }
 
 func (c *RouteConfig) SetupErrorHandler() {

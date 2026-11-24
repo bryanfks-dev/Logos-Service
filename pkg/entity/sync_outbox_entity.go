@@ -2,12 +2,12 @@ package entity
 
 import (
 	"time"
-	"uuid"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type SyncOutboxEntity struct {
+type SyncOutbox struct {
 	ID         string    `gorm:"primaryKey;type:varchar(36);column:id"`
 	EntityType string    `gorm:"column:entity_type;type:varchar(100);not null;index:idx_sync_outbox_queue"`
 	EntityID   string    `gorm:"column:entity_id;type:varchar(36);not null"`
@@ -17,16 +17,21 @@ type SyncOutboxEntity struct {
 	UpdatedAt  time.Time `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (SyncOutboxEntity) TableName() string {
+func (SyncOutbox) TableName() string {
 	return "sync_outboxes"
 }
 
-func (e *SyncOutboxEntity) BeforeCreate(db *gorm.DB) error {
+func (e *SyncOutbox) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}
+
 	if e.QueuedAt.IsZero() {
 		e.QueuedAt = time.Now()
 	}
+
 	return nil
 }
+
+type SyncOutboxEntity = SyncOutbox
+type SyncOutboxEntry = SyncOutbox

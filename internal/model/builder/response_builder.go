@@ -1,4 +1,4 @@
-package builder
+package modelbuilder
 
 import (
 	"strings"
@@ -23,14 +23,28 @@ func (b *ApiResponseBuilder[T]) SetError(
 ) *ApiResponseBuilder[T] {
 	b.success = false
 	b.error = &error
+
+	return b
+}
+
+func (b *ApiResponseBuilder[T]) SetData(data T) *ApiResponseBuilder[T] {
+	b.data = &data
+
+	return b
+}
+
+func (b *ApiResponseBuilder[T]) SetRequestID(
+	requestID string,
+) *ApiResponseBuilder[T] {
+	b.requestID = requestID
+
 	return b
 }
 
 func (b *ApiResponseBuilder[T]) SetRequestId(
 	requestID string,
 ) *ApiResponseBuilder[T] {
-	b.requestID = requestID
-	return b
+	return b.SetRequestID(requestID)
 }
 
 func (b *ApiResponseBuilder[T]) Build() *model.ApiResponse[T] {

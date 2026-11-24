@@ -17,3 +17,9 @@ database:
     idle: 10
     max: 100
     lifetime: 300
+
+kafka:
+  broker: localhost:9092
+  group_id: selah-broker-group
+  topic: selah-events
+

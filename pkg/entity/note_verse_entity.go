@@ -2,12 +2,12 @@ package entity
 
 import (
 	"time"
-	"uuid"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type NoteVerseEntity struct {
+type NoteVerse struct {
 	ID          string    `gorm:"primaryKey;type:varchar(36);column:id"`
 	NoteID      string    `gorm:"column:note_id;type:varchar(36);not null;index"`
 	Translation string    `gorm:"column:translation;type:varchar(50);not null"`
@@ -20,16 +20,19 @@ type NoteVerseEntity struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Note *SermonNoteEntity `gorm:"foreignKey:NoteID;references:ID"`
+	Note *SermonNote `gorm:"foreignKey:NoteID;references:ID"`
 }
 
-func (NoteVerseEntity) TableName() string {
+func (NoteVerse) TableName() string {
 	return "note_verses"
 }
 
-func (e *NoteVerseEntity) BeforeCreate(db *gorm.DB) error {
+func (e *NoteVerse) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}
+
 	return nil
 }
+
+type NoteVerseEntity = NoteVerse

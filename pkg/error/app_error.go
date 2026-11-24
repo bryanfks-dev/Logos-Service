@@ -49,6 +49,15 @@ func (e *AppError) Is(target error) bool {
 	return ok && t.Code == e.Code
 }
 
+func (e *AppError) WithCause(cause error) *AppError {
+	return &AppError{
+		Kind:    e.Kind,
+		Code:    e.Code,
+		Message: e.Message,
+		Err:     cause,
+	}
+}
+
 func KindOf(err error) (ErrKind, bool) {
 	var ae *AppError
 	if errors.As(err, &ae) {

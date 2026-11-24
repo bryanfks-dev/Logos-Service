@@ -5,4 +5,7 @@ CREATE TABLE IF NOT EXISTS gatherings (
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS idx_gatherings_deleted_at ON gatherings(deleted_at);

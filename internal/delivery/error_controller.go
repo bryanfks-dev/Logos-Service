@@ -4,22 +4,12 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/middleware/correlation"
+	middlewarecorrelation "github.com/bryanfks-dev/selah/internal/delivery/middleware/correlation"
 	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/builder"
+	modelbuilder "github.com/bryanfks-dev/selah/internal/model/builder"
 	apperror "github.com/bryanfks-dev/selah/pkg/error"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
-)
-
-const (
-	ErrCodeInternalServerError = "INTERNAL_SERVER_ERROR"
-	ErrCodeNotFound            = "NOT_FOUND"
-	ErrCodeRouteNotFound       = ErrCodeNotFound
-	ErrCodeMethodNotAllowed    = "METHOD_NOT_ALLOWED"
-	ErrCodeMethodNotSupported  = ErrCodeMethodNotAllowed
-	ErrCodeBadRequest          = "BAD_REQUEST"
-	ErrCodeUnavailable         = "code_unavailable"
 )
 
 var errKindStatus = map[apperror.ErrKind]int{
@@ -44,9 +34,9 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		return
 	}
 
-	requestID := correlation.GetRequestID(ctx)
+	requestID := middlewarecorrelation.GetRequestID(ctx)
 	status := http.StatusInternalServerError
-	code := ErrCodeUnavailable
+	code := "code_unavailable"
 
 	var statusCoder echo.HTTPStatusCoder
 	var appErr *apperror.AppError
@@ -68,7 +58,7 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		code = appErr.Code
 	case errors.As(err, &statusCoder):
 		status = statusCoder.StatusCode()
-		code = ErrCodeUnavailable
+		code = "code_unavailable"
 		if status >= 500 {
 			c.log.Error(
 				"unexpected error",
@@ -78,7 +68,7 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		}
 	default:
 		status = http.StatusInternalServerError
-		code = ErrCodeUnavailable
+		code = "code_unavailable"
 		c.log.Error(
 			"unexpected error",
 			zap.Error(err),
@@ -86,7 +76,7 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		)
 	}
 
-	res := builder.NewApiResponseBuilder[any]().
+	res := modelbuilder.NewApiResponseBuilder[any]().
 		SetRequestId(requestID).
 		SetError(model.ApiError{Code: code}).
 		Build()

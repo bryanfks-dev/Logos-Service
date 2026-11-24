@@ -34,6 +34,17 @@ definitions:
       success:
         type: boolean
     type: object
+  github_com_bryanfks-dev_selah_internal_model.ApiResponse-github_com_bryanfks-dev_selah_internal_model_SyncNotesResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNotesResponse'
+      error:
+        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiError'
+      meta:
+        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiMeta'
+      success:
+        type: boolean
+    type: object
   github_com_bryanfks-dev_selah_internal_model.FieldError:
     properties:
       field:
@@ -41,10 +52,82 @@ definitions:
       message:
         type: string
     type: object
+  github_com_bryanfks-dev_selah_internal_model.SyncNoteItem:
+    properties:
+      content_json:
+        type: string
+      gathering_id:
+        type: string
+      id:
+        type: string
+      is_deleted:
+        type: boolean
+      plain_text:
+        type: string
+      preacher_id:
+        type: string
+      series_id:
+        type: string
+      sermon_date:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+      verses:
+        items:
+          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse'
+        type: array
+      version:
+        type: integer
+    type: object
+  github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse:
+    properties:
+      book_id:
+        type: integer
+      chapter:
+        type: integer
+      display_ref:
+        type: string
+      id:
+        type: string
+      translation:
+        type: string
+      verse_end:
+        type: integer
+      verse_start:
+        type: integer
+    type: object
+  github_com_bryanfks-dev_selah_internal_model.SyncNotesRequest:
+    properties:
+      last_synced_at:
+        type: string
+      notes:
+        items:
+          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem'
+        type: array
+    type: object
+  github_com_bryanfks-dev_selah_internal_model.SyncNotesResponse:
+    properties:
+      applied_ids:
+        items:
+          type: string
+        type: array
+      notes:
+        items:
+          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem'
+        type: array
+      synced_at:
+        type: string
+    type: object
 info:
   contact: {}
-  description: API documentation for Skeleton Service
-  title: Skeleton Service API
+  description: API documentation for Selah Service
+  title: Selah Service API
   version: "1.0"
 paths:
   /api/healthz:
@@ -62,4 +145,34 @@ paths:
       summary: Health check
       tags:
       - API / etc
+  /api/sync/notes:
+    post:
+      consumes:
+      - application/json
+      description: Synchronize notes between client and server with two-way synchronization
+      parameters:
+      - description: Sync notes request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNotesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-github_com_bryanfks-dev_selah_internal_model_SyncNotesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any'
+      summary: Sync sermon notes
+      tags:
+      - API / sermon-notes
 swagger: "2.0"

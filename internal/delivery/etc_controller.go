@@ -3,9 +3,9 @@ package delivery
 import (
 	"net/http"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/middleware/correlation"
+	middlewarecorrelation "github.com/bryanfks-dev/selah/internal/delivery/middleware/correlation"
 	_ "github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/builder"
+	modelbuilder "github.com/bryanfks-dev/selah/internal/model/builder"
 	"github.com/labstack/echo/v5"
 )
 
@@ -24,10 +24,11 @@ func NewEtcController() *EtcController {
 // @Success      200 {object} model.ApiResponse[any]
 // @Router       /api/healthz [get]
 func (c *EtcController) HealthCheck(ctx *echo.Context) error {
-	requestID := correlation.GetRequestID(ctx)
+	requestID := middlewarecorrelation.GetRequestID(ctx)
 
-	response := builder.NewApiResponseBuilder[any]().
+	response := modelbuilder.NewApiResponseBuilder[any]().
 		SetRequestId(requestID).
 		Build()
+
 	return ctx.JSON(http.StatusOK, response)
 }

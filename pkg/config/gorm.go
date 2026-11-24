@@ -22,8 +22,12 @@ func NewDatabase(config *viper.Viper, log *zap.Logger) *gorm.DB {
 	maxLifeTimeConnection := config.GetInt("database.pool.lifetime")
 
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		username, password, host, port, database,
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+		host,
+		username,
+		password,
+		database,
+		port,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -36,12 +40,12 @@ func NewDatabase(config *viper.Viper, log *zap.Logger) *gorm.DB {
 		}),
 	})
 	if err != nil {
-		log.Sugar().Fatalf("Failed to connect to database: %v", err)
+		log.Sugar().Fatalf("failed to connect to database: %v", err)
 	}
 
 	conn, err := db.DB()
 	if err != nil {
-		log.Sugar().Fatalf("Failed to connect to database: %v", err)
+		log.Sugar().Fatalf("failed to connect to database: %v", err)
 	}
 
 	conn.SetMaxIdleConns(idleConnection)

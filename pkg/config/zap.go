@@ -16,7 +16,7 @@ func NewLogger(config *viper.Viper) *zap.Logger {
 
 	logger, err := zapConfig.Build()
 	if err != nil {
-		message := fmt.Sprintf("Fatal error logger: %v\n", err)
+		message := fmt.Sprintf("fatal error logger: %v\n", err)
 		panic(message)
 	}
 

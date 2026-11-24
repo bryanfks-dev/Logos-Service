@@ -7,8 +7,12 @@
 package di
 
 import (
+	"github.com/bryanfks-dev/selah/infrastructure/broker"
+	"github.com/bryanfks-dev/selah/infrastructure/db"
 	"github.com/bryanfks-dev/selah/internal/delivery"
 	"github.com/bryanfks-dev/selah/internal/delivery/route"
+	"github.com/bryanfks-dev/selah/internal/repository"
+	"github.com/bryanfks-dev/selah/internal/usecase"
 	"github.com/bryanfks-dev/selah/pkg/config"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
@@ -21,16 +25,32 @@ func NewContainer() (*Container, error) {
 	viper := config.NewViper()
 	logger := config.NewLogger(viper)
 	echo := config.NewServer(viper)
+	kafkaConfig := config.NewKafkaConfig(viper)
+	consumer := broker.NewKafkaConsumer(kafkaConfig, logger)
+	producer := broker.NewKafkaProducer(kafkaConfig, logger)
+	gormDB := config.NewDatabase(viper, logger)
+	txManager := db.NewTxManager(gormDB)
 	etcController := delivery.NewEtcController()
 	errorController := delivery.NewErrorController(logger)
-	routeConfig := route.NewRouteConfig(echo, etcController, errorController)
+	sermonNoteRepository := repository.NewSermonNoteRepository(gormDB, logger)
+	tagRepository := repository.NewTagRepository(gormDB, logger)
+	syncOutboxRepository := repository.NewSyncOutboxRepository(gormDB, logger)
+	syncUsecase := usecase.NewSyncUsecase(txManager, sermonNoteRepository, tagRepository, syncOutboxRepository, logger)
+	sermonNoteController := delivery.NewSermonNoteController(syncUsecase, logger)
+	routeConfig := route.NewRouteConfig(echo, etcController, errorController, sermonNoteController)
 	container := &Container{
-		Config:          viper,
-		Log:             logger,
-		App:             echo,
-		RouteConfig:     routeConfig,
-		EtcController:   etcController,
-		ErrorController: errorController,
+		Config:               viper,
+		Log:                  logger,
+		App:                  echo,
+		KafkaConfig:          kafkaConfig,
+		BrokerConsumer:       consumer,
+		BrokerProducer:       producer,
+		TxManager:            txManager,
+		RouteConfig:          routeConfig,
+		EtcController:        etcController,
+		ErrorController:      errorController,
+		SermonNoteController: sermonNoteController,
+		SyncUsecase:          syncUsecase,
 	}
 	return container, nil
 }
@@ -42,8 +62,17 @@ type Container struct {
 	Log    *zap.Logger
 	App    *echo.Echo
 
+	KafkaConfig    *config.KafkaConfig
+	BrokerConsumer broker.Consumer
+	BrokerProducer broker.Producer
+
+	TxManager *db.TxManager
+
 	RouteConfig *route.RouteConfig
 
-	EtcController   *delivery.EtcController
-	ErrorController *delivery.ErrorController
+	EtcController        *delivery.EtcController
+	ErrorController      *delivery.ErrorController
+	SermonNoteController *delivery.SermonNoteController
+
+	SyncUsecase usecase.SyncUsecase
 }

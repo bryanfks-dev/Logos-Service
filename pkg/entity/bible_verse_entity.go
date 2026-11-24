@@ -2,12 +2,12 @@ package entity
 
 import (
 	"time"
-	"uuid"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type BibleVerseEntity struct {
+type BibleVerse struct {
 	ID          string    `gorm:"primaryKey;type:varchar(36);column:id"`
 	Translation string    `gorm:"column:translation;type:varchar(50);not null;index:idx_bible_verses_ref"`
 	BookID      int       `gorm:"column:book_id;not null;index:idx_bible_verses_ref"`
@@ -19,16 +19,27 @@ type BibleVerseEntity struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	BibleFTS *BibleFTSEntity `gorm:"foreignKey:VerseID;references:ID"`
+	BibleFTS *BibleFTS `gorm:"foreignKey:VerseID;references:ID"`
 }
 
-func (BibleVerseEntity) TableName() string {
+func (BibleVerse) TableName() string {
 	return "bible_verses"
 }
 
-func (e *BibleVerseEntity) BeforeCreate(db *gorm.DB) error {
+func (e *BibleVerse) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}
+
 	return nil
+}
+
+type BibleVerseEntity = BibleVerse
+
+type VerseQuery struct {
+	Translation string
+	BookID      int
+	Chapter     int
+	VerseStart  int
+	VerseEnd    *int
 }

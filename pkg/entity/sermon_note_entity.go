@@ -1,13 +1,15 @@
 package entity
 
 import (
+	"os"
+	"path/filepath"
 	"time"
-	"uuid"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type SermonNoteEntity struct {
+type SermonNote struct {
 	ID          string         `gorm:"primaryKey;type:varchar(36);column:id"`
 	GatheringID *string        `gorm:"column:gathering_id;type:varchar(36);index"`
 	SeriesID    *string        `gorm:"column:series_id;type:varchar(36);index"`
@@ -17,6 +19,7 @@ type SermonNoteEntity struct {
 	FilePath    string         `gorm:"column:file_path;type:text"`
 	ContentHash string         `gorm:"column:content_hash;type:varchar(64)"`
 	PlainText   string         `gorm:"column:plain_text;type:text"`
+	ContentJSON string         `gorm:"-"`
 	Version     int            `gorm:"column:version;default:1"`
 	SyncStatus  string         `gorm:"column:sync_status;type:varchar(50)"`
 	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
@@ -24,22 +27,54 @@ type SermonNoteEntity struct {
 	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Gathering  *GatheringEntity    `gorm:"foreignKey:GatheringID;references:ID"`
-	Series     *SermonSeriesEntity `gorm:"foreignKey:SeriesID;references:ID"`
-	Preacher   *PreacherEntity     `gorm:"foreignKey:PreacherID;references:ID"`
-	Tags       []TagEntity         `gorm:"many2many:note_tags;foreignKey:ID;joinForeignKey:NoteID;References:ID;joinReferences:TagID"`
-	NoteTags   []NoteTagEntity     `gorm:"foreignKey:NoteID;references:ID"`
-	NoteVerses []NoteVerseEntity   `gorm:"foreignKey:NoteID;references:ID"`
-	NoteFTS    *NotesFTSEntity     `gorm:"foreignKey:NoteID;references:ID"`
+	Gathering  *Gathering    `gorm:"foreignKey:GatheringID;references:ID"`
+	Series     *SermonSeries `gorm:"foreignKey:SeriesID;references:ID"`
+	Preacher   *Preacher     `gorm:"foreignKey:PreacherID;references:ID"`
+	Tags       []Tag         `gorm:"many2many:note_tags;foreignKey:ID;joinForeignKey:NoteID;References:ID;joinReferences:TagID"`
+	NoteTags   []NoteTag     `gorm:"foreignKey:NoteID;references:ID"`
+	Verses     []NoteVerse   `gorm:"foreignKey:NoteID;references:ID"`
+	NoteVerses []NoteVerse   `gorm:"foreignKey:NoteID;references:ID"`
+	FTS        *NotesFTS     `gorm:"foreignKey:NoteID;references:ID"`
+	NoteFTS    *NotesFTS     `gorm:"foreignKey:NoteID;references:ID"`
 }
 
-func (SermonNoteEntity) TableName() string {
+func (SermonNote) TableName() string {
 	return "sermon_notes"
 }
 
-func (e *SermonNoteEntity) BeforeCreate(db *gorm.DB) error {
+func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}
+
+	if e.FilePath == "" {
+		dir := filepath.Join(os.TempDir(), "selah_notes")
+
+		_ = os.MkdirAll(dir, 0o755)
+
+		e.FilePath = filepath.Join(dir, e.ID+".json")
+	}
+
 	return nil
+}
+
+type SermonNoteEntity = SermonNote
+
+type SermonNoteFilter struct {
+	GatheringID    *string
+	SeriesID       *string
+	PreacherID     *string
+	TagID          *string
+	StartDate      *time.Time
+	EndDate        *time.Time
+	IncludeDeleted bool
+	UpdatedSince   *time.Time
+}
+
+type ScriptureQuery struct {
+	Translation string
+	BookID      int
+	Chapter     int
+	VerseStart  int
+	VerseEnd    *int
 }

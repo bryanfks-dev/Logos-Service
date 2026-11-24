@@ -37,6 +37,52 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/sync/notes": {
+            "post": {
+                "description": "Synchronize notes between client and server with two-way synchronization",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API / sermon-notes"
+                ],
+                "summary": "Sync sermon notes",
+                "parameters": [
+                    {
+                        "description": "Sync notes request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNotesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-github_com_bryanfks-dev_selah_internal_model_SyncNotesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiResponse-any"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -93,6 +139,23 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_bryanfks-dev_selah_internal_model.ApiResponse-github_com_bryanfks-dev_selah_internal_model_SyncNotesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNotesResponse"
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.ApiMeta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_bryanfks-dev_selah_internal_model.FieldError": {
             "type": "object",
             "properties": {
@@ -100,6 +163,116 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_selah_internal_model.SyncNoteItem": {
+            "type": "object",
+            "properties": {
+                "content_json": {
+                    "type": "string"
+                },
+                "gathering_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "plain_text": {
+                    "type": "string"
+                },
+                "preacher_id": {
+                    "type": "string"
+                },
+                "series_id": {
+                    "type": "string"
+                },
+                "sermon_date": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "verses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse": {
+            "type": "object",
+            "properties": {
+                "book_id": {
+                    "type": "integer"
+                },
+                "chapter": {
+                    "type": "integer"
+                },
+                "display_ref": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "translation": {
+                    "type": "string"
+                },
+                "verse_end": {
+                    "type": "integer"
+                },
+                "verse_start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_selah_internal_model.SyncNotesRequest": {
+            "type": "object",
+            "properties": {
+                "last_synced_at": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem"
+                    }
+                }
+            }
+        },
+        "github_com_bryanfks-dev_selah_internal_model.SyncNotesResponse": {
+            "type": "object",
+            "properties": {
+                "applied_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem"
+                    }
+                },
+                "synced_at": {
                     "type": "string"
                 }
             }
@@ -113,8 +286,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Skeleton Service API",
-	Description:      "API documentation for Skeleton Service",
+	Title:            "Selah Service API",
+	Description:      "API documentation for Selah Service",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

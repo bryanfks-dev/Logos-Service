@@ -12,9 +12,13 @@ func NewViper() *viper.Viper {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+	viper.AddConfigPath("../../../")
+	viper.AddConfigPath("../../../../")
 
 	if err := viper.ReadInConfig(); err != nil {
-		message := fmt.Errorf("Fatal error config file: %v\n", err)
+		message := fmt.Errorf("fatal error config file: %v\n", err)
 		panic(message)
 	}
 

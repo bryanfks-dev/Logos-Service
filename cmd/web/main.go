@@ -7,13 +7,13 @@ import (
 	_ "github.com/bryanfks-dev/selah/docs"
 )
 
-// @title Skeleton Service API
+// @title Selah Service API
 // @version 1.0
-// @description API documentation for Skeleton Service
+// @description API documentation for Selah Service
 func main() {
 	container, err := di.NewContainer()
 	if err != nil {
-		message := fmt.Sprintf("Setup container error: %v\n", err)
+		message := fmt.Sprintf("setup container error: %v\n", err)
 		panic(message)
 	}
 
@@ -21,6 +21,6 @@ func main() {
 
 	port := container.Config.GetInt("web.port")
 	if err := container.App.Start(fmt.Sprintf(":%d", port)); err != nil {
-		container.Log.Sugar().Fatalf("Start server error: %v", err)
+		container.Log.Sugar().Fatalf("start server error: %v", err)
 	}
 }

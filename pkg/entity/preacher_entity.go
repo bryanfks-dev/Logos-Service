@@ -2,12 +2,12 @@ package entity
 
 import (
 	"time"
-	"uuid"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type PreacherEntity struct {
+type Preacher struct {
 	ID         string         `gorm:"primaryKey;type:varchar(36);column:id"`
 	Name       string         `gorm:"column:name;type:varchar(255);not null"`
 	ChurchName string         `gorm:"column:church_name;type:varchar(255)"`
@@ -16,16 +16,24 @@ type PreacherEntity struct {
 	DeletedAt  gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	SermonNotes []SermonNoteEntity `gorm:"foreignKey:PreacherID;references:ID"`
+	SermonNotes []SermonNote `gorm:"foreignKey:PreacherID;references:ID"`
 }
 
-func (PreacherEntity) TableName() string {
+func (Preacher) TableName() string {
 	return "preachers"
 }
 
-func (e *PreacherEntity) BeforeCreate(db *gorm.DB) error {
+func (e *Preacher) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}
+
 	return nil
+}
+
+type PreacherEntity = Preacher
+
+type PreacherFilter struct {
+	NamePrefix     string
+	IncludeDeleted bool
 }

@@ -1,0 +1,52 @@
+package entityerror
+
+import (
+	apperror "github.com/bryanfks-dev/selah/pkg/error"
+)
+
+func ErrGatheringCreationFailed(cause error) *apperror.AppError {
+	return apperror.NewErrInternal(
+		"gathering_creation_failed",
+		"failed to create gathering",
+		cause,
+	)
+}
+
+func ErrGatheringUpdateFailed(cause error) *apperror.AppError {
+	return apperror.NewErrInternal(
+		"gathering_update_failed",
+		"failed to update gathering",
+		cause,
+	)
+}
+
+func ErrGatheringFindByIDFailed(cause error) *apperror.AppError {
+	return apperror.NewErrInternal(
+		"gathering_find_by_id_failed",
+		"failed to find gathering by id",
+		cause,
+	)
+}
+
+func ErrGatheringFindAllFailed(cause error) *apperror.AppError {
+	return apperror.NewErrInternal(
+		"gathering_find_all_failed",
+		"failed to find all gatherings",
+		cause,
+	)
+}
+
+func ErrGatheringDeleteFailed(cause error) *apperror.AppError {
+	return apperror.NewErrInternal(
+		"gathering_delete_failed",
+		"failed to delete gathering",
+		cause,
+	)
+}
+
+func ErrGatheringNotFound(id string) *apperror.AppError {
+	return apperror.NewErrNotFound(
+		"gathering_not_found",
+		"gathering not found: "+id,
+	)
+}
