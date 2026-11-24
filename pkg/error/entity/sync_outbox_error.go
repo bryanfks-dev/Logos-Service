@@ -12,10 +12,10 @@ func ErrSyncOutboxEnqueueFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrSyncOutboxGetPendingBatchFailed(cause error) *apperror.AppError {
+func ErrSyncOutboxRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"sync_outbox_get_pending_batch_failed",
-		"failed to get pending sync outbox batch",
+		"sync_outbox_retrieval_failed",
+		"failed to retrieve sync outbox entries",
 		cause,
 	)
 }

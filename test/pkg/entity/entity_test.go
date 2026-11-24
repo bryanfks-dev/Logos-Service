@@ -3,10 +3,19 @@ package entity_test
 import (
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func assertUUIDv7(t *testing.T, id string) {
+	t.Helper()
+	parsed, err := uuid.Parse(id)
+	require.NoError(t, err)
+	assert.Equal(t, byte(7), parsed[6]>>4, "expected UUID version 7")
+}
 
 func TestTableNames(t *testing.T) {
 	assert.Equal(t, "gatherings", entity.Gathering{}.TableName())
@@ -27,6 +36,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 		g := &entity.Gathering{}
 		assert.NoError(t, g.BeforeCreate(nil))
 		assert.NotEmpty(t, g.ID)
+		assertUUIDv7(t, g.ID)
 
 		gExisting := &entity.Gathering{ID: "custom-id"}
 		assert.NoError(t, gExisting.BeforeCreate(nil))
@@ -39,6 +49,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 			s := &entity.SermonSeries{}
 			assert.NoError(t, s.BeforeCreate(nil))
 			assert.NotEmpty(t, s.ID)
+			assertUUIDv7(t, s.ID)
 
 			sExisting := &entity.SermonSeries{ID: "series-id"}
 			assert.NoError(t, sExisting.BeforeCreate(nil))
@@ -50,6 +61,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 		p := &entity.Preacher{}
 		assert.NoError(t, p.BeforeCreate(nil))
 		assert.NotEmpty(t, p.ID)
+		assertUUIDv7(t, p.ID)
 
 		pExisting := &entity.Preacher{ID: "preacher-id"}
 		assert.NoError(t, pExisting.BeforeCreate(nil))
@@ -60,6 +72,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 		tag := &entity.Tag{}
 		assert.NoError(t, tag.BeforeCreate(nil))
 		assert.NotEmpty(t, tag.ID)
+		assertUUIDv7(t, tag.ID)
 
 		tagExisting := &entity.Tag{ID: "tag-id"}
 		assert.NoError(t, tagExisting.BeforeCreate(nil))
@@ -72,6 +85,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 			note := &entity.SermonNote{}
 			assert.NoError(t, note.BeforeCreate(nil))
 			assert.NotEmpty(t, note.ID)
+			assertUUIDv7(t, note.ID)
 			assert.NotEmpty(t, note.FilePath)
 			assert.Contains(t, note.FilePath, note.ID+".json")
 
@@ -89,6 +103,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 		nv := &entity.NoteVerse{}
 		assert.NoError(t, nv.BeforeCreate(nil))
 		assert.NotEmpty(t, nv.ID)
+		assertUUIDv7(t, nv.ID)
 
 		nvExisting := &entity.NoteVerse{ID: "nv-id"}
 		assert.NoError(t, nvExisting.BeforeCreate(nil))
@@ -101,6 +116,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 			bv := &entity.BibleVerse{}
 			assert.NoError(t, bv.BeforeCreate(nil))
 			assert.NotEmpty(t, bv.ID)
+			assertUUIDv7(t, bv.ID)
 
 			bvExisting := &entity.BibleVerse{ID: "bv-id"}
 			assert.NoError(t, bvExisting.BeforeCreate(nil))
@@ -114,6 +130,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 			outbox := &entity.SyncOutbox{}
 			assert.NoError(t, outbox.BeforeCreate(nil))
 			assert.NotEmpty(t, outbox.ID)
+			assertUUIDv7(t, outbox.ID)
 			assert.False(t, outbox.QueuedAt.IsZero())
 
 			fixedTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

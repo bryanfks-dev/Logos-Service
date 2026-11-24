@@ -43,7 +43,7 @@ dev: wire swagger
 
 build: wire swagger
 	go build -o ./bin/main ./cmd/web
-	go build -o ./bin/broker ./cmd/broker
+	go build -o ./bin/worker ./cmd/worker
 
 test:
 	go test -v -count=1 ./...

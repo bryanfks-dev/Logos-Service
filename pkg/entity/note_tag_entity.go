@@ -18,5 +18,3 @@ type NoteTag struct {
 func (NoteTag) TableName() string {
 	return "note_tags"
 }
-
-type NoteTagEntity = NoteTag

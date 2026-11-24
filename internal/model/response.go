@@ -2,29 +2,21 @@ package model
 
 import "time"
 
-type ApiResponse[T any] struct {
+type APIResponse[T any] struct {
 	Success bool      `json:"success"`
-	Meta    ApiMeta   `json:"meta"`
-	Error   *ApiError `json:"error,omitempty"`
 	Data    *T        `json:"data,omitempty"`
+	Meta    APIMeta   `json:"meta"`
+	Error   *APIError `json:"error,omitempty"`
 }
 
-type ApiMeta struct {
+type APIMeta struct {
 	RequestID string    `json:"request_id"`
 	Timestamp time.Time `json:"timestamp"`
-
-	/**
-	 * Pagination properties
-	 */
-	Page      int   `json:"page,omitempty"`
-	Size      int   `json:"size,omitempty"`
-	TotalPage int64 `json:"total_page,omitempty"`
-	TotalItem int64 `json:"total_item,omitempty"`
 }
 
-type ApiError struct {
+type APIError struct {
 	Code   string       `json:"code"`
-	Fields []FieldError `json:"fields,omitempty"`
+	Errors []FieldError `json:"errors,omitempty"`
 }
 
 type FieldError struct {

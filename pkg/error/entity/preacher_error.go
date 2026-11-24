@@ -20,18 +20,10 @@ func ErrPreacherUpdateFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrPreacherFindByIDFailed(cause error) *apperror.AppError {
+func ErrPreacherRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"preacher_find_by_id_failed",
-		"failed to find preacher by id",
-		cause,
-	)
-}
-
-func ErrPreacherFindAllFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"preacher_find_all_failed",
-		"failed to find preachers",
+		"preacher_retrieval_failed",
+		"failed to retrieve preacher",
 		cause,
 	)
 }

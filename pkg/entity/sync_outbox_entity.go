@@ -2,8 +2,8 @@ package entity
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +23,7 @@ func (SyncOutbox) TableName() string {
 
 func (e *SyncOutbox) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
-		e.ID = uuid.New().String()
+		e.ID = uuid.NewV7().String()
 	}
 
 	if e.QueuedAt.IsZero() {
@@ -33,5 +33,4 @@ func (e *SyncOutbox) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-type SyncOutboxEntity = SyncOutbox
 type SyncOutboxEntry = SyncOutbox

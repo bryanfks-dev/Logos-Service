@@ -11,10 +11,12 @@ const (
 	ErrKindNotFound ErrKind = iota
 	ErrKindConflict
 	ErrKindMethodNotAllowed
-	ErrKindUnvailable
+	ErrKindUnavailable
 	ErrKindExternalService
 	ErrKindInternal
 )
+
+const ErrKindUnvailable = ErrKindUnavailable
 
 var domainErrKind = []ErrKind{
 	ErrKindNotFound,

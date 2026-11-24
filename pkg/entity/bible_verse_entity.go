@@ -2,8 +2,8 @@ package entity
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -28,13 +28,11 @@ func (BibleVerse) TableName() string {
 
 func (e *BibleVerse) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
-		e.ID = uuid.New().String()
+		e.ID = uuid.NewV7().String()
 	}
 
 	return nil
 }
-
-type BibleVerseEntity = BibleVerse
 
 type VerseQuery struct {
 	Translation string

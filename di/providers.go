@@ -1,10 +1,9 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/selah/infrastructure/broker"
-	"github.com/bryanfks-dev/selah/infrastructure/db"
-	"github.com/bryanfks-dev/selah/internal/delivery"
-	"github.com/bryanfks-dev/selah/internal/delivery/route"
+	"github.com/bryanfks-dev/selah/db"
+	"github.com/bryanfks-dev/selah/internal/delivery/http"
+	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
 	"github.com/bryanfks-dev/selah/internal/repository"
 	"github.com/bryanfks-dev/selah/internal/usecase"
 	"github.com/bryanfks-dev/selah/pkg/config"
@@ -16,12 +15,6 @@ var AppSet = wire.NewSet(
 	config.NewLogger,
 	config.NewServer,
 	config.NewDatabase,
-)
-
-var BrokerSet = wire.NewSet(
-	config.NewKafkaConfig,
-	broker.NewKafkaConsumer,
-	broker.NewKafkaProducer,
 )
 
 var InfrastructureSet = wire.NewSet(
@@ -43,9 +36,9 @@ var UsecaseSet = wire.NewSet(
 )
 
 var DeliverySet = wire.NewSet(
-	delivery.NewEtcController,
-	delivery.NewErrorController,
-	delivery.NewSermonNoteController,
+	http.NewEtcController,
+	http.NewErrorController,
+	http.NewSyncHandler,
 )
 
 var RouteSet = wire.NewSet(

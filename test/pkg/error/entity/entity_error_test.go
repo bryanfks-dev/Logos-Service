@@ -26,12 +26,8 @@ func TestEntityErrors(t *testing.T) {
 			"gathering_update_failed",
 		},
 		{
-			entityerror.ErrGatheringFindByIDFailed,
-			"gathering_find_by_id_failed",
-		},
-		{
-			entityerror.ErrGatheringFindAllFailed,
-			"gathering_find_all_failed",
+			entityerror.ErrGatheringRetrievalFailed,
+			"gathering_retrieval_failed",
 		},
 		{
 			entityerror.ErrGatheringDeleteFailed,
@@ -48,12 +44,8 @@ func TestEntityErrors(t *testing.T) {
 			"sermon_series_update_failed",
 		},
 		{
-			entityerror.ErrSermonSeriesFindByIDFailed,
-			"sermon_series_find_by_id_failed",
-		},
-		{
-			entityerror.ErrSermonSeriesFindAllFailed,
-			"sermon_series_find_all_failed",
+			entityerror.ErrSermonSeriesRetrievalFailed,
+			"sermon_series_retrieval_failed",
 		},
 		{
 			entityerror.ErrSermonSeriesDeleteFailed,
@@ -70,12 +62,8 @@ func TestEntityErrors(t *testing.T) {
 			"preacher_update_failed",
 		},
 		{
-			entityerror.ErrPreacherFindByIDFailed,
-			"preacher_find_by_id_failed",
-		},
-		{
-			entityerror.ErrPreacherFindAllFailed,
-			"preacher_find_all_failed",
+			entityerror.ErrPreacherRetrievalFailed,
+			"preacher_retrieval_failed",
 		},
 		{
 			entityerror.ErrPreacherDeleteFailed,
@@ -88,7 +76,7 @@ func TestEntityErrors(t *testing.T) {
 			"tag_creation_failed",
 		},
 		{entityerror.ErrTagUpdateFailed, "tag_update_failed"},
-		{entityerror.ErrTagFindAllFailed, "tag_find_all_failed"},
+		{entityerror.ErrTagRetrievalFailed, "tag_retrieval_failed"},
 		{entityerror.ErrTagDeleteFailed, "tag_delete_failed"},
 
 		// SermonNote errors
@@ -101,20 +89,8 @@ func TestEntityErrors(t *testing.T) {
 			"sermon_note_update_failed",
 		},
 		{
-			entityerror.ErrSermonNoteFindByIDFailed,
-			"sermon_note_find_by_id_failed",
-		},
-		{
-			entityerror.ErrSermonNoteFindAllFailed,
-			"sermon_note_find_all_failed",
-		},
-		{
-			entityerror.ErrSermonNoteSearchFailed,
-			"sermon_note_search_failed",
-		},
-		{
-			entityerror.ErrSermonNoteFindByScriptureFailed,
-			"sermon_note_find_by_scripture_failed",
+			entityerror.ErrSermonNoteRetrievalFailed,
+			"sermon_note_retrieval_failed",
 		},
 		{
 			entityerror.ErrSermonNoteDeleteFailed,
@@ -123,20 +99,12 @@ func TestEntityErrors(t *testing.T) {
 
 		// Bible errors
 		{
-			entityerror.ErrBibleGetVersesFailed,
-			"bible_get_verses_failed",
-		},
-		{
-			entityerror.ErrBibleSearchByTextFailed,
-			"bible_search_by_text_failed",
+			entityerror.ErrBibleRetrievalFailed,
+			"bible_retrieval_failed",
 		},
 		{
 			entityerror.ErrBibleImportTranslationPackFailed,
 			"bible_import_translation_pack_failed",
-		},
-		{
-			entityerror.ErrBibleListAvailableTranslationsFailed,
-			"bible_list_available_translations_failed",
 		},
 
 		// SyncOutbox errors
@@ -145,8 +113,8 @@ func TestEntityErrors(t *testing.T) {
 			"sync_outbox_enqueue_failed",
 		},
 		{
-			entityerror.ErrSyncOutboxGetPendingBatchFailed,
-			"sync_outbox_get_pending_batch_failed",
+			entityerror.ErrSyncOutboxRetrievalFailed,
+			"sync_outbox_retrieval_failed",
 		},
 		{
 			entityerror.ErrSyncOutboxMarkSyncedFailed,

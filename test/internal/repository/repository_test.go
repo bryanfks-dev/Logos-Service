@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	dbcorrelation "github.com/bryanfks-dev/selah/infrastructure/db/correlation"
+	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/internal/repository"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	"github.com/stretchr/testify/assert"
@@ -378,7 +378,7 @@ func TestTransactionPropagation(t *testing.T) {
 
 	tx := testDB.Begin()
 
-	txCtx := dbcorrelation.WithTx(ctx, tx)
+	txCtx := correlation.WithTx(ctx, tx)
 
 	item := &entity.Gathering{Name: "Tx Rollback Gathering"}
 
@@ -392,4 +392,146 @@ func TestTransactionPropagation(t *testing.T) {
 	for _, g := range all {
 		assert.NotEqual(t, "Tx Rollback Gathering", g.Name)
 	}
+}
+
+func TestRepositories_FindUpdatedSince(t *testing.T) {
+	ctx := context.Background()
+	testDB := setupTestDB(t)
+	testLog := zap.NewNop()
+
+	now := time.Now()
+	past := now.Add(-2 * time.Hour)
+	future := now.Add(2 * time.Hour)
+
+	t.Run("GatheringRepository includes soft-deleted rows", func(t *testing.T) {
+		repo := repository.NewGatheringRepository(testDB, testLog)
+		gActive := &entity.Gathering{
+			ID:        "g-act",
+			Name:      "Active",
+			UpdatedAt: future,
+		}
+		gDeleted := &entity.Gathering{
+			ID:        "g-del",
+			Name:      "Deleted",
+			UpdatedAt: future,
+			DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
+		}
+		gPast := &entity.Gathering{ID: "g-past", Name: "Past", UpdatedAt: past}
+
+		require.NoError(t, testDB.Create(gActive).Error)
+		require.NoError(t, testDB.Create(gDeleted).Error)
+		require.NoError(t, testDB.Create(gPast).Error)
+
+		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		require.NoError(t, err)
+		var ids []string
+		for _, r := range results {
+			ids = append(ids, r.ID)
+		}
+		assert.Contains(t, ids, "g-act")
+		assert.Contains(t, ids, "g-del")
+		assert.NotContains(t, ids, "g-past")
+	})
+
+	t.Run(
+		"SermonSeriesRepository includes soft-deleted rows",
+		func(t *testing.T) {
+			repo := repository.NewSermonSeriesRepository(testDB, testLog)
+			sActive := &entity.SermonSeries{
+				ID:        "s-act",
+				Name:      "Active",
+				UpdatedAt: future,
+			}
+			sDeleted := &entity.SermonSeries{
+				ID:        "s-del",
+				Name:      "Deleted",
+				UpdatedAt: future,
+				DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
+			}
+			require.NoError(t, testDB.Create(sActive).Error)
+			require.NoError(t, testDB.Create(sDeleted).Error)
+
+			results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+			require.NoError(t, err)
+			var ids []string
+			for _, r := range results {
+				ids = append(ids, r.ID)
+			}
+			assert.Contains(t, ids, "s-act")
+			assert.Contains(t, ids, "s-del")
+		},
+	)
+
+	t.Run("PreacherRepository includes soft-deleted rows", func(t *testing.T) {
+		repo := repository.NewPreacherRepository(testDB, testLog)
+		pActive := &entity.Preacher{
+			ID:        "p-act",
+			Name:      "Active",
+			UpdatedAt: future,
+		}
+		pDeleted := &entity.Preacher{
+			ID:        "p-del",
+			Name:      "Deleted",
+			UpdatedAt: future,
+			DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
+		}
+		require.NoError(t, testDB.Create(pActive).Error)
+		require.NoError(t, testDB.Create(pDeleted).Error)
+
+		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		require.NoError(t, err)
+		var ids []string
+		for _, r := range results {
+			ids = append(ids, r.ID)
+		}
+		assert.Contains(t, ids, "p-act")
+		assert.Contains(t, ids, "p-del")
+	})
+
+	t.Run("TagRepository returns tags updated since", func(t *testing.T) {
+		repo := repository.NewTagRepository(testDB, testLog)
+		tagRecent := &entity.Tag{
+			ID:        "t-act",
+			Name:      "Recent Tag",
+			UpdatedAt: future,
+		}
+		require.NoError(t, testDB.Create(tagRecent).Error)
+
+		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		require.NoError(t, err)
+		var ids []string
+		for _, r := range results {
+			ids = append(ids, r.ID)
+		}
+		assert.Contains(t, ids, "t-act")
+	})
+
+	t.Run(
+		"SermonNoteRepository includes soft-deleted rows and hydrates notes",
+		func(t *testing.T) {
+			repo := repository.NewSermonNoteRepository(testDB, testLog)
+			nActive := &entity.SermonNote{
+				ID:        "n-act",
+				Title:     "Active Note",
+				UpdatedAt: future,
+			}
+			nDeleted := &entity.SermonNote{
+				ID:        "n-del",
+				Title:     "Deleted Note",
+				UpdatedAt: future,
+				DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
+			}
+			require.NoError(t, testDB.Create(nActive).Error)
+			require.NoError(t, testDB.Create(nDeleted).Error)
+
+			results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+			require.NoError(t, err)
+			var ids []string
+			for _, r := range results {
+				ids = append(ids, r.ID)
+			}
+			assert.Contains(t, ids, "n-act")
+			assert.Contains(t, ids, "n-del")
+		},
+	)
 }

@@ -20,34 +20,10 @@ func ErrSermonNoteUpdateFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrSermonNoteFindByIDFailed(cause error) *apperror.AppError {
+func ErrSermonNoteRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"sermon_note_find_by_id_failed",
-		"failed to find sermon note by id",
-		cause,
-	)
-}
-
-func ErrSermonNoteFindAllFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"sermon_note_find_all_failed",
-		"failed to find sermon notes",
-		cause,
-	)
-}
-
-func ErrSermonNoteSearchFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"sermon_note_search_failed",
-		"failed to search sermon notes",
-		cause,
-	)
-}
-
-func ErrSermonNoteFindByScriptureFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"sermon_note_find_by_scripture_failed",
-		"failed to find sermon notes by scripture",
+		"sermon_note_retrieval_failed",
+		"failed to retrieve sermon note",
 		cause,
 	)
 }

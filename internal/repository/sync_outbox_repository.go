@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	dbcorrelation "github.com/bryanfks-dev/selah/infrastructure/db/correlation"
+	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
 	"go.uber.org/zap"
@@ -36,8 +36,8 @@ func NewSyncOutboxRepository(
 	}
 }
 
-func (r *syncOutboxRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx := dbcorrelation.GetTx(ctx); tx != nil {
+func (r *syncOutboxRepository) conn(ctx context.Context) *gorm.DB {
+	if tx := correlation.Tx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -50,7 +50,7 @@ func (r *syncOutboxRepository) Enqueue(
 ) error {
 	r.log.Info("enqueue started", zap.Any("param", entry))
 
-	if err := r.getDB(ctx).Create(entry).Error; err != nil {
+	if err := r.conn(ctx).Create(entry).Error; err != nil {
 		r.log.Error("enqueue failed", zap.Error(err), zap.Any("param", entry))
 
 		return entityerror.ErrSyncOutboxEnqueueFailed(err)
@@ -69,14 +69,14 @@ func (r *syncOutboxRepository) GetPendingBatch(
 
 	var entries []entity.SyncOutboxEntry
 
-	if err := r.getDB(ctx).Order("queued_at ASC").Limit(limit).Find(&entries).Error; err != nil {
+	if err := r.conn(ctx).Order("queued_at ASC").Limit(limit).Find(&entries).Error; err != nil {
 		r.log.Error(
 			"get pending batch failed",
 			zap.Error(err),
 			zap.Any("param", limit),
 		)
 
-		return nil, entityerror.ErrSyncOutboxGetPendingBatchFailed(err)
+		return nil, entityerror.ErrSyncOutboxRetrievalFailed(err)
 	}
 
 	r.log.Info("get pending batch completed", zap.Any("param", limit))
@@ -90,7 +90,7 @@ func (r *syncOutboxRepository) MarkSynced(
 ) error {
 	r.log.Info("mark synced started", zap.Any("param", ids))
 
-	if err := r.getDB(ctx).Where("id IN ?", ids).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
+	if err := r.conn(ctx).Where("id IN ?", ids).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
 		r.log.Error("mark synced failed", zap.Error(err), zap.Any("param", ids))
 
 		return entityerror.ErrSyncOutboxMarkSyncedFailed(err)
@@ -109,7 +109,7 @@ func (r *syncOutboxRepository) ClearSynced(
 
 	beforeTime := time.UnixMilli(beforeTimestamp)
 
-	if err := r.getDB(ctx).Where("queued_at <= ?", beforeTime).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
+	if err := r.conn(ctx).Where("queued_at <= ?", beforeTime).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
 		r.log.Error(
 			"clear synced failed",
 			zap.Error(err),

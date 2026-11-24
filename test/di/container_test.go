@@ -33,14 +33,11 @@ func TestNewContainer(t *testing.T) {
 	assert.NotNil(t, container.Config)
 	assert.NotNil(t, container.Log)
 	assert.NotNil(t, container.App)
-	assert.NotNil(t, container.KafkaConfig)
-	assert.NotNil(t, container.BrokerConsumer)
-	assert.NotNil(t, container.BrokerProducer)
 	assert.NotNil(t, container.TxManager)
 	assert.NotNil(t, container.RouteConfig)
 	assert.NotNil(t, container.EtcController)
 	assert.NotNil(t, container.ErrorController)
-	assert.NotNil(t, container.SermonNoteController)
+	assert.NotNil(t, container.SyncHandler)
 	assert.NotNil(t, container.SyncUsecase)
 
 	// Verify route setup completes without panic

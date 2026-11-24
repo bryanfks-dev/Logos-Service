@@ -1,4 +1,4 @@
-package modelbuilder
+package builder
 
 import (
 	"strings"
@@ -7,58 +7,52 @@ import (
 	"github.com/bryanfks-dev/selah/internal/model"
 )
 
-type ApiResponseBuilder[T any] struct {
+type APIResponseBuilder[T any] struct {
 	success   bool
 	data      *T
 	requestID string
-	error     *model.ApiError
+	error     *model.APIError
 }
 
-func NewApiResponseBuilder[T any]() *ApiResponseBuilder[T] {
-	return &ApiResponseBuilder[T]{}
+func NewAPIResponseBuilder[T any]() *APIResponseBuilder[T] {
+	return &APIResponseBuilder[T]{}
 }
 
-func (b *ApiResponseBuilder[T]) SetError(
-	error model.ApiError,
-) *ApiResponseBuilder[T] {
+func (b *APIResponseBuilder[T]) SetError(
+	err model.APIError,
+) *APIResponseBuilder[T] {
 	b.success = false
-	b.error = &error
+	b.error = &err
 
 	return b
 }
 
-func (b *ApiResponseBuilder[T]) SetData(data T) *ApiResponseBuilder[T] {
+func (b *APIResponseBuilder[T]) SetData(data T) *APIResponseBuilder[T] {
 	b.data = &data
 
 	return b
 }
 
-func (b *ApiResponseBuilder[T]) SetRequestID(
+func (b *APIResponseBuilder[T]) SetRequestID(
 	requestID string,
-) *ApiResponseBuilder[T] {
+) *APIResponseBuilder[T] {
 	b.requestID = requestID
 
 	return b
 }
 
-func (b *ApiResponseBuilder[T]) SetRequestId(
-	requestID string,
-) *ApiResponseBuilder[T] {
-	return b.SetRequestID(requestID)
-}
-
-func (b *ApiResponseBuilder[T]) Build() *model.ApiResponse[T] {
+func (b *APIResponseBuilder[T]) Build() *model.APIResponse[T] {
 	if strings.TrimSpace(b.requestID) == "" {
 		panic("`requestID` must not blank")
 	}
 
 	success := b.error == nil
-	meta := model.ApiMeta{
+	meta := model.APIMeta{
 		RequestID: b.requestID,
 		Timestamp: time.Now(),
 	}
 
-	return &model.ApiResponse[T]{
+	return &model.APIResponse[T]{
 		Success: success,
 		Data:    b.data,
 		Error:   b.error,

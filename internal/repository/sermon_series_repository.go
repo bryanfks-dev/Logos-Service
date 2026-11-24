@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	dbcorrelation "github.com/bryanfks-dev/selah/infrastructure/db/correlation"
+	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
 	"go.uber.org/zap"
@@ -16,6 +16,10 @@ type SermonSeriesRepository interface {
 	Update(ctx context.Context, series *entity.SermonSeries) error
 	FindByID(ctx context.Context, id string) (*entity.SermonSeries, error)
 	FindAll(ctx context.Context) ([]entity.SermonSeries, error)
+	FindUpdatedSince(
+		ctx context.Context,
+		since int64,
+	) ([]*entity.SermonSeries, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -34,8 +38,8 @@ func NewSermonSeriesRepository(
 	}
 }
 
-func (r *sermonSeriesRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx := dbcorrelation.GetTx(ctx); tx != nil {
+func (r *sermonSeriesRepository) conn(ctx context.Context) *gorm.DB {
+	if tx := correlation.Tx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -48,7 +52,7 @@ func (r *sermonSeriesRepository) Create(
 ) error {
 	r.log.Info("create started", zap.Any("param", series))
 
-	if err := r.getDB(ctx).Create(series).Error; err != nil {
+	if err := r.conn(ctx).Create(series).Error; err != nil {
 		r.log.Error("create failed", zap.Error(err), zap.Any("param", series))
 
 		return entityerror.ErrSermonSeriesCreationFailed(err)
@@ -65,7 +69,7 @@ func (r *sermonSeriesRepository) Update(
 ) error {
 	r.log.Info("update started", zap.Any("param", series))
 
-	if err := r.getDB(ctx).Save(series).Error; err != nil {
+	if err := r.conn(ctx).Save(series).Error; err != nil {
 		r.log.Error("update failed", zap.Error(err), zap.Any("param", series))
 
 		return entityerror.ErrSermonSeriesUpdateFailed(err)
@@ -84,14 +88,14 @@ func (r *sermonSeriesRepository) FindByID(
 
 	var item entity.SermonSeries
 
-	if err := r.getDB(ctx).Where("id = ?", id).First(&item).Error; err != nil {
+	if err := r.conn(ctx).Where("id = ?", id).First(&item).Error; err != nil {
 		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrSermonSeriesNotFound(id)
 		}
 
-		return nil, entityerror.ErrSermonSeriesFindByIDFailed(err)
+		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
 
 	r.log.Info("find by id completed", zap.Any("param", id))
@@ -106,10 +110,10 @@ func (r *sermonSeriesRepository) FindAll(
 
 	var items []entity.SermonSeries
 
-	if err := r.getDB(ctx).Find(&items).Error; err != nil {
+	if err := r.conn(ctx).Find(&items).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
 
-		return nil, entityerror.ErrSermonSeriesFindAllFailed(err)
+		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
 
 	r.log.Info("find all completed", zap.Any("param", nil))
@@ -117,10 +121,43 @@ func (r *sermonSeriesRepository) FindAll(
 	return items, nil
 }
 
+func (r *sermonSeriesRepository) FindUpdatedSince(
+	ctx context.Context,
+	since int64,
+) ([]*entity.SermonSeries, error) {
+	r.log.Info("find updated since started", zap.Int64("since", since))
+
+	sinceTime := parseSinceTime(since)
+	var items []*entity.SermonSeries
+
+	err := r.conn(ctx).
+		Unscoped().
+		Where("updated_at > ?", sinceTime).
+		Order("updated_at ASC").
+		Find(&items).Error
+	if err != nil {
+		r.log.Error(
+			"find updated since failed",
+			zap.Error(err),
+			zap.Int64("since", since),
+		)
+
+		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
+	}
+
+	if items == nil {
+		items = make([]*entity.SermonSeries, 0)
+	}
+
+	r.log.Info("find updated since completed", zap.Int("count", len(items)))
+
+	return items, nil
+}
+
 func (r *sermonSeriesRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.getDB(ctx).Where("id = ?", id).Delete(&entity.SermonSeries{}).Error; err != nil {
+	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.SermonSeries{}).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonSeriesDeleteFailed(err)

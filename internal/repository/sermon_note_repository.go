@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	dbcorrelation "github.com/bryanfks-dev/selah/infrastructure/db/correlation"
+	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
 	"go.uber.org/zap"
@@ -27,6 +27,10 @@ type SermonNoteRepository interface {
 		ctx context.Context,
 		query entity.ScriptureQuery,
 	) ([]entity.SermonNote, error)
+	FindUpdatedSince(
+		ctx context.Context,
+		since int64,
+	) ([]*entity.SermonNote, error)
 	Delete(ctx context.Context, id string) error
 	Restore(ctx context.Context, id string) error
 }
@@ -46,8 +50,8 @@ func NewSermonNoteRepository(
 	}
 }
 
-func (r *sermonNoteRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx := dbcorrelation.GetTx(ctx); tx != nil {
+func (r *sermonNoteRepository) conn(ctx context.Context) *gorm.DB {
+	if tx := correlation.Tx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -90,19 +94,19 @@ func (r *sermonNoteRepository) saveChildren(
 	ctx context.Context,
 	note *entity.SermonNote,
 ) error {
-	if err := r.getDB(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteVerse{}).Error; err != nil {
+	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteVerse{}).Error; err != nil {
 		return err
 	}
 
 	for i := range note.Verses {
 		note.Verses[i].NoteID = note.ID
 
-		if err := r.getDB(ctx).Create(&note.Verses[i]).Error; err != nil {
+		if err := r.conn(ctx).Create(&note.Verses[i]).Error; err != nil {
 			return err
 		}
 	}
 
-	if err := r.getDB(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteTag{}).Error; err != nil {
+	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteTag{}).Error; err != nil {
 		return err
 	}
 
@@ -112,19 +116,19 @@ func (r *sermonNoteRepository) saveChildren(
 			TagID:  tag.ID,
 		}
 
-		if err := r.getDB(ctx).Create(&noteTag).Error; err != nil {
+		if err := r.conn(ctx).Create(&noteTag).Error; err != nil {
 			return err
 		}
 	}
 
-	if err := r.getDB(ctx).Where("note_id = ?", note.ID).Delete(&entity.NotesFTS{}).Error; err != nil {
+	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NotesFTS{}).Error; err != nil {
 		return err
 	}
 
 	if note.FTS != nil {
 		note.FTS.NoteID = note.ID
 
-		if err := r.getDB(ctx).Create(note.FTS).Error; err != nil {
+		if err := r.conn(ctx).Create(note.FTS).Error; err != nil {
 			return err
 		}
 	} else {
@@ -134,7 +138,7 @@ func (r *sermonNoteRepository) saveChildren(
 			PlainText: note.PlainText,
 		}
 
-		if err := r.getDB(ctx).Create(fts).Error; err != nil {
+		if err := r.conn(ctx).Create(fts).Error; err != nil {
 			return err
 		}
 	}
@@ -148,7 +152,7 @@ func (r *sermonNoteRepository) Create(
 ) error {
 	r.log.Info("create started", zap.Any("param", note))
 
-	db := r.getDB(ctx)
+	db := r.conn(ctx)
 
 	if err := db.Create(note).Error; err != nil {
 		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
@@ -185,7 +189,7 @@ func (r *sermonNoteRepository) Update(
 		return entityerror.ErrSermonNoteUpdateFailed(err)
 	}
 
-	db := r.getDB(ctx)
+	db := r.conn(ctx)
 
 	if err := db.Save(note).Error; err != nil {
 		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
@@ -212,22 +216,22 @@ func (r *sermonNoteRepository) FindByID(
 
 	var note entity.SermonNote
 
-	if err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&note).Error; err != nil {
+	if err := r.conn(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&note).Error; err != nil {
 		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrSermonNoteNotFound(id)
 		}
 
-		return nil, entityerror.ErrSermonNoteFindByIDFailed(err)
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	var verses []entity.NoteVerse
-	_ = r.getDB(ctx).Where("note_id = ?", id).Find(&verses).Error
+	_ = r.conn(ctx).Where("note_id = ?", id).Find(&verses).Error
 	note.Verses = verses
 
 	var tags []entity.Tag
-	_ = r.getDB(ctx).Table("tags").
+	_ = r.conn(ctx).Table("tags").
 		Joins("JOIN note_tags ON note_tags.tag_id = tags.id").
 		Where("note_tags.note_id = ?", id).
 		Find(&tags).
@@ -235,7 +239,7 @@ func (r *sermonNoteRepository) FindByID(
 	note.Tags = tags
 
 	var fts entity.NotesFTS
-	if err := r.getDB(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
+	if err := r.conn(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
 		note.FTS = &fts
 	}
 
@@ -254,7 +258,7 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 
 	var note entity.SermonNote
 
-	if err := r.getDB(ctx).Unscoped().Where("id = ?", id).First(&note).Error; err != nil {
+	if err := r.conn(ctx).Unscoped().Where("id = ?", id).First(&note).Error; err != nil {
 		r.log.Error(
 			"find by id unscoped failed",
 			zap.Error(err),
@@ -265,15 +269,15 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 			return nil, entityerror.ErrSermonNoteNotFound(id)
 		}
 
-		return nil, entityerror.ErrSermonNoteFindByIDFailed(err)
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	var verses []entity.NoteVerse
-	_ = r.getDB(ctx).Where("note_id = ?", id).Find(&verses).Error
+	_ = r.conn(ctx).Where("note_id = ?", id).Find(&verses).Error
 	note.Verses = verses
 
 	var tags []entity.Tag
-	_ = r.getDB(ctx).Table("tags").
+	_ = r.conn(ctx).Table("tags").
 		Joins("JOIN note_tags ON note_tags.tag_id = tags.id").
 		Where("note_tags.note_id = ?", id).
 		Find(&tags).
@@ -281,7 +285,7 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 	note.Tags = tags
 
 	var fts entity.NotesFTS
-	if err := r.getDB(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
+	if err := r.conn(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
 		note.FTS = &fts
 	}
 
@@ -298,7 +302,7 @@ func (r *sermonNoteRepository) FindAll(
 ) ([]entity.SermonNote, error) {
 	r.log.Info("find all started", zap.Any("param", filter))
 
-	db := r.getDB(ctx)
+	db := r.conn(ctx)
 	if filter.IncludeDeleted {
 		db = db.Unscoped()
 	}
@@ -346,7 +350,7 @@ func (r *sermonNoteRepository) FindAll(
 	if err := query.Preload("Verses").Preload("Tags").Find(&notes).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", filter))
 
-		return nil, entityerror.ErrSermonNoteFindAllFailed(err)
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	for i := range notes {
@@ -368,7 +372,7 @@ func (r *sermonNoteRepository) Search(
 
 	pattern := "%" + query + "%"
 
-	err := r.getDB(ctx).Table("sermon_notes").
+	err := r.conn(ctx).Table("sermon_notes").
 		Joins("JOIN notes_fts ON notes_fts.note_id = sermon_notes.id").
 		Where("sermon_notes.deleted_at IS NULL").
 		Where("notes_fts.title LIKE ? OR notes_fts.preacher_name LIKE ? OR notes_fts.plain_text LIKE ?", pattern, pattern, pattern).
@@ -377,7 +381,7 @@ func (r *sermonNoteRepository) Search(
 	if err != nil {
 		r.log.Error("search failed", zap.Error(err), zap.Any("param", query))
 
-		return nil, entityerror.ErrSermonNoteSearchFailed(err)
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	r.log.Info("search completed", zap.Any("param", query))
@@ -391,7 +395,7 @@ func (r *sermonNoteRepository) FindByScripture(
 ) ([]entity.SermonNote, error) {
 	r.log.Info("find by scripture started", zap.Any("param", query))
 
-	dbQuery := r.getDB(ctx).Table("sermon_notes").
+	dbQuery := r.conn(ctx).Table("sermon_notes").
 		Joins("JOIN note_verses ON note_verses.note_id = sermon_notes.id").
 		Where("sermon_notes.deleted_at IS NULL").
 		Where("note_verses.translation = ? AND note_verses.book_id = ? AND note_verses.chapter = ? AND note_verses.verse_start >= ?",
@@ -410,7 +414,7 @@ func (r *sermonNoteRepository) FindByScripture(
 			zap.Any("param", query),
 		)
 
-		return nil, entityerror.ErrSermonNoteFindByScriptureFailed(err)
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	r.log.Info("find by scripture completed", zap.Any("param", query))
@@ -421,7 +425,7 @@ func (r *sermonNoteRepository) FindByScripture(
 func (r *sermonNoteRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.getDB(ctx).Where("id = ?", id).Delete(&entity.SermonNote{}).Error; err != nil {
+	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.SermonNote{}).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonNoteDeleteFailed(err)
@@ -435,7 +439,7 @@ func (r *sermonNoteRepository) Delete(ctx context.Context, id string) error {
 func (r *sermonNoteRepository) Restore(ctx context.Context, id string) error {
 	r.log.Info("restore started", zap.Any("param", id))
 
-	if err := r.getDB(ctx).Unscoped().Model(&entity.SermonNote{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
+	if err := r.conn(ctx).Unscoped().Model(&entity.SermonNote{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
 		r.log.Error("restore failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonNoteUpdateFailed(err)
@@ -444,4 +448,43 @@ func (r *sermonNoteRepository) Restore(ctx context.Context, id string) error {
 	r.log.Info("restore completed", zap.Any("param", id))
 
 	return nil
+}
+
+func (r *sermonNoteRepository) FindUpdatedSince(
+	ctx context.Context,
+	since int64,
+) ([]*entity.SermonNote, error) {
+	r.log.Info("find updated since started", zap.Int64("since", since))
+
+	sinceTime := parseSinceTime(since)
+	var notes []*entity.SermonNote
+
+	err := r.conn(ctx).
+		Unscoped().
+		Where("updated_at > ?", sinceTime).
+		Order("updated_at ASC").
+		Preload("Verses").
+		Preload("Tags").
+		Find(&notes).Error
+	if err != nil {
+		r.log.Error(
+			"find updated since failed",
+			zap.Error(err),
+			zap.Int64("since", since),
+		)
+
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
+	}
+
+	for _, n := range notes {
+		r.hydrateNoteFile(n)
+	}
+
+	if notes == nil {
+		notes = make([]*entity.SermonNote, 0)
+	}
+
+	r.log.Info("find updated since completed", zap.Int("count", len(notes)))
+
+	return notes, nil
 }

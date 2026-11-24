@@ -3,6 +3,7 @@ app:
 
 web:
   port: 3333
+  token: ""
 
 log:
   level: debug
@@ -19,7 +20,10 @@ database:
     lifetime: 300
 
 kafka:
-  broker: localhost:9092
-  group_id: selah-broker-group
+  enabled: true
+  server: localhost:9092
+  group:
+    id: selah
+  offset:
+    reset: earliest
   topic: selah-events
-

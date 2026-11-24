@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	github.com/google/wire v0.7.0
 	github.com/labstack/echo/v5 v5.4.7
+	github.com/segmentio/kafka-go v0.4.51
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	github.com/swaggo/echo-swagger/v2 v2.0.1
@@ -167,7 +168,6 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/segmentio/golines v0.13.0 // indirect
-	github.com/segmentio/kafka-go v0.4.51 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/snowflakedb/gosnowflake v1.6.19 // indirect

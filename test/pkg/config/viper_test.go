@@ -14,8 +14,14 @@ func TestNewViper(t *testing.T) {
 		assert.NotNil(t, v)
 		assert.Equal(t, "skeleton", v.GetString("app.name"))
 		assert.Equal(t, 3333, v.GetInt("web.port"))
+		assert.Equal(t, "debug", v.GetString("log.level"))
 		assert.Equal(t, "selah_dev", v.GetString("database.name"))
 		assert.NotEmpty(t, v.GetString("database.host"))
+		assert.True(t, v.GetBool("kafka.enabled"))
+		assert.Equal(t, "localhost:9092", v.GetString("kafka.server"))
+		assert.Equal(t, "selah", v.GetString("kafka.group.id"))
+		assert.Equal(t, "earliest", v.GetString("kafka.offset.reset"))
+		assert.Equal(t, "selah-events", v.GetString("kafka.topic"))
 	})
 
 	t.Run("panics when config file not found", func(t *testing.T) {

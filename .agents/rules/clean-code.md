@@ -82,10 +82,36 @@
 # Component & File Naming Rules
 
 - **Aggregate Entity Alignment with Layer Suffix**:
-  - File names and type definitions for layer components (controllers, repositories, usecases) must be named after their corresponding aggregate entity with the layer suffix:
-    - Filename pattern: `<aggregate_entity>_<kind_of_layer>.go` (e.g., `sermon_note_controller.go`, `sermon_note_repository.go`).
+  - File names and type definitions for layer components (controllers, repositories, usecases, converters) must be named after their corresponding aggregate entity with the layer suffix:
+    - Filename pattern: `<aggregate_entity>_<kind_of_layer>.go` (e.g., `sermon_note_controller.go`, `sermon_note_repository.go`, `sermon_note_converter.go`).
     - Type pattern: `<AggregateEntity><KindOfLayer>` (e.g., `SermonNoteController`, `SermonNoteRepository`).
   - Do not abbreviate or drop parts of the aggregate entity name (e.g., avoid `note_controller.go`, use `sermon_note_controller.go`).
+
+- **Converter Function Naming Rules**:
+  - Converter functions transforming domain entities into transport or external representations must strictly follow the pattern:
+    `<Domain>To<Kind>`
+    where `<Domain>` is the entity name without the `Entity` suffix and `<Kind>` is the target representation (`Response`, `Event`, `Item`, `DTO`):
+    - *Examples*: `SermonNoteToResponse`, `SermonNoteToEvent`, `SermonNoteToSyncItem`.
+  - Inbound converters transforming external representations into domain entities must strictly follow the inverse pattern:
+    `<Kind>To<Domain>`
+    - *Examples*: `SyncItemToSermonNote`, `CreateNoteRequestToSermonNote`, `NoteEventToSermonNote`.
+  - Avoid redundant `Entity` suffixes in function names (e.g., use `SermonNoteToResponse`, not `SermonNoteEntityToResponse` or `NoteEntityToSyncItem`).
+  - Never use generic or vague names like `Convert`, `Transform`, `Map`, or `Process`.
+
+- **Error Naming Rules (Operation-Level, Avoid Method-Specific Coupling)**:
+  - Error definitions, variables, and constructor functions must be named after broad operational outcomes rather than specific method signatures, query parameters, or internal lookup mechanisms:
+    - **Prefer Operation-Level Outcomes**:
+      - Use `Err<Entity>RetrievalFailed` instead of specific query names like `Err<Entity>FindByIDFailed`, `Err<Entity>FindAllFailed`, `Err<Entity>FindBySlugFailed`, or `Err<Entity>QueryFailed`.
+      - Use `Err<Entity>CreationFailed` for persistence creation failures.
+      - Use `Err<Entity>UpdateFailed` for persistence update failures.
+      - Use `Err<Entity>DeletionFailed` (or `Err<Entity>DeleteFailed`) for deletion failures.
+      - Use `Err<Entity>NotFound` for domain entities that cannot be located.
+      - Use `Err<Entity>AlreadyExists` or `Err<Entity>Conflict` for duplicate or conflicting resources.
+    - **Avoid Implementation Leakage**:
+      - Error names must NOT leak query parameters or implementation details (e.g., avoid `FindByID`, `GetByEmail`, `QueryByDate`).
+      - *Incorrect*: `ErrTagFindByIDFailed`, `ErrTagFindAllFailed` $\longrightarrow$ *Correct*: `ErrTagRetrievalFailed`.
+      - *Incorrect*: `ErrGatheringFindByIDFailed` $\longrightarrow$ *Correct*: `ErrGatheringRetrievalFailed`.
+      - *Incorrect*: `ErrSermonNoteFindByIDFailed` $\longrightarrow$ *Correct*: `ErrSermonNoteRetrievalFailed`.
 
 # Go Package Naming Rules (Effective Go)
 

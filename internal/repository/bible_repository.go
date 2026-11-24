@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	dbcorrelation "github.com/bryanfks-dev/selah/infrastructure/db/correlation"
+	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
 	"go.uber.org/zap"
@@ -36,8 +36,8 @@ func NewBibleRepository(db *gorm.DB, log *zap.Logger) BibleRepository {
 	}
 }
 
-func (r *bibleRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx := dbcorrelation.GetTx(ctx); tx != nil {
+func (r *bibleRepository) conn(ctx context.Context) *gorm.DB {
+	if tx := correlation.Tx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -50,7 +50,7 @@ func (r *bibleRepository) GetVerses(
 ) ([]entity.BibleVerse, error) {
 	r.log.Info("get verses started", zap.Any("param", query))
 
-	q := r.getDB(ctx).
+	q := r.conn(ctx).
 		Where("translation = ? AND book_id = ? AND chapter = ? AND verse >= ?",
 			query.Translation, query.BookID, query.Chapter, query.VerseStart)
 
@@ -67,7 +67,7 @@ func (r *bibleRepository) GetVerses(
 			zap.Any("param", query),
 		)
 
-		return nil, entityerror.ErrBibleGetVersesFailed(err)
+		return nil, entityerror.ErrBibleRetrievalFailed(err)
 	}
 
 	r.log.Info("get verses completed", zap.Any("param", query))
@@ -86,7 +86,7 @@ func (r *bibleRepository) SearchByText(
 
 	var verses []entity.BibleVerse
 
-	err := r.getDB(ctx).Table("bible_verses").
+	err := r.conn(ctx).Table("bible_verses").
 		Joins("JOIN bible_fts ON bible_fts.verse_id = bible_verses.id").
 		Where("bible_fts.translation = ? AND (bible_fts.text LIKE ? OR bible_fts.display_ref LIKE ?)", translation, pattern, pattern).
 		Order("bible_verses.book_id ASC, bible_verses.chapter ASC, bible_verses.verse ASC").
@@ -99,7 +99,7 @@ func (r *bibleRepository) SearchByText(
 			zap.Any("param", query),
 		)
 
-		return nil, entityerror.ErrBibleSearchByTextFailed(err)
+		return nil, entityerror.ErrBibleRetrievalFailed(err)
 	}
 
 	r.log.Info("search by text completed", zap.Any("param", query))
@@ -113,7 +113,7 @@ func (r *bibleRepository) ImportTranslationPack(
 ) error {
 	r.log.Info("import translation pack started", zap.Any("param", len(verses)))
 
-	db := r.getDB(ctx)
+	db := r.conn(ctx)
 
 	for i := range verses {
 		if err := db.Create(&verses[i]).Error; err != nil {
@@ -159,14 +159,14 @@ func (r *bibleRepository) ListAvailableTranslations(
 
 	var translations []string
 
-	if err := r.getDB(ctx).Model(&entity.BibleVerse{}).Distinct().Pluck("translation", &translations).Error; err != nil {
+	if err := r.conn(ctx).Model(&entity.BibleVerse{}).Distinct().Pluck("translation", &translations).Error; err != nil {
 		r.log.Error(
 			"list available translations failed",
 			zap.Error(err),
 			zap.Any("param", nil),
 		)
 
-		return nil, entityerror.ErrBibleListAvailableTranslationsFailed(err)
+		return nil, entityerror.ErrBibleRetrievalFailed(err)
 	}
 
 	r.log.Info("list available translations completed", zap.Any("param", nil))

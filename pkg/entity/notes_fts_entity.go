@@ -14,5 +14,4 @@ func (NotesFTS) TableName() string {
 	return "notes_fts"
 }
 
-type NotesFTSEntity = NotesFTS
 type NotesFts = NotesFTS

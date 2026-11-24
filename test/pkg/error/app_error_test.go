@@ -109,4 +109,18 @@ func TestAppError(t *testing.T) {
 			apperror.NewErrExternalService("c", "m", nil).Kind,
 		)
 	})
+
+	t.Run("Sentinel errors", func(t *testing.T) {
+		assert.EqualError(t, apperror.ErrConflict, "conflict")
+		assert.EqualError(t, apperror.ErrInvalidPayload, "invalid payload")
+		assert.True(t, errors.Is(apperror.ErrConflict, apperror.ErrConflict))
+		assert.True(
+			t,
+			errors.Is(apperror.ErrInvalidPayload, apperror.ErrInvalidPayload),
+		)
+		assert.False(
+			t,
+			errors.Is(apperror.ErrConflict, apperror.ErrInvalidPayload),
+		)
+	})
 }

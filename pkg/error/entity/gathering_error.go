@@ -20,18 +20,10 @@ func ErrGatheringUpdateFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrGatheringFindByIDFailed(cause error) *apperror.AppError {
+func ErrGatheringRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"gathering_find_by_id_failed",
-		"failed to find gathering by id",
-		cause,
-	)
-}
-
-func ErrGatheringFindAllFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"gathering_find_all_failed",
-		"failed to find all gatherings",
+		"gathering_retrieval_failed",
+		"failed to retrieve gathering",
 		cause,
 	)
 }

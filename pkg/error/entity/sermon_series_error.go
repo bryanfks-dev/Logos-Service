@@ -20,18 +20,10 @@ func ErrSermonSeriesUpdateFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrSermonSeriesFindByIDFailed(cause error) *apperror.AppError {
+func ErrSermonSeriesRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"sermon_series_find_by_id_failed",
-		"failed to find sermon series by id",
-		cause,
-	)
-}
-
-func ErrSermonSeriesFindAllFailed(cause error) *apperror.AppError {
-	return apperror.NewErrInternal(
-		"sermon_series_find_all_failed",
-		"failed to find all sermon series",
+		"sermon_series_retrieval_failed",
+		"failed to retrieve sermon series",
 		cause,
 	)
 }

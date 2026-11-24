@@ -3,30 +3,28 @@ package config
 import "github.com/spf13/viper"
 
 type KafkaConfig struct {
-	Broker  string
-	GroupID string
-	Topic   string
+	Enabled     bool
+	Server      string
+	Broker      string
+	GroupID     string
+	OffsetReset string
 }
 
-func NewKafkaConfig(v *viper.Viper) *KafkaConfig {
-	broker := v.GetString("kafka.broker")
-	if broker == "" {
-		broker = "localhost:9092"
+func NewKafka(v *viper.Viper) *KafkaConfig {
+	enabled := false
+	if v.IsSet("kafka.enabled") {
+		enabled = v.GetBool("kafka.enabled")
 	}
 
-	groupID := v.GetString("kafka.group_id")
-	if groupID == "" {
-		groupID = "selah-broker-group"
-	}
-
-	topic := v.GetString("kafka.topic")
-	if topic == "" {
-		topic = "selah-events"
-	}
+	server := v.GetString("kafka.server")
+	groupID := v.GetString("kafka.group.id")
+	offsetReset := v.GetString("kafka.offset.reset")
 
 	return &KafkaConfig{
-		Broker:  broker,
-		GroupID: groupID,
-		Topic:   topic,
+		Enabled:     enabled,
+		Server:      server,
+		Broker:      server,
+		GroupID:     groupID,
+		OffsetReset: offsetReset,
 	}
 }

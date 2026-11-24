@@ -14,5 +14,4 @@ func (BibleFTS) TableName() string {
 	return "bible_fts"
 }
 
-type BibleFTSEntity = BibleFTS
 type BibleFts = BibleFTS

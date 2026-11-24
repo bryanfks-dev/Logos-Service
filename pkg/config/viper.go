@@ -16,9 +16,11 @@ func NewViper() *viper.Viper {
 	viper.AddConfigPath("../../")
 	viper.AddConfigPath("../../../")
 	viper.AddConfigPath("../../../../")
+	viper.AddConfigPath("../../../../../")
+	viper.AddConfigPath("../../../../../../")
 
 	if err := viper.ReadInConfig(); err != nil {
-		message := fmt.Errorf("fatal error config file: %v\n", err)
+		message := fmt.Errorf("fatal error config file: %w", err)
 		panic(message)
 	}
 

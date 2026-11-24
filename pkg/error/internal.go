@@ -11,7 +11,7 @@ func NewErrInternal(code, message string, cause error) *AppError {
 
 func NewErrUnavailable(code, message string, cause error) *AppError {
 	return &AppError{
-		Kind:    ErrKindUnvailable,
+		Kind:    ErrKindUnavailable,
 		Code:    code,
 		Message: message,
 		Err:     cause,

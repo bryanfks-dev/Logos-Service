@@ -7,10 +7,9 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/selah/infrastructure/broker"
-	"github.com/bryanfks-dev/selah/infrastructure/db"
-	"github.com/bryanfks-dev/selah/internal/delivery"
-	"github.com/bryanfks-dev/selah/internal/delivery/route"
+	"github.com/bryanfks-dev/selah/db"
+	"github.com/bryanfks-dev/selah/internal/delivery/http"
+	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
 	"github.com/bryanfks-dev/selah/internal/repository"
 	"github.com/bryanfks-dev/selah/internal/usecase"
 	"github.com/bryanfks-dev/selah/pkg/config"
@@ -25,32 +24,29 @@ func NewContainer() (*Container, error) {
 	viper := config.NewViper()
 	logger := config.NewLogger(viper)
 	echo := config.NewServer(viper)
-	kafkaConfig := config.NewKafkaConfig(viper)
-	consumer := broker.NewKafkaConsumer(kafkaConfig, logger)
-	producer := broker.NewKafkaProducer(kafkaConfig, logger)
 	gormDB := config.NewDatabase(viper, logger)
 	txManager := db.NewTxManager(gormDB)
-	etcController := delivery.NewEtcController()
-	errorController := delivery.NewErrorController(logger)
+	etcController := http.NewEtcController()
+	errorController := http.NewErrorController(logger)
 	sermonNoteRepository := repository.NewSermonNoteRepository(gormDB, logger)
+	gatheringRepository := repository.NewGatheringRepository(gormDB, logger)
+	sermonSeriesRepository := repository.NewSermonSeriesRepository(gormDB, logger)
+	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
 	tagRepository := repository.NewTagRepository(gormDB, logger)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(gormDB, logger)
-	syncUsecase := usecase.NewSyncUsecase(txManager, sermonNoteRepository, tagRepository, syncOutboxRepository, logger)
-	sermonNoteController := delivery.NewSermonNoteController(syncUsecase, logger)
-	routeConfig := route.NewRouteConfig(echo, etcController, errorController, sermonNoteController)
+	syncUsecase := usecase.NewSyncUsecase(txManager, sermonNoteRepository, gatheringRepository, sermonSeriesRepository, preacherRepository, tagRepository, syncOutboxRepository, logger)
+	syncHandler := http.NewSyncHandler(syncUsecase, logger)
+	routeConfig := route.NewRouteConfig(echo, etcController, errorController, syncHandler)
 	container := &Container{
-		Config:               viper,
-		Log:                  logger,
-		App:                  echo,
-		KafkaConfig:          kafkaConfig,
-		BrokerConsumer:       consumer,
-		BrokerProducer:       producer,
-		TxManager:            txManager,
-		RouteConfig:          routeConfig,
-		EtcController:        etcController,
-		ErrorController:      errorController,
-		SermonNoteController: sermonNoteController,
-		SyncUsecase:          syncUsecase,
+		Config:          viper,
+		Log:             logger,
+		App:             echo,
+		TxManager:       txManager,
+		RouteConfig:     routeConfig,
+		EtcController:   etcController,
+		ErrorController: errorController,
+		SyncHandler:     syncHandler,
+		SyncUsecase:     syncUsecase,
 	}
 	return container, nil
 }
@@ -62,17 +58,13 @@ type Container struct {
 	Log    *zap.Logger
 	App    *echo.Echo
 
-	KafkaConfig    *config.KafkaConfig
-	BrokerConsumer broker.Consumer
-	BrokerProducer broker.Producer
-
 	TxManager *db.TxManager
 
 	RouteConfig *route.RouteConfig
 
-	EtcController        *delivery.EtcController
-	ErrorController      *delivery.ErrorController
-	SermonNoteController *delivery.SermonNoteController
+	EtcController   *http.EtcController
+	ErrorController *http.ErrorController
+	SyncHandler     *http.SyncHandler
 
-	SyncUsecase usecase.SyncUsecase
+	SyncUsecase *usecase.SyncUsecase
 }

@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +44,7 @@ func (SermonNote) TableName() string {
 
 func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
-		e.ID = uuid.New().String()
+		e.ID = uuid.NewV7().String()
 	}
 
 	if e.FilePath == "" {
@@ -57,8 +57,6 @@ func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 
 	return nil
 }
-
-type SermonNoteEntity = SermonNote
 
 type SermonNoteFilter struct {
 	GatheringID    *string

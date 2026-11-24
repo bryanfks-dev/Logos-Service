@@ -20,10 +20,10 @@ func ErrTagUpdateFailed(cause error) *apperror.AppError {
 	)
 }
 
-func ErrTagFindAllFailed(cause error) *apperror.AppError {
+func ErrTagRetrievalFailed(cause error) *apperror.AppError {
 	return apperror.NewErrInternal(
-		"tag_find_all_failed",
-		"failed to find all tags",
+		"tag_retrieval_failed",
+		"failed to retrieve tag",
 		cause,
 	)
 }

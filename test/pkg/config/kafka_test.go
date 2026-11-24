@@ -8,25 +8,46 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewKafkaConfig_Default(t *testing.T) {
+func TestNewKafka_Unset(t *testing.T) {
 	v := viper.New()
 
-	cfg := config.NewKafkaConfig(v)
+	cfg := config.NewKafka(v)
 
-	assert.Equal(t, "localhost:9092", cfg.Broker)
-	assert.Equal(t, "selah-broker-group", cfg.GroupID)
-	assert.Equal(t, "selah-events", cfg.Topic)
+	assert.False(t, cfg.Enabled)
+	assert.Empty(t, cfg.Server)
+	assert.Empty(t, cfg.Broker)
+	assert.Empty(t, cfg.GroupID)
+	assert.Empty(t, cfg.OffsetReset)
 }
 
-func TestNewKafkaConfig_Custom(t *testing.T) {
+func TestNewKafka_EnabledWithSettings(t *testing.T) {
 	v := viper.New()
-	v.Set("kafka.broker", "kafka-single:9092")
-	v.Set("kafka.group_id", "custom-group")
-	v.Set("kafka.topic", "custom-topic")
+	v.Set("kafka.enabled", true)
+	v.Set("kafka.server", "localhost:9092")
+	v.Set("kafka.group.id", "selah")
+	v.Set("kafka.offset.reset", "earliest")
 
-	cfg := config.NewKafkaConfig(v)
+	cfg := config.NewKafka(v)
 
-	assert.Equal(t, "kafka-single:9092", cfg.Broker)
-	assert.Equal(t, "custom-group", cfg.GroupID)
-	assert.Equal(t, "custom-topic", cfg.Topic)
+	assert.True(t, cfg.Enabled)
+	assert.Equal(t, "localhost:9092", cfg.Server)
+	assert.Equal(t, "localhost:9092", cfg.Broker)
+	assert.Equal(t, "selah", cfg.GroupID)
+	assert.Equal(t, "earliest", cfg.OffsetReset)
+}
+
+func TestNewKafka_Disabled(t *testing.T) {
+	v := viper.New()
+	v.Set("kafka.enabled", false)
+	v.Set("kafka.server", "kafka-cluster:9092")
+	v.Set("kafka.group.id", "my-group")
+	v.Set("kafka.offset.reset", "latest")
+
+	cfg := config.NewKafka(v)
+
+	assert.False(t, cfg.Enabled)
+	assert.Equal(t, "kafka-cluster:9092", cfg.Server)
+	assert.Equal(t, "kafka-cluster:9092", cfg.Broker)
+	assert.Equal(t, "my-group", cfg.GroupID)
+	assert.Equal(t, "latest", cfg.OffsetReset)
 }

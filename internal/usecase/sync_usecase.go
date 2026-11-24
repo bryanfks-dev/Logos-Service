@@ -2,219 +2,314 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"os"
 	"time"
+	"uuid"
 
-	"github.com/bryanfks-dev/selah/infrastructure/db"
+	"github.com/bryanfks-dev/selah/db"
 	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/converter"
 	"github.com/bryanfks-dev/selah/internal/repository"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-type SyncUsecase interface {
-	SyncNotes(
-		ctx context.Context,
-		req *model.SyncNotesRequest,
-	) (*model.SyncNotesResponse, error)
-}
-
-type syncUsecase struct {
-	txManager      *db.TxManager
-	sermonNoteRepo repository.SermonNoteRepository
-	tagRepo        repository.TagRepository
-	syncOutboxRepo repository.SyncOutboxRepository
-	log            *zap.Logger
+type SyncUsecase struct {
+	txManager              *db.TxManager
+	sermonNoteRepository   repository.SermonNoteRepository
+	gatheringRepository    repository.GatheringRepository
+	sermonSeriesRepository repository.SermonSeriesRepository
+	preacherRepository     repository.PreacherRepository
+	tagRepository          repository.TagRepository
+	syncOutboxRepository   repository.SyncOutboxRepository
+	log                    *zap.Logger
 }
 
 func NewSyncUsecase(
 	txManager *db.TxManager,
-	sermonNoteRepo repository.SermonNoteRepository,
-	tagRepo repository.TagRepository,
-	syncOutboxRepo repository.SyncOutboxRepository,
+	sermonNoteRepository repository.SermonNoteRepository,
+	gatheringRepository repository.GatheringRepository,
+	sermonSeriesRepository repository.SermonSeriesRepository,
+	preacherRepository repository.PreacherRepository,
+	tagRepository repository.TagRepository,
+	syncOutboxRepository repository.SyncOutboxRepository,
 	log *zap.Logger,
-) SyncUsecase {
-	return &syncUsecase{
-		txManager:      txManager,
-		sermonNoteRepo: sermonNoteRepo,
-		tagRepo:        tagRepo,
-		syncOutboxRepo: syncOutboxRepo,
-		log:            log,
+) *SyncUsecase {
+	return &SyncUsecase{
+		txManager:              txManager,
+		sermonNoteRepository:   sermonNoteRepository,
+		gatheringRepository:    gatheringRepository,
+		sermonSeriesRepository: sermonSeriesRepository,
+		preacherRepository:     preacherRepository,
+		tagRepository:          tagRepository,
+		syncOutboxRepository:   syncOutboxRepository,
+		log:                    log,
 	}
 }
 
-func (u *syncUsecase) SyncNotes(
+func (u *SyncUsecase) Pull(
 	ctx context.Context,
-	req *model.SyncNotesRequest,
-) (*model.SyncNotesResponse, error) {
-	if req == nil {
-		req = &model.SyncNotesRequest{}
+	since int64,
+) (*model.SyncPullResult, error) {
+	serverNow := time.Now().UTC()
+	serverTime := serverNow.UnixMilli()
+
+	notes, err := u.sermonNoteRepository.FindUpdatedSince(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	gatherings, err := u.gatheringRepository.FindUpdatedSince(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	series, err := u.sermonSeriesRepository.FindUpdatedSince(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	preachers, err := u.preacherRepository.FindUpdatedSince(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := u.tagRepository.FindUpdatedSince(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	if notes == nil {
+		notes = make([]*entity.SermonNote, 0)
+	}
+	if gatherings == nil {
+		gatherings = make([]*entity.Gathering, 0)
+	}
+	if series == nil {
+		series = make([]*entity.SermonSeries, 0)
+	}
+	if preachers == nil {
+		preachers = make([]*entity.Preacher, 0)
+	}
+	if tags == nil {
+		tags = make([]*entity.Tag, 0)
+	}
+
+	return &model.SyncPullResult{
+		ServerTime:   serverTime,
+		Notes:        notes,
+		SermonNotes:  notes,
+		Gatherings:   gatherings,
+		Series:       series,
+		SermonSeries: series,
+		Preachers:    preachers,
+		Tags:         tags,
+	}, nil
+}
+
+func (u *SyncUsecase) Push(
+	ctx context.Context,
+	batch *model.SyncBatch,
+) (*model.SyncPushResult, error) {
+	if batch == nil {
+		batch = &model.SyncBatch{}
 	}
 
 	serverNow := time.Now().UTC()
-	appliedIDs := make([]string, 0, len(req.Notes))
+	syncedAt := serverNow.UnixMilli()
+	missingContentIDs := make([]string, 0)
+	conflicts := make([]string, 0)
 
 	err := u.txManager.Do(ctx, func(txCtx context.Context) error {
-		for i := range req.Notes {
-			item := &req.Notes[i]
-			if item.ID == "" {
-				item.ID = uuid.New().String()
+		// 1. Upsert Gatherings using last-write-wins (UpdatedAt)
+		for _, g := range batch.Gatherings {
+			if g == nil {
+				continue
 			}
 
-			existingNote, findErr := u.sermonNoteRepo.FindByIDUnscoped(
+			if g.ID == "" {
+				g.ID = uuid.NewV7().String()
+			}
+
+			existing, err := u.gatheringRepository.FindByID(txCtx, g.ID)
+			if err != nil &&
+				!errors.Is(err, entityerror.ErrGatheringNotFound(g.ID)) {
+				return err
+			}
+
+			if existing == nil {
+				if err := u.gatheringRepository.Create(txCtx, g); err != nil {
+					return err
+				}
+			} else if !g.UpdatedAt.Before(existing.UpdatedAt) {
+				if err := u.gatheringRepository.Update(txCtx, g); err != nil {
+					return err
+				}
+			}
+		}
+
+		// 2. Upsert Series using last-write-wins (UpdatedAt)
+		seriesList := batch.Series
+		if len(seriesList) == 0 && len(batch.SermonSeries) > 0 {
+			seriesList = batch.SermonSeries
+		}
+
+		for _, s := range seriesList {
+			if s == nil {
+				continue
+			}
+
+			if s.ID == "" {
+				s.ID = uuid.NewV7().String()
+			}
+
+			existing, err := u.sermonSeriesRepository.FindByID(txCtx, s.ID)
+			if err != nil &&
+				!errors.Is(err, entityerror.ErrSermonSeriesNotFound(s.ID)) {
+				return err
+			}
+
+			if existing == nil {
+				if err := u.sermonSeriesRepository.Create(txCtx, s); err != nil {
+					return err
+				}
+			} else if !s.UpdatedAt.Before(existing.UpdatedAt) {
+				if err := u.sermonSeriesRepository.Update(txCtx, s); err != nil {
+					return err
+				}
+			}
+		}
+
+		// 3. Upsert Preachers using last-write-wins (UpdatedAt)
+		for _, p := range batch.Preachers {
+			if p == nil {
+				continue
+			}
+
+			if p.ID == "" {
+				p.ID = uuid.NewV7().String()
+			}
+
+			existing, err := u.preacherRepository.FindByID(txCtx, p.ID)
+			if err != nil &&
+				!errors.Is(err, entityerror.ErrPreacherNotFound(p.ID)) {
+				return err
+			}
+
+			if existing == nil {
+				if err := u.preacherRepository.Create(txCtx, p); err != nil {
+					return err
+				}
+			} else if !p.UpdatedAt.Before(existing.UpdatedAt) {
+				if err := u.preacherRepository.Update(txCtx, p); err != nil {
+					return err
+				}
+			}
+		}
+
+		// 4. Upsert Tags using last-write-wins (UpdatedAt)
+		for _, t := range batch.Tags {
+			if t == nil {
+				continue
+			}
+
+			if t.ID == "" {
+				t.ID = uuid.NewV7().String()
+			}
+
+			existing, err := u.tagRepository.FindByID(txCtx, t.ID)
+			if err != nil && !errors.Is(err, entityerror.ErrTagNotFound(t.ID)) {
+				return err
+			}
+
+			if existing == nil {
+				if err := u.tagRepository.Create(txCtx, t); err != nil {
+					return err
+				}
+			} else if !t.UpdatedAt.Before(existing.UpdatedAt) {
+				if err := u.tagRepository.Update(txCtx, t); err != nil {
+					return err
+				}
+			}
+		}
+
+		// 5. Upsert incoming SermonNotes
+		notes := batch.Notes
+		if len(notes) == 0 && len(batch.SermonNotes) > 0 {
+			notes = batch.SermonNotes
+		}
+
+		for _, note := range notes {
+			if note == nil {
+				continue
+			}
+
+			if note.ID == "" {
+				note.ID = uuid.NewV7().String()
+			}
+
+			existingNote, findErr := u.sermonNoteRepository.FindByID(
 				txCtx,
-				item.ID,
+				note.ID,
 			)
 			if findErr != nil &&
 				!errors.Is(
 					findErr,
-					entityerror.ErrSermonNoteNotFound(item.ID),
+					entityerror.ErrSermonNoteNotFound(note.ID),
 				) {
 				return findErr
 			}
 
-			// Case 1: Note does not exist on server
+			if existingNote != nil && existingNote.Version > note.Version &&
+				existingNote.ContentHash != note.ContentHash {
+				conflicts = append(conflicts, note.ID)
+				continue
+			}
+
+			isMissing := false
 			if existingNote == nil {
-				if item.IsDeleted {
-					appliedIDs = append(appliedIDs, item.ID)
-					continue
-				}
-
-				noteEntity := converter.SyncItemToNoteEntity(item)
-				u.resolveTags(txCtx, &noteEntity, item.Tags)
-
-				if err := u.sermonNoteRepo.Create(txCtx, &noteEntity); err != nil {
-					return err
-				}
-
-				_ = u.syncOutboxRepo.Enqueue(txCtx, &entity.SyncOutboxEntry{
-					EntityType: "sermon_notes",
-					EntityID:   noteEntity.ID,
-					Operation:  "create",
-					QueuedAt:   serverNow,
-				})
-
-				appliedIDs = append(appliedIDs, item.ID)
-				continue
-			}
-
-			// Case 2: Note exists on server - check conflict
-			if item.Version < existingNote.Version {
-				u.log.Warn("sync conflict detected; server version wins",
-					zap.String("note_id", item.ID),
-					zap.Int("client_version", item.Version),
-					zap.Int("server_version", existingNote.Version),
-				)
-				continue
-			}
-
-			// Client version is >= server version; apply client change
-			if item.IsDeleted {
-				if !existingNote.DeletedAt.Valid {
-					if err := u.sermonNoteRepo.Delete(txCtx, item.ID); err != nil {
-						return err
+				isMissing = true
+			} else {
+				storedHash := existingNote.ContentHash
+				if existingNote.FilePath != "" {
+					if data, err := os.ReadFile(existingNote.FilePath); err == nil {
+						h := sha256.Sum256(data)
+						storedHash = hex.EncodeToString(h[:])
 					}
-
-					_ = u.syncOutboxRepo.Enqueue(txCtx, &entity.SyncOutboxEntry{
-						EntityType: "sermon_notes",
-						EntityID:   item.ID,
-						Operation:  "delete",
-						QueuedAt:   serverNow,
-					})
 				}
-				appliedIDs = append(appliedIDs, item.ID)
-				continue
+
+				if note.ContentHash != storedHash {
+					isMissing = true
+				}
 			}
 
-			if existingNote.DeletedAt.Valid {
-				if err := u.sermonNoteRepo.Restore(txCtx, item.ID); err != nil {
+			if isMissing {
+				missingContentIDs = append(missingContentIDs, note.ID)
+			}
+
+			if existingNote == nil {
+				if err := u.sermonNoteRepository.Create(txCtx, note); err != nil {
+					return err
+				}
+			} else {
+				if err := u.sermonNoteRepository.Update(txCtx, note); err != nil {
 					return err
 				}
 			}
-
-			noteEntity := converter.SyncItemToNoteEntity(item)
-			noteEntity.Version = existingNote.Version + 1
-			u.resolveTags(txCtx, &noteEntity, item.Tags)
-
-			if err := u.sermonNoteRepo.Update(txCtx, &noteEntity); err != nil {
-				return err
-			}
-
-			_ = u.syncOutboxRepo.Enqueue(txCtx, &entity.SyncOutboxEntry{
-				EntityType: "sermon_notes",
-				EntityID:   noteEntity.ID,
-				Operation:  "update",
-				QueuedAt:   serverNow,
-			})
-
-			appliedIDs = append(appliedIDs, item.ID)
 		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	filter := entity.SermonNoteFilter{
-		IncludeDeleted: true,
-		UpdatedSince:   req.LastSyncedAt,
-	}
-
-	serverNotes, err := u.sermonNoteRepo.FindAll(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	pulledItems := make([]model.SyncNoteItem, 0, len(serverNotes))
-	for i := range serverNotes {
-		pulledItems = append(
-			pulledItems,
-			converter.NoteEntityToSyncItem(&serverNotes[i]),
-		)
-	}
-
-	return &model.SyncNotesResponse{
-		SyncedAt:   serverNow,
-		AppliedIDs: appliedIDs,
-		Notes:      pulledItems,
+	return &model.SyncPushResult{
+		SyncedAt:          syncedAt,
+		MissingContentIDs: missingContentIDs,
+		Conflicts:         conflicts,
 	}, nil
-}
-
-func (u *syncUsecase) resolveTags(
-	ctx context.Context,
-	note *entity.SermonNote,
-	tagNames []string,
-) {
-	if len(tagNames) == 0 {
-		return
-	}
-
-	existingTags, err := u.tagRepo.FindAll(ctx)
-	if err != nil {
-		return
-	}
-
-	tagMap := make(map[string]entity.Tag, len(existingTags))
-	for _, t := range existingTags {
-		tagMap[t.Name] = t
-	}
-
-	resolvedTags := make([]entity.Tag, 0, len(tagNames))
-	for _, name := range tagNames {
-		if t, ok := tagMap[name]; ok {
-			resolvedTags = append(resolvedTags, t)
-			continue
-		}
-
-		newTag := entity.Tag{Name: name}
-		if err := u.tagRepo.Create(ctx, &newTag); err == nil {
-			tagMap[name] = newTag
-			resolvedTags = append(resolvedTags, newTag)
-		}
-	}
-
-	note.Tags = resolvedTags
 }
