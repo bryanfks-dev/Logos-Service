@@ -25,6 +25,11 @@ func TestTableNames(t *testing.T) {
 	assert.Equal(t, "preachers", entity.Preacher{}.TableName())
 	assert.Equal(t, "tags", entity.Tag{}.TableName())
 	assert.Equal(t, "sermon_notes", entity.SermonNote{}.TableName())
+	assert.Equal(
+		t,
+		"note_attachments",
+		entity.SermonNoteAttachment{}.TableName(),
+	)
 	assert.Equal(t, "note_verses", entity.NoteVerse{}.TableName())
 	assert.Equal(t, "note_tags", entity.NoteTag{}.TableName())
 	assert.Equal(t, "notes_fts", entity.NotesFTS{}.TableName())
@@ -98,6 +103,22 @@ func TestBeforeCreateHooks(t *testing.T) {
 			assert.NoError(t, noteExisting.BeforeCreate(nil))
 			assert.Equal(t, "note-123", noteExisting.ID)
 			assert.Equal(t, "/custom/path/note.json", noteExisting.FilePath)
+		},
+	)
+
+	t.Run(
+		"SermonNoteAttachment BeforeCreate generates UUID if empty",
+		func(t *testing.T) {
+			attachment := &entity.SermonNoteAttachment{}
+			assert.NoError(t, attachment.BeforeCreate(nil))
+			assert.NotEmpty(t, attachment.ID)
+			assertUUIDv7(t, attachment.ID)
+
+			attachmentExisting := &entity.SermonNoteAttachment{
+				ID: "attachment-id",
+			}
+			assert.NoError(t, attachmentExisting.BeforeCreate(nil))
+			assert.Equal(t, "attachment-id", attachmentExisting.ID)
 		},
 	)
 

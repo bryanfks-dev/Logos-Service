@@ -29,15 +29,16 @@ type SermonNote struct {
 	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Gathering  *Gathering    `gorm:"foreignKey:GatheringID;references:ID"`
-	Series     *SermonSeries `gorm:"foreignKey:SeriesID;references:ID"`
-	Preacher   *Preacher     `gorm:"foreignKey:PreacherID;references:ID"`
-	Tags       []Tag         `gorm:"many2many:note_tags;foreignKey:ID;joinForeignKey:NoteID;References:ID;joinReferences:TagID"`
-	NoteTags   []NoteTag     `gorm:"foreignKey:NoteID;references:ID"`
-	Verses     []NoteVerse   `gorm:"foreignKey:NoteID;references:ID"`
-	NoteVerses []NoteVerse   `gorm:"foreignKey:NoteID;references:ID"`
-	FTS        *NotesFTS     `gorm:"foreignKey:NoteID;references:ID"`
-	NoteFTS    *NotesFTS     `gorm:"foreignKey:NoteID;references:ID"`
+	Gathering   *Gathering             `gorm:"foreignKey:GatheringID;references:ID"`
+	Series      *SermonSeries          `gorm:"foreignKey:SeriesID;references:ID"`
+	Preacher    *Preacher              `gorm:"foreignKey:PreacherID;references:ID"`
+	Tags        []Tag                  `gorm:"many2many:note_tags;foreignKey:ID;joinForeignKey:NoteID;References:ID;joinReferences:TagID"`
+	NoteTags    []NoteTag              `gorm:"foreignKey:NoteID;references:ID"`
+	Verses      []NoteVerse            `gorm:"foreignKey:NoteID;references:ID"`
+	NoteVerses  []NoteVerse            `gorm:"foreignKey:NoteID;references:ID"`
+	FTS         *NotesFTS              `gorm:"foreignKey:NoteID;references:ID"`
+	NoteFTS     *NotesFTS              `gorm:"foreignKey:NoteID;references:ID"`
+	Attachments []SermonNoteAttachment `gorm:"foreignKey:NoteID;references:ID"`
 }
 
 func (SermonNote) TableName() string {
