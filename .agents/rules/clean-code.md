@@ -17,117 +17,51 @@
   - Keep code readable and prevent overly tight lines of code.
   - Insert blank lines between distinct logical phases: parameter preparation, operation execution, error handling, and return statements.
 
-- **Precondition & Nil Safety**:
-  - Guard against `nil` pointers, empty slices/maps, and invalid states before performing operations.
-  - When returning an error, prefer returning the zero-value (e.g., `nil, err`) for pointer return types.
-
-# Go Code Writing Conventions (Effective Go & Code Review Comments)
-
-- **Initialisms & Acronyms Casing**:
-  - Words in names that are initialisms or acronyms must have consistent casing:
-    - All-caps when exported or part of camelCase: `ID`, `URL`, `HTTP`, `API`, `UUID`, `JSON`, `DB`, `FTS`, `DTO`.
-    - Examples: `userID` (not `userId`), `apiResponse` (not `ApiResponse`), `noteFTS` (not `noteFts`), `sermonNoteID` (not `sermonNoteId`).
-
-- **Receiver Naming**:
-  - Receiver names must be short (typically 1 or 2 letters reflecting the type name, e.g., `r *sermonNoteRepository`, `c *sermonNoteController`, `u *syncUsecase`).
-  - Never use generic or object-oriented names like `this` or `self`.
-  - Maintain the exact same receiver name across all methods of a type.
-
-- **Variable Naming & Scope**:
-  - Short names are preferred for small scopes (e.g., `i` for index, `r` for repository, `ctx` for context, `err` for error).
-  - The further away a variable is used from its declaration, the more descriptive its name should be.
-  - Avoid redundant prefixes/suffixes that stutter with package names (e.g., `entity.Gathering` not `entity.GatheringEntity`, `user.New` not `user.NewUser`).
-
-- **No "Get" Prefix on Getters**:
-  - Getter methods should be named directly after the property they return (e.g., `user.Owner()` rather than `user.GetOwner()`), unless conforming to an external interface.
-
-- **Context Propagation**:
-  - `ctx context.Context` must always be the first parameter of any function/method performing I/O, database access, or remote calls: `func (r *repo) FindByID(ctx context.Context, id string)`.
-  - Never embed a `context.Context` inside a struct. Pass it explicitly through function parameters.
-  - Never pass `nil` context; use `context.Background()` or `context.TODO()` when no context is available.
-
-- **Idiomatic Error Handling & Formatting**:
-  - Error messages must be entirely lowercase and must NOT end with punctuation:
+- **Variables for Multi-Value Returns**:
+  - When returning two or more values (such as `(result, err)` or `(value, nil)`), always assign any non-nil constructed value (e.g., struct, slice, or map literals) to a local variable before the `return` statement:
     ```go
     // Correct
-    return fmt.Errorf("failed to find sermon note: %w", err)
-    // Incorrect: return fmt.Errorf("Failed to find sermon note: %w.", err)
-    ```
-  - Handle errors immediately after the function call that produces them:
-    ```go
-    result, err := repository.FindByID(ctx, id)
-    if err != nil {
-        return nil, err
+    result := &model.SyncPullResult{
+        ServerTime: serverTime,
+        Notes:      notes,
     }
-    ```
-  - Inspect errors using `errors.Is` and `errors.As` rather than direct equality checks or type assertions.
 
-- **Slice & Map Capacity Allocation**:
-  - Whenever the number of elements is known beforehand, pre-allocate slice capacity to eliminate repeated reallocation and copying:
-    ```go
-    notes := make([]entity.SermonNote, 0, len(rawNotes))
-    ```
-  - Use `len(slice) == 0` to check for empty slices rather than checking `slice == nil`, treating empty and nil slices interchangeably where idiomatic.
+    return result, nil
 
-- **Resource Cleanup (`defer`)**:
-  - Always pair resource acquisition (files, database connections, locks) with `defer` immediately after error checking:
+    // Incorrect
+    return &model.SyncPullResult{
+        ServerTime: serverTime,
+        Notes:      notes,
+    }, nil
+    ```
+
+- **Function Parameters (`Option` Structs)**:
+  - When a function or method requires **more than 3 parameters**, group the parameters into a dedicated struct suffixed with `Option` (e.g., `SyncUsecaseOption`, `RouteConfigOption`, `FindSermonNoteOption`).
+  - Keep **3 or fewer parameters** directly in the function signature instead of wrapping them in an `Option` struct.
+
+- **Variables for Composite Arguments**:
+  - When passing a constructed struct, `Option` struct, slice, or map literal into a function call (especially multi-parameter calls or multi-line literals), always assign it to a local variable before the call instead of constructing it inline:
     ```go
-    file, err := os.Open(path)
-    if err != nil {
-        return err
+    // Correct
+    opt := lastWriteWinsOption[entity.Gathering]{
+        id:       func(g *entity.Gathering) string { return g.ID },
+        findByID: u.gatheringRepository.FindByID,
     }
-    defer file.Close()
+
+    return upsertLastWriteWins(ctx, gatherings, opt)
+
+    // Incorrect
+    return upsertLastWriteWins(
+        ctx,
+        gatherings,
+        lastWriteWinsOption[entity.Gathering]{
+            id:       func(g *entity.Gathering) string { return g.ID },
+            findByID: u.gatheringRepository.FindByID,
+        },
+    )
     ```
 
-# Component & File Naming Rules
-
-- **Aggregate Entity Alignment with Layer Suffix**:
-  - File names and type definitions for layer components (controllers, repositories, usecases, converters) must be named after their corresponding aggregate entity with the layer suffix:
-    - Filename pattern: `<aggregate_entity>_<kind_of_layer>.go` (e.g., `sermon_note_controller.go`, `sermon_note_repository.go`, `sermon_note_converter.go`).
-    - Type pattern: `<AggregateEntity><KindOfLayer>` (e.g., `SermonNoteController`, `SermonNoteRepository`).
-  - Do not abbreviate or drop parts of the aggregate entity name (e.g., avoid `note_controller.go`, use `sermon_note_controller.go`).
-
-- **Converter Function Naming Rules**:
-  - Converter functions transforming domain entities into transport or external representations must strictly follow the pattern:
-    `<Domain>To<Kind>`
-    where `<Domain>` is the entity name without the `Entity` suffix and `<Kind>` is the target representation (`Response`, `Event`, `Item`, `DTO`):
-    - *Examples*: `SermonNoteToResponse`, `SermonNoteToEvent`, `SermonNoteToSyncItem`.
-  - Inbound converters transforming external representations into domain entities must strictly follow the inverse pattern:
-    `<Kind>To<Domain>`
-    - *Examples*: `SyncItemToSermonNote`, `CreateNoteRequestToSermonNote`, `NoteEventToSermonNote`.
-  - Avoid redundant `Entity` suffixes in function names (e.g., use `SermonNoteToResponse`, not `SermonNoteEntityToResponse` or `NoteEntityToSyncItem`).
-  - Never use generic or vague names like `Convert`, `Transform`, `Map`, or `Process`.
-
-- **Error Naming Rules (Operation-Level, Avoid Method-Specific Coupling)**:
-  - Error definitions, variables, and constructor functions must be named after broad operational outcomes rather than specific method signatures, query parameters, or internal lookup mechanisms:
-    - **Prefer Operation-Level Outcomes**:
-      - Use `Err<Entity>RetrievalFailed` instead of specific query names like `Err<Entity>FindByIDFailed`, `Err<Entity>FindAllFailed`, `Err<Entity>FindBySlugFailed`, or `Err<Entity>QueryFailed`.
-      - Use `Err<Entity>CreationFailed` for persistence creation failures.
-      - Use `Err<Entity>UpdateFailed` for persistence update failures.
-      - Use `Err<Entity>DeletionFailed` (or `Err<Entity>DeleteFailed`) for deletion failures.
-      - Use `Err<Entity>NotFound` for domain entities that cannot be located.
-      - Use `Err<Entity>AlreadyExists` or `Err<Entity>Conflict` for duplicate or conflicting resources.
-    - **Avoid Implementation Leakage**:
-      - Error names must NOT leak query parameters or implementation details (e.g., avoid `FindByID`, `GetByEmail`, `QueryByDate`).
-      - *Incorrect*: `ErrTagFindByIDFailed`, `ErrTagFindAllFailed` $\longrightarrow$ *Correct*: `ErrTagRetrievalFailed`.
-      - *Incorrect*: `ErrGatheringFindByIDFailed` $\longrightarrow$ *Correct*: `ErrGatheringRetrievalFailed`.
-      - *Incorrect*: `ErrSermonNoteFindByIDFailed` $\longrightarrow$ *Correct*: `ErrSermonNoteRetrievalFailed`.
-
-# Go Package Naming Rules (Effective Go)
-
-- **Directory Alignment**:
-  - The package name must match the base name of the directory where the file resides (e.g., a file in `internal/delivery/` must use `package delivery`).
-  - All Go files in the same directory must declare the exact same package name (except black-box tests which append `_test`).
-
-- **Lowercase & Single Word**:
-  - Package names must be entirely lowercase and ideally a single word.
-  - Never use underscores (`_`), hyphens (`-`), or mixedCaps / camelCase in package names (e.g., never `user_service` or `userService`).
-
-- **Avoid Stuttering**:
-  - Package names should not stutter with exported types, functions, or variables (e.g., prefer `http.Server` rather than `http.HTTPServer`).
-
-- **Avoid Vague Package Names**:
-  - Do not create generic catch-all packages such as `util`, `common`, `helpers`, or `base`. Name packages by what they provide (e.g., `correlation`, `builder`).
-
-- **Test Package Suffix**:
-  - Black-box test files in `/test/` must use the package name followed by `_test` (e.g., `package delivery_test`).
+- **Precondition & Nil Safety**:
+  - Guard against `nil` pointers, empty slices/maps, and invalid states on method arguments and domain inputs before performing operations.
+  - Never check if injected attributes or the receiver itself are `nil` on application-layer structs (controllers, usecases, repositories, gateways, and repository structs); assume constructor-injected dependencies are always initialized.
+  - When returning an error, prefer returning the zero-value (e.g., `nil, err`) for pointer return types.

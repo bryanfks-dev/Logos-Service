@@ -18,12 +18,12 @@ func TestRouteConfig(t *testing.T) {
 	etcController := deliveryhttp.NewEtcController()
 	errorController := deliveryhttp.NewErrorController(zap.NewNop())
 
-	routeConfig := route.NewRouteConfig(
-		app,
-		etcController,
-		errorController,
-		nil,
-	)
+	routeConfig := route.NewRouteConfig(&route.RouteConfigOption{
+		App:             app,
+		EtcController:   etcController,
+		ErrorController: errorController,
+		SyncHandler:     nil,
+	})
 	routeConfig.Setup()
 
 	t.Run("GET /swagger redirects to /swagger/index.html", func(t *testing.T) {

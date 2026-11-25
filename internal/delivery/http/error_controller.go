@@ -8,6 +8,7 @@ import (
 	"github.com/bryanfks-dev/selah/internal/model"
 	"github.com/bryanfks-dev/selah/internal/model/builder"
 	apperror "github.com/bryanfks-dev/selah/pkg/error"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 )
@@ -40,6 +41,8 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 
 	var statusCoder echo.HTTPStatusCoder
 	var appErr *apperror.AppError
+	var validationErrs validation.Errors
+	var fieldErrors []model.FieldError
 
 	switch {
 	case errors.Is(err, echo.ErrUnauthorized):
@@ -57,6 +60,10 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 	case errors.Is(err, apperror.ErrInvalidPayload):
 		status = http.StatusBadRequest
 		code = "invalid_payload"
+	case errors.As(err, &validationErrs):
+		status = http.StatusUnprocessableEntity
+		code = "validation_error"
+		fieldErrors = toFieldErrors(validationErrs)
 	case errors.Is(err, apperror.ErrConflict):
 		status = http.StatusConflict
 		code = "conflict"
@@ -85,10 +92,30 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		)
 	}
 
+	apiErr := model.APIError{
+		Code:   code,
+		Errors: fieldErrors,
+	}
+
 	res := builder.NewAPIResponseBuilder[any]().
 		SetRequestID(requestID).
-		SetError(model.APIError{Code: code}).
+		SetError(apiErr).
 		Build()
 
 	_ = ctx.JSON(status, res)
+}
+
+func toFieldErrors(errs validation.Errors) []model.FieldError {
+	flat := errs.Flatten()
+	fieldErrors := make([]model.FieldError, 0, len(flat))
+
+	for _, fe := range flat {
+		fieldErr := model.FieldError{
+			Field:   fe.Field(),
+			Message: fe.Message,
+		}
+		fieldErrors = append(fieldErrors, fieldErr)
+	}
+
+	return fieldErrors
 }

@@ -15,17 +15,23 @@ type RouteConfig struct {
 	SyncHandler     *deliveryhttp.SyncHandler
 }
 
-func NewRouteConfig(
-	app *echo.Echo,
-	etcController *deliveryhttp.EtcController,
-	errorController *deliveryhttp.ErrorController,
-	syncHandler *deliveryhttp.SyncHandler,
-) *RouteConfig {
+type RouteConfigOption struct {
+	App             *echo.Echo
+	EtcController   *deliveryhttp.EtcController
+	ErrorController *deliveryhttp.ErrorController
+	SyncHandler     *deliveryhttp.SyncHandler
+}
+
+func NewRouteConfig(opt *RouteConfigOption) *RouteConfig {
+	if opt == nil {
+		opt = &RouteConfigOption{}
+	}
+
 	return &RouteConfig{
-		App:             app,
-		EtcController:   etcController,
-		ErrorController: errorController,
-		SyncHandler:     syncHandler,
+		App:             opt.App,
+		EtcController:   opt.EtcController,
+		ErrorController: opt.ErrorController,
+		SyncHandler:     opt.SyncHandler,
 	}
 }
 
@@ -52,11 +58,9 @@ func (c *RouteConfig) SetupEtcRoute() {
 }
 
 func (c *RouteConfig) SetupSyncRoute() {
-	if c.SyncHandler != nil {
-		v1 := c.App.Group("/api/v1")
-		v1.POST("/sync/push", c.SyncHandler.Push)
-		v1.GET("/sync/pull", c.SyncHandler.Pull)
-	}
+	api := c.App.Group("/api")
+	api.POST("/sync/push", c.SyncHandler.Push)
+	api.GET("/sync/pull", c.SyncHandler.Pull)
 }
 
 func (c *RouteConfig) SetupErrorHandler() {

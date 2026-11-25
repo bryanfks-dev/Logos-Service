@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
+	"github.com/bryanfks-dev/selah/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -18,7 +20,7 @@ type SermonSeriesRepository interface {
 	FindAll(ctx context.Context) ([]entity.SermonSeries, error)
 	FindUpdatedSince(
 		ctx context.Context,
-		since int64,
+		since time.Time,
 	) ([]*entity.SermonSeries, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -123,31 +125,29 @@ func (r *sermonSeriesRepository) FindAll(
 
 func (r *sermonSeriesRepository) FindUpdatedSince(
 	ctx context.Context,
-	since int64,
+	since time.Time,
 ) ([]*entity.SermonSeries, error) {
-	r.log.Info("find updated since started", zap.Int64("since", since))
+	r.log.Info("find updated since started", zap.Time("since", since))
 
-	sinceTime := parseSinceTime(since)
 	var items []*entity.SermonSeries
 
-	err := r.conn(ctx).
-		Unscoped().
-		Where("updated_at > ?", sinceTime).
-		Order("updated_at ASC").
-		Find(&items).Error
+	query := r.conn(ctx).Unscoped()
+	if !since.IsZero() {
+		query = query.Where("updated_at > ?", since)
+	}
+
+	err := query.Order("updated_at ASC").Find(&items).Error
 	if err != nil {
 		r.log.Error(
 			"find updated since failed",
 			zap.Error(err),
-			zap.Int64("since", since),
+			zap.Time("since", since),
 		)
 
 		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
 
-	if items == nil {
-		items = make([]*entity.SermonSeries, 0)
-	}
+	items = util.NonNilSlice(items)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(items)))
 

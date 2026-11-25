@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/bryanfks-dev/selah/pkg/entity"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 )
 
 type SyncBatch struct {
@@ -17,13 +19,13 @@ type SyncBatch struct {
 }
 
 type SyncPushResult struct {
-	SyncedAt          int64
+	SyncedAt          time.Time
 	MissingContentIDs []string
 	Conflicts         []string
 }
 
 type SyncPullResult struct {
-	ServerTime   int64
+	ServerTime   time.Time
 	Notes        []*entity.SermonNote
 	SermonNotes  []*entity.SermonNote
 	Gatherings   []*entity.Gathering
@@ -43,6 +45,18 @@ type SyncPushRequest struct {
 	Tags         []SyncTagItem       `json:"tags,omitempty"`
 }
 
+func (r SyncPushRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Notes),
+		validation.Field(&r.SermonNotes),
+		validation.Field(&r.Gatherings),
+		validation.Field(&r.Series),
+		validation.Field(&r.SermonSeries),
+		validation.Field(&r.Preachers),
+		validation.Field(&r.Tags),
+	)
+}
+
 type SyncGatheringItem struct {
 	ID        string     `json:"id"`
 	Name      string     `json:"name"`
@@ -50,6 +64,23 @@ type SyncGatheringItem struct {
 	SortOrder int        `json:"sort_order,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+func (i SyncGatheringItem) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.ID, validation.Length(0, 36)),
+		validation.Field(
+			&i.Name,
+			validation.Required,
+			validation.Length(1, 255),
+		),
+		validation.Field(
+			&i.ColorHex,
+			validation.Length(0, 7),
+			is.HexColor,
+		),
+		validation.Field(&i.SortOrder, validation.Min(0)),
+	)
 }
 
 type SyncSeriesItem struct {
@@ -60,12 +91,35 @@ type SyncSeriesItem struct {
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
 
+func (i SyncSeriesItem) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.ID, validation.Length(0, 36)),
+		validation.Field(
+			&i.Name,
+			validation.Required,
+			validation.Length(1, 255),
+		),
+	)
+}
+
 type SyncPreacherItem struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	ChurchName string     `json:"church_name,omitempty"`
 	CreatedAt  *time.Time `json:"created_at,omitempty"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+}
+
+func (i SyncPreacherItem) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.ID, validation.Length(0, 36)),
+		validation.Field(
+			&i.Name,
+			validation.Required,
+			validation.Length(1, 255),
+		),
+		validation.Field(&i.ChurchName, validation.Length(0, 255)),
+	)
 }
 
 type SyncTagItem struct {
@@ -75,10 +129,21 @@ type SyncTagItem struct {
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
+func (i SyncTagItem) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.ID, validation.Length(0, 36)),
+		validation.Field(
+			&i.Name,
+			validation.Required,
+			validation.Length(1, 100),
+		),
+	)
+}
+
 type SyncPushResponse struct {
-	SyncedAt          int64    `json:"synced_at"`
-	MissingContentIDs []string `json:"missing_content_ids"`
-	Conflicts         []string `json:"conflicts"`
+	SyncedAt          time.Time `json:"synced_at"`
+	MissingContentIDs []string  `json:"missing_content_ids"`
+	Conflicts         []string  `json:"conflicts"`
 }
 
 type SyncPullResponse struct {
@@ -155,6 +220,12 @@ type SyncNotesRequest struct {
 	Notes        []SyncNoteItem `json:"notes"`
 }
 
+func (r SyncNotesRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Notes, validation.Required),
+	)
+}
+
 type SyncNoteItem struct {
 	ID          string          `json:"id"`
 	GatheringID *string         `json:"gathering_id,omitempty"`
@@ -172,6 +243,27 @@ type SyncNoteItem struct {
 	UpdatedAt   *time.Time      `json:"updated_at,omitempty"`
 }
 
+func (i SyncNoteItem) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.ID, validation.Length(0, 36)),
+		validation.Field(&i.GatheringID, validation.Length(0, 36)),
+		validation.Field(&i.SeriesID, validation.Length(0, 36)),
+		validation.Field(&i.PreacherID, validation.Length(0, 36)),
+		validation.Field(
+			&i.Title,
+			validation.Required,
+			validation.Length(1, 255),
+		),
+		validation.Field(&i.ContentHash, validation.Length(0, 64)),
+		validation.Field(&i.Version, validation.Min(0)),
+		validation.Field(
+			&i.Tags,
+			validation.Each(validation.Required, validation.Length(1, 100)),
+		),
+		validation.Field(&i.Verses),
+	)
+}
+
 type SyncNoteVerse struct {
 	ID          string `json:"id,omitempty"`
 	Translation string `json:"translation"`
@@ -180,6 +272,26 @@ type SyncNoteVerse struct {
 	VerseStart  int    `json:"verse_start"`
 	VerseEnd    *int   `json:"verse_end,omitempty"`
 	DisplayRef  string `json:"display_ref"`
+}
+
+func (v SyncNoteVerse) Validate() error {
+	return validation.ValidateStruct(&v,
+		validation.Field(&v.ID, validation.Length(0, 36)),
+		validation.Field(
+			&v.Translation,
+			validation.Required,
+			validation.Length(1, 50),
+		),
+		validation.Field(&v.BookID, validation.Required, validation.Min(1)),
+		validation.Field(&v.Chapter, validation.Required, validation.Min(1)),
+		validation.Field(&v.VerseStart, validation.Required, validation.Min(1)),
+		validation.Field(&v.VerseEnd, validation.Min(1)),
+		validation.Field(
+			&v.DisplayRef,
+			validation.Required,
+			validation.Length(1, 100),
+		),
+	)
 }
 
 type SyncNotesResponse struct {

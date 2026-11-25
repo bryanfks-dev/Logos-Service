@@ -34,9 +34,25 @@ func NewContainer() (*Container, error) {
 	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
 	tagRepository := repository.NewTagRepository(gormDB, logger)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(gormDB, logger)
-	syncUsecase := usecase.NewSyncUsecase(txManager, sermonNoteRepository, gatheringRepository, sermonSeriesRepository, preacherRepository, tagRepository, syncOutboxRepository, logger)
+	syncUsecaseOption := &usecase.SyncUsecaseOption{
+		TxManager:              txManager,
+		SermonNoteRepository:   sermonNoteRepository,
+		GatheringRepository:    gatheringRepository,
+		SermonSeriesRepository: sermonSeriesRepository,
+		PreacherRepository:     preacherRepository,
+		TagRepository:          tagRepository,
+		SyncOutboxRepository:   syncOutboxRepository,
+		Log:                    logger,
+	}
+	syncUsecase := usecase.NewSyncUsecase(syncUsecaseOption)
 	syncHandler := http.NewSyncHandler(syncUsecase, logger)
-	routeConfig := route.NewRouteConfig(echo, etcController, errorController, syncHandler)
+	routeConfigOption := &route.RouteConfigOption{
+		App:             echo,
+		EtcController:   etcController,
+		ErrorController: errorController,
+		SyncHandler:     syncHandler,
+	}
+	routeConfig := route.NewRouteConfig(routeConfigOption)
 	container := &Container{
 		Config:          viper,
 		Log:             logger,

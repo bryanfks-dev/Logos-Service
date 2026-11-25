@@ -5,9 +5,10 @@ import (
 
 	"github.com/bryanfks-dev/selah/internal/model"
 	"github.com/bryanfks-dev/selah/pkg/entity"
+	"github.com/bryanfks-dev/selah/pkg/util"
 )
 
-func NoteEntityToSyncItem(note *entity.SermonNote) model.SyncNoteItem {
+func SermonNoteToSyncItem(note *entity.SermonNote) model.SyncNoteItem {
 	if note == nil {
 		return model.SyncNoteItem{}
 	}
@@ -51,7 +52,7 @@ func NoteEntityToSyncItem(note *entity.SermonNote) model.SyncNoteItem {
 	}
 }
 
-func SyncItemToNoteEntity(item *model.SyncNoteItem) entity.SermonNote {
+func SyncItemToSermonNote(item *model.SyncNoteItem) entity.SermonNote {
 	if item == nil {
 		return entity.SermonNote{}
 	}
@@ -111,15 +112,12 @@ func SyncPushRequestToBatch(req *model.SyncPushRequest) *model.SyncBatch {
 		}
 	}
 
-	rawNotes := req.Notes
-	if len(rawNotes) == 0 && len(req.SermonNotes) > 0 {
-		rawNotes = req.SermonNotes
-	}
+	rawNotes := util.CoalesceSlice(req.Notes, req.SermonNotes)
 
 	notes := make([]*entity.SermonNote, 0, len(rawNotes))
 	for i := range rawNotes {
 		item := &rawNotes[i]
-		n := SyncItemToNoteEntity(item)
+		n := SyncItemToSermonNote(item)
 		if item.UpdatedAt != nil {
 			n.UpdatedAt = *item.UpdatedAt
 		}
@@ -144,10 +142,7 @@ func SyncPushRequestToBatch(req *model.SyncPushRequest) *model.SyncBatch {
 		gatherings = append(gatherings, g)
 	}
 
-	rawSeries := req.Series
-	if len(rawSeries) == 0 && len(req.SermonSeries) > 0 {
-		rawSeries = req.SermonSeries
-	}
+	rawSeries := util.CoalesceSlice(req.Series, req.SermonSeries)
 
 	seriesList := make([]*entity.SermonSeries, 0, len(rawSeries))
 	for i := range rawSeries {
@@ -215,21 +210,14 @@ func SyncPushResultToResponse(
 ) *model.SyncPushResponse {
 	if result == nil {
 		return &model.SyncPushResponse{
-			SyncedAt:          0,
+			SyncedAt:          time.Time{},
 			MissingContentIDs: make([]string, 0),
 			Conflicts:         make([]string, 0),
 		}
 	}
 
-	missing := result.MissingContentIDs
-	if missing == nil {
-		missing = make([]string, 0)
-	}
-
-	conflicts := result.Conflicts
-	if conflicts == nil {
-		conflicts = make([]string, 0)
-	}
+	missing := util.NonNilSlice(result.MissingContentIDs)
+	conflicts := util.NonNilSlice(result.Conflicts)
 
 	return &model.SyncPushResponse{
 		SyncedAt:          result.SyncedAt,
@@ -387,18 +375,11 @@ func SyncPullResultToResponse(
 	}
 
 	var serverTime time.Time
-	if result.ServerTime > 0 {
-		if result.ServerTime > 1e11 {
-			serverTime = time.UnixMilli(result.ServerTime).UTC()
-		} else {
-			serverTime = time.Unix(result.ServerTime, 0).UTC()
-		}
+	if !result.ServerTime.IsZero() {
+		serverTime = result.ServerTime.UTC()
 	}
 
-	rawNotes := result.Notes
-	if len(rawNotes) == 0 && len(result.SermonNotes) > 0 {
-		rawNotes = result.SermonNotes
-	}
+	rawNotes := util.CoalesceSlice(result.Notes, result.SermonNotes)
 
 	notes := make([]*model.SermonNoteResponse, 0, len(rawNotes))
 	for _, n := range rawNotes {
@@ -414,10 +395,7 @@ func SyncPullResultToResponse(
 		}
 	}
 
-	rawSeries := result.Series
-	if len(rawSeries) == 0 && len(result.SermonSeries) > 0 {
-		rawSeries = result.SermonSeries
-	}
+	rawSeries := util.CoalesceSlice(result.Series, result.SermonSeries)
 
 	series := make([]*model.SermonSeriesResponse, 0, len(rawSeries))
 	for _, s := range rawSeries {

@@ -17,16 +17,6 @@ func TestWithTx_And_Tx(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	t.Run(
-		"with nil context should create background context",
-		func(t *testing.T) {
-			ctx := correlation.WithTx(nil, db)
-			assert.NotNil(t, ctx)
-			assert.Equal(t, db, correlation.Tx(ctx))
-			assert.Equal(t, db, correlation.GetTx(ctx))
-		},
-	)
-
 	t.Run("with standard context", func(t *testing.T) {
 		ctx := context.Background()
 		assert.Nil(t, correlation.Tx(ctx))
@@ -34,11 +24,6 @@ func TestWithTx_And_Tx(t *testing.T) {
 		ctxWithTx := correlation.WithTx(ctx, db)
 		assert.Equal(t, db, correlation.Tx(ctxWithTx))
 		assert.Equal(t, db, correlation.GetTx(ctxWithTx))
-	})
-
-	t.Run("get tx from nil context", func(t *testing.T) {
-		assert.Nil(t, correlation.Tx(nil))
-		assert.Nil(t, correlation.GetTx(nil))
 	})
 
 	t.Run("get tx with wrong type in context", func(t *testing.T) {

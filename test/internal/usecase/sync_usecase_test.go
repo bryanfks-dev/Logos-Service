@@ -2,7 +2,12 @@ package usecase_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 	"uuid"
@@ -54,16 +59,16 @@ func setupSyncTestEnv(
 	tagRepository := repository.NewTagRepository(testDB, log)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncUsecase := usecase.NewSyncUsecase(
-		txManager,
-		sermonNoteRepository,
-		gatheringRepository,
-		sermonSeriesRepository,
-		preacherRepository,
-		tagRepository,
-		syncOutboxRepository,
-		log,
-	)
+	syncUsecase := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+		TxManager:              txManager,
+		SermonNoteRepository:   sermonNoteRepository,
+		GatheringRepository:    gatheringRepository,
+		SermonSeriesRepository: sermonSeriesRepository,
+		PreacherRepository:     preacherRepository,
+		TagRepository:          tagRepository,
+		SyncOutboxRepository:   syncOutboxRepository,
+		Log:                    log,
+	})
 
 	return testDB, syncUsecase
 }
@@ -75,7 +80,7 @@ func TestSyncUsecase_Push_NilBatch(t *testing.T) {
 	result, err := u.Push(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Greater(t, result.SyncedAt, int64(0))
+	assert.False(t, result.SyncedAt.IsZero())
 	assert.Empty(t, result.Conflicts)
 	assert.Empty(t, result.MissingContentIDs)
 }
@@ -525,11 +530,11 @@ func TestSyncUsecase_Pull(t *testing.T) {
 	t.Run(
 		"queries all repositories and returns records modified after since including soft deleted",
 		func(t *testing.T) {
-			res, err := u.Pull(ctx, now.UnixMilli())
+			res, err := u.Pull(ctx, now)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 
-			assert.Greater(t, res.ServerTime, int64(0))
+			assert.False(t, res.ServerTime.IsZero())
 
 			var gIDs []string
 			for _, g := range res.Gatherings {
@@ -557,8 +562,8 @@ func TestSyncUsecase_Pull(t *testing.T) {
 		},
 	)
 
-	t.Run("since=0 returns all records", func(t *testing.T) {
-		res, err := u.Pull(ctx, 0)
+	t.Run("zero since time returns all records", func(t *testing.T) {
+		res, err := u.Pull(ctx, time.Time{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 
@@ -568,4 +573,310 @@ func TestSyncUsecase_Pull(t *testing.T) {
 		}
 		assert.Contains(t, gIDs, "g-pull-old")
 	})
+}
+
+type failingSermonNoteRepo struct {
+	repository.SermonNoteRepository
+	findUpdatedSinceErr error
+	findByIDErr         error
+	createErr           error
+	updateErr           error
+}
+
+func (f *failingSermonNoteRepo) FindUpdatedSince(
+	ctx context.Context,
+	since time.Time,
+) ([]*entity.SermonNote, error) {
+	if f.findUpdatedSinceErr != nil {
+		return nil, f.findUpdatedSinceErr
+	}
+
+	return f.SermonNoteRepository.FindUpdatedSince(ctx, since)
+}
+
+func (f *failingSermonNoteRepo) FindByID(
+	ctx context.Context,
+	id string,
+) (*entity.SermonNote, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+
+	return f.SermonNoteRepository.FindByID(ctx, id)
+}
+
+func (f *failingSermonNoteRepo) Create(
+	ctx context.Context,
+	note *entity.SermonNote,
+) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+
+	return f.SermonNoteRepository.Create(ctx, note)
+}
+
+func (f *failingSermonNoteRepo) Update(
+	ctx context.Context,
+	note *entity.SermonNote,
+) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+
+	return f.SermonNoteRepository.Update(ctx, note)
+}
+
+type failingGatheringRepo struct {
+	repository.GatheringRepository
+	findUpdatedSinceErr error
+	findByIDErr         error
+}
+
+func (f *failingGatheringRepo) FindUpdatedSince(
+	ctx context.Context,
+	since time.Time,
+) ([]*entity.Gathering, error) {
+	if f.findUpdatedSinceErr != nil {
+		return nil, f.findUpdatedSinceErr
+	}
+
+	return f.GatheringRepository.FindUpdatedSince(ctx, since)
+}
+
+func (f *failingGatheringRepo) FindByID(
+	ctx context.Context,
+	id string,
+) (*entity.Gathering, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+
+	return f.GatheringRepository.FindByID(ctx, id)
+}
+
+func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
+	testDB, u := setupSyncTestEnv(t)
+	ctx := context.Background()
+
+	t.Run(
+		"skips nil items, generates UUIDv7 IDs, and supports alias slices",
+		func(t *testing.T) {
+			g := &entity.Gathering{Name: "Auto ID Gathering"}
+			s := &entity.SermonSeries{Name: "Auto ID Series"}
+			p := &entity.Preacher{Name: "Auto ID Preacher"}
+			tag := &entity.Tag{Name: "auto-id-tag"}
+			note := &entity.SermonNote{
+				Title:       "Auto ID Note",
+				Version:     1,
+				ContentHash: "hash-auto-id",
+			}
+
+			batch := &model.SyncBatch{
+				Gatherings:   []*entity.Gathering{nil, g},
+				SermonSeries: []*entity.SermonSeries{nil, s},
+				Preachers:    []*entity.Preacher{nil, p},
+				Tags:         []*entity.Tag{nil, tag},
+				SermonNotes:  []*entity.SermonNote{nil, note},
+			}
+
+			res, err := u.Push(ctx, batch)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+
+			for _, id := range []string{g.ID, s.ID, p.ID, tag.ID, note.ID} {
+				parsed, parseErr := uuid.Parse(id)
+				require.NoError(t, parseErr)
+				assert.Equal(t, byte(7), parsed[6]>>4)
+			}
+
+			assert.Contains(t, res.MissingContentIDs, note.ID)
+		},
+	)
+
+	t.Run(
+		"computes content hash from hydrated note file when present",
+		func(t *testing.T) {
+			content := `{"ops":[{"insert":"hello"}]}`
+			sum := sha256.Sum256([]byte(content))
+			contentHash := hex.EncodeToString(sum[:])
+
+			noteFile := filepath.Join(t.TempDir(), "hydrated-note.json")
+			require.NoError(t, os.WriteFile(noteFile, []byte(content), 0o644))
+
+			existing := &entity.SermonNote{
+				ID:          "note-hydrated-file",
+				Title:       "Hydrated",
+				Version:     1,
+				FilePath:    noteFile,
+				ContentHash: "stale-db-hash",
+			}
+			require.NoError(t, testDB.Create(existing).Error)
+
+			// Matching file hash -> not missing content
+			res, err := u.Push(ctx, &model.SyncBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-hydrated-file",
+						Title:       "Hydrated Updated",
+						Version:     2,
+						FilePath:    noteFile,
+						ContentHash: contentHash,
+						ContentJSON: content,
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.NotContains(t, res.MissingContentIDs, "note-hydrated-file")
+
+			// Differing hash -> reported as missing content
+			res, err = u.Push(ctx, &model.SyncBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-hydrated-file",
+						Title:       "Hydrated Updated Again",
+						Version:     3,
+						FilePath:    noteFile,
+						ContentHash: "different-client-hash",
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Contains(t, res.MissingContentIDs, "note-hydrated-file")
+		},
+	)
+}
+
+func TestSyncUsecase_ErrorPropagationAndRollback(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Pull returns repository errors", func(t *testing.T) {
+		testDB, _ := setupSyncTestEnv(t)
+		log := zap.NewNop()
+		expectedErr := errors.New("db query failed")
+
+		u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+			TxManager: db.NewTxManager(testDB),
+			SermonNoteRepository: &failingSermonNoteRepo{
+				SermonNoteRepository: repository.NewSermonNoteRepository(
+					testDB,
+					log,
+				),
+				findUpdatedSinceErr: expectedErr,
+			},
+			GatheringRepository: repository.NewGatheringRepository(testDB, log),
+			SermonSeriesRepository: repository.NewSermonSeriesRepository(
+				testDB,
+				log,
+			),
+			PreacherRepository: repository.NewPreacherRepository(testDB, log),
+			TagRepository:      repository.NewTagRepository(testDB, log),
+			SyncOutboxRepository: repository.NewSyncOutboxRepository(
+				testDB,
+				log,
+			),
+			Log: log,
+		})
+
+		res, err := u.Pull(ctx, time.Time{})
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, expectedErr)
+	})
+
+	t.Run("Pull returns gathering repository errors", func(t *testing.T) {
+		testDB, _ := setupSyncTestEnv(t)
+		log := zap.NewNop()
+		expectedErr := errors.New("gathering query failed")
+
+		u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+			TxManager: db.NewTxManager(testDB),
+			SermonNoteRepository: repository.NewSermonNoteRepository(
+				testDB,
+				log,
+			),
+			GatheringRepository: &failingGatheringRepo{
+				GatheringRepository: repository.NewGatheringRepository(
+					testDB,
+					log,
+				),
+				findUpdatedSinceErr: expectedErr,
+			},
+			SermonSeriesRepository: repository.NewSermonSeriesRepository(
+				testDB,
+				log,
+			),
+			PreacherRepository: repository.NewPreacherRepository(testDB, log),
+			TagRepository:      repository.NewTagRepository(testDB, log),
+			SyncOutboxRepository: repository.NewSyncOutboxRepository(
+				testDB,
+				log,
+			),
+			Log: log,
+		})
+
+		res, err := u.Pull(ctx, time.Time{})
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, expectedErr)
+	})
+
+	t.Run(
+		"Push rolls back transaction when repository fails",
+		func(t *testing.T) {
+			testDB, _ := setupSyncTestEnv(t)
+			log := zap.NewNop()
+			expectedErr := errors.New("note create failed")
+
+			u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+				TxManager: db.NewTxManager(testDB),
+				SermonNoteRepository: &failingSermonNoteRepo{
+					SermonNoteRepository: repository.NewSermonNoteRepository(
+						testDB,
+						log,
+					),
+					createErr: expectedErr,
+				},
+				GatheringRepository: repository.NewGatheringRepository(
+					testDB,
+					log,
+				),
+				SermonSeriesRepository: repository.NewSermonSeriesRepository(
+					testDB,
+					log,
+				),
+				PreacherRepository: repository.NewPreacherRepository(
+					testDB,
+					log,
+				),
+				TagRepository: repository.NewTagRepository(testDB, log),
+				SyncOutboxRepository: repository.NewSyncOutboxRepository(
+					testDB,
+					log,
+				),
+				Log: log,
+			})
+
+			batch := &model.SyncBatch{
+				Gatherings: []*entity.Gathering{
+					{ID: "g-rollback", Name: "Should Roll Back"},
+				},
+				Notes: []*entity.SermonNote{
+					{ID: "n-fail", Title: "Fail"},
+				},
+			}
+
+			res, err := u.Push(ctx, batch)
+			assert.Nil(t, res)
+			assert.ErrorIs(t, err, expectedErr)
+
+			var count int64
+			require.NoError(
+				t,
+				testDB.Model(&entity.Gathering{}).
+					Where("id = ?", "g-rollback").
+					Count(&count).
+					Error,
+			)
+			assert.Equal(t, int64(0), count)
+		},
+	)
 }

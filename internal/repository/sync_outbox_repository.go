@@ -18,7 +18,7 @@ type SyncOutboxRepository interface {
 		limit int,
 	) ([]entity.SyncOutboxEntry, error)
 	MarkSynced(ctx context.Context, ids []string) error
-	ClearSynced(ctx context.Context, beforeTimestamp int64) error
+	ClearSynced(ctx context.Context, before time.Time) error
 }
 
 type syncOutboxRepository struct {
@@ -103,23 +103,21 @@ func (r *syncOutboxRepository) MarkSynced(
 
 func (r *syncOutboxRepository) ClearSynced(
 	ctx context.Context,
-	beforeTimestamp int64,
+	before time.Time,
 ) error {
-	r.log.Info("clear synced started", zap.Any("param", beforeTimestamp))
+	r.log.Info("clear synced started", zap.Time("before", before))
 
-	beforeTime := time.UnixMilli(beforeTimestamp)
-
-	if err := r.conn(ctx).Where("queued_at <= ?", beforeTime).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
+	if err := r.conn(ctx).Where("queued_at <= ?", before).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
 		r.log.Error(
 			"clear synced failed",
 			zap.Error(err),
-			zap.Any("param", beforeTimestamp),
+			zap.Time("before", before),
 		)
 
 		return entityerror.ErrSyncOutboxClearSyncedFailed(err)
 	}
 
-	r.log.Info("clear synced completed", zap.Any("param", beforeTimestamp))
+	r.log.Info("clear synced completed", zap.Time("before", before))
 
 	return nil
 }

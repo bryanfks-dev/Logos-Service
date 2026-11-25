@@ -57,18 +57,6 @@ func TestTxManager(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("nil context defaults to background", func(t *testing.T) {
-		executed := false
-		err := txManager.Do(nil, func(ctx context.Context) error {
-			executed = true
-			assert.NotNil(t, ctx)
-			assert.NotNil(t, correlation.Tx(ctx))
-			return nil
-		})
-		assert.NoError(t, err)
-		assert.True(t, executed)
-	})
-
 	t.Run("successful transaction commits", func(t *testing.T) {
 		ctx := context.Background()
 		err := txManager.Do(ctx, func(txCtx context.Context) error {

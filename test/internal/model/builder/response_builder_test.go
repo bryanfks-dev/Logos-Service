@@ -24,9 +24,10 @@ func TestAPIResponseBuilder(t *testing.T) {
 	t.Run(
 		"builds successful response with data and requestID",
 		func(t *testing.T) {
+			data := "hello world"
 			res := builder.NewAPIResponseBuilder[string]().
 				SetRequestID("req-success-123").
-				SetData("hello world").
+				SetData(&data).
 				Build()
 
 			assert.NotNil(t, res)

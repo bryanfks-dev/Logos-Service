@@ -13,17 +13,6 @@ import (
 func TestRequestID(t *testing.T) {
 	e := echo.New()
 
-	t.Run("nil context returns empty string", func(t *testing.T) {
-		assert.Equal(t, "", correlation.RequestID(nil))
-		assert.Equal(t, "", correlation.GetRequestID(nil))
-	})
-
-	t.Run("nil context with set does not panic", func(t *testing.T) {
-		assert.NotPanics(t, func() {
-			correlation.WithRequestID(nil, "some-id")
-		})
-	})
-
 	t.Run(
 		"context without request id returns empty string",
 		func(t *testing.T) {

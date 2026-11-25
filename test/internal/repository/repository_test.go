@@ -332,18 +332,20 @@ func TestSyncOutboxRepository(t *testing.T) {
 
 	repo := repository.NewSyncOutboxRepository(testDB, testLog)
 
+	baseTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	entry1 := &entity.SyncOutboxEntry{
 		EntityType: "sermon_notes",
 		EntityID:   "note-1",
 		Operation:  "create",
-		QueuedAt:   time.UnixMilli(1000),
+		QueuedAt:   baseTime.Add(1 * time.Second),
 	}
 
 	entry2 := &entity.SyncOutboxEntry{
 		EntityType: "gatherings",
 		EntityID:   "gathering-1",
 		Operation:  "create",
-		QueuedAt:   time.UnixMilli(2000),
+		QueuedAt:   baseTime.Add(2 * time.Second),
 	}
 
 	assert.NoError(t, repo.Enqueue(ctx, entry1))
@@ -360,7 +362,7 @@ func TestSyncOutboxRepository(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, remaining, 1)
 
-	assert.NoError(t, repo.ClearSynced(ctx, 3000))
+	assert.NoError(t, repo.ClearSynced(ctx, baseTime.Add(3*time.Second)))
 
 	cleared, err := repo.GetPendingBatch(ctx, 10)
 	assert.NoError(t, err)
@@ -422,7 +424,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 		require.NoError(t, testDB.Create(gDeleted).Error)
 		require.NoError(t, testDB.Create(gPast).Error)
 
-		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		results, err := repo.FindUpdatedSince(ctx, now)
 		require.NoError(t, err)
 		var ids []string
 		for _, r := range results {
@@ -451,7 +453,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 			require.NoError(t, testDB.Create(sActive).Error)
 			require.NoError(t, testDB.Create(sDeleted).Error)
 
-			results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+			results, err := repo.FindUpdatedSince(ctx, now)
 			require.NoError(t, err)
 			var ids []string
 			for _, r := range results {
@@ -478,7 +480,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 		require.NoError(t, testDB.Create(pActive).Error)
 		require.NoError(t, testDB.Create(pDeleted).Error)
 
-		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		results, err := repo.FindUpdatedSince(ctx, now)
 		require.NoError(t, err)
 		var ids []string
 		for _, r := range results {
@@ -497,7 +499,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 		}
 		require.NoError(t, testDB.Create(tagRecent).Error)
 
-		results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+		results, err := repo.FindUpdatedSince(ctx, now)
 		require.NoError(t, err)
 		var ids []string
 		for _, r := range results {
@@ -524,7 +526,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 			require.NoError(t, testDB.Create(nActive).Error)
 			require.NoError(t, testDB.Create(nDeleted).Error)
 
-			results, err := repo.FindUpdatedSince(ctx, now.UnixMilli())
+			results, err := repo.FindUpdatedSince(ctx, now)
 			require.NoError(t, err)
 			var ids []string
 			for _, r := range results {

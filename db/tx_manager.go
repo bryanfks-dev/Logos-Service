@@ -35,9 +35,6 @@ func (m *TxManager) DoWithOptions(
 	if fn == nil {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 
 	if tx := correlation.Tx(ctx); tx != nil {
 		return fn(ctx)

@@ -1,6 +1,8 @@
 package entity_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 	"uuid"
@@ -141,6 +143,79 @@ func TestBeforeCreateHooks(t *testing.T) {
 			assert.NoError(t, outboxExisting.BeforeCreate(nil))
 			assert.Equal(t, "outbox-id", outboxExisting.ID)
 			assert.Equal(t, fixedTime, outboxExisting.QueuedAt)
+		},
+	)
+}
+
+func TestSermonNote_ComparisonMethods(t *testing.T) {
+	t.Run(
+		"HasConflictWith handles nil and version/hash checks",
+		func(t *testing.T) {
+			var nilNote *entity.SermonNote
+			incoming := &entity.SermonNote{Version: 2, ContentHash: "hash-a"}
+			assert.False(t, nilNote.HasConflictWith(incoming))
+
+			existing := &entity.SermonNote{Version: 3, ContentHash: "hash-b"}
+			assert.False(t, existing.HasConflictWith(nil))
+			assert.True(t, existing.HasConflictWith(incoming))
+
+			// Same content hash -> no conflict even if existing version is higher
+			assert.False(
+				t,
+				existing.HasConflictWith(&entity.SermonNote{
+					Version:     2,
+					ContentHash: "hash-b",
+				}),
+			)
+
+			// Incoming version >= existing version -> no conflict
+			assert.False(
+				t,
+				existing.HasConflictWith(&entity.SermonNote{
+					Version:     3,
+					ContentHash: "hash-a",
+				}),
+			)
+		},
+	)
+
+	t.Run(
+		"IsContentMissingFor compares ContentHash and hydrated ContentJSON",
+		func(t *testing.T) {
+			var nilNote *entity.SermonNote
+			incoming := &entity.SermonNote{ContentHash: "hash-a"}
+			assert.False(t, nilNote.IsContentMissingFor(incoming))
+
+			existing := &entity.SermonNote{ContentHash: "hash-a"}
+			assert.False(t, existing.IsContentMissingFor(nil))
+			assert.False(t, existing.IsContentMissingFor(incoming))
+			assert.True(
+				t,
+				existing.IsContentMissingFor(&entity.SermonNote{
+					ContentHash: "hash-other",
+				}),
+			)
+
+			content := `{"ops":[{"insert":"hello"}]}`
+			sum := sha256.Sum256([]byte(content))
+			contentHash := hex.EncodeToString(sum[:])
+
+			hydrated := &entity.SermonNote{
+				ContentHash: "stale-db-hash",
+				ContentJSON: content,
+			}
+			assert.False(
+				t,
+				hydrated.IsContentMissingFor(&entity.SermonNote{
+					ContentHash: contentHash,
+				}),
+			)
+			assert.True(
+				t,
+				hydrated.IsContentMissingFor(&entity.SermonNote{
+					ContentHash: "stale-db-hash",
+				}),
+			)
 		},
 	)
 }

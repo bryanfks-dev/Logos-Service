@@ -30,15 +30,18 @@ func NewDatabase(config *viper.Viper, log *zap.Logger) *gorm.DB {
 		port,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.New(zap.NewStdLog(log), logger.Config{
-			SlowThreshold:             time.Second * 5,
-			Colorful:                  true,
-			IgnoreRecordNotFoundError: true,
-			ParameterizedQueries:      true,
-			LogLevel:                  logger.Info,
-		}),
-	})
+	logConfig := logger.Config{
+		SlowThreshold:             time.Second * 5,
+		Colorful:                  true,
+		IgnoreRecordNotFoundError: true,
+		ParameterizedQueries:      true,
+		LogLevel:                  logger.Info,
+	}
+
+	gormLogger := logger.New(zap.NewStdLog(log), logConfig)
+	gormConfig := &gorm.Config{Logger: gormLogger}
+
+	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
 		log.Sugar().Fatalf("failed to connect to database: %v", err)
 	}

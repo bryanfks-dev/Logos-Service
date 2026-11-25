@@ -12,9 +12,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestNoteEntityToSyncItem(t *testing.T) {
+func TestSermonNoteToSyncItem(t *testing.T) {
 	t.Run("nil note returns empty item", func(t *testing.T) {
-		item := converter.NoteEntityToSyncItem(nil)
+		item := converter.SermonNoteToSyncItem(nil)
 		assert.Empty(t, item.ID)
 	})
 
@@ -46,7 +46,7 @@ func TestNoteEntityToSyncItem(t *testing.T) {
 			},
 		}
 
-		item := converter.NoteEntityToSyncItem(note)
+		item := converter.SermonNoteToSyncItem(note)
 
 		assert.Equal(t, "note-123", item.ID)
 		assert.Equal(t, "Grace and Peace", item.Title)
@@ -60,9 +60,9 @@ func TestNoteEntityToSyncItem(t *testing.T) {
 	})
 }
 
-func TestSyncItemToNoteEntity(t *testing.T) {
+func TestSyncItemToSermonNote(t *testing.T) {
 	t.Run("nil item returns empty entity", func(t *testing.T) {
-		note := converter.SyncItemToNoteEntity(nil)
+		note := converter.SyncItemToSermonNote(nil)
 		assert.Empty(t, note.ID)
 	})
 
@@ -86,7 +86,7 @@ func TestSyncItemToNoteEntity(t *testing.T) {
 			},
 		}
 
-		note := converter.SyncItemToNoteEntity(item)
+		note := converter.SyncItemToSermonNote(item)
 
 		assert.Equal(t, "item-123", note.ID)
 		assert.Equal(t, "Faith", note.Title)
@@ -189,7 +189,7 @@ func TestSyncPushResultToResponse(t *testing.T) {
 		func(t *testing.T) {
 			res := converter.SyncPushResultToResponse(nil)
 			assert.NotNil(t, res)
-			assert.Equal(t, int64(0), res.SyncedAt)
+			assert.True(t, res.SyncedAt.IsZero())
 			assert.NotNil(t, res.MissingContentIDs)
 			assert.Empty(t, res.MissingContentIDs)
 			assert.NotNil(t, res.Conflicts)
@@ -198,15 +198,16 @@ func TestSyncPushResultToResponse(t *testing.T) {
 	)
 
 	t.Run("converts result to response", func(t *testing.T) {
+		syncedAt := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
 		result := &model.SyncPushResult{
-			SyncedAt:          1234567890,
+			SyncedAt:          syncedAt,
 			MissingContentIDs: []string{"n1", "n2"},
 			Conflicts:         []string{"n3"},
 		}
 
 		res := converter.SyncPushResultToResponse(result)
 		assert.NotNil(t, res)
-		assert.Equal(t, int64(1234567890), res.SyncedAt)
+		assert.Equal(t, syncedAt, res.SyncedAt)
 		assert.Equal(t, []string{"n1", "n2"}, res.MissingContentIDs)
 		assert.Equal(t, []string{"n3"}, res.Conflicts)
 	})
@@ -357,7 +358,7 @@ func TestSyncPullResultToResponse(t *testing.T) {
 		"converts full pull result with datetime server time",
 		func(t *testing.T) {
 			result := &model.SyncPullResult{
-				ServerTime: now.UnixMilli(),
+				ServerTime: now,
 				Notes: []*entity.SermonNote{
 					{
 						ID:        "n-1",

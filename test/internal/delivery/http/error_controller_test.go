@@ -11,6 +11,7 @@ import (
 	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
 	"github.com/bryanfks-dev/selah/internal/model"
 	apperror "github.com/bryanfks-dev/selah/pkg/error"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,30 @@ func TestErrorController(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, apiRes.Success)
 		assert.Equal(t, "invalid_media_type", apiRes.Error.Code)
+	})
+
+	t.Run("handles validation.Errors with field details", func(t *testing.T) {
+		_, ctx, rec := setupContext("req-validation")
+		verr := validation.Errors{
+			"notes": validation.Errors{
+				"0": validation.Errors{
+					"title": errors.New("cannot be blank"),
+				},
+			},
+		}
+
+		controller.HTTPErrorHandler(ctx, verr)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		var apiRes model.APIResponse[any]
+		err := json.Unmarshal(rec.Body.Bytes(), &apiRes)
+		require.NoError(t, err)
+		assert.False(t, apiRes.Success)
+		require.NotNil(t, apiRes.Error)
+		assert.Equal(t, "invalid_payload", apiRes.Error.Code)
+		require.Len(t, apiRes.Error.Errors, 1)
+		assert.Equal(t, "notes.0.title", apiRes.Error.Errors[0].Field)
+		assert.Equal(t, "cannot be blank", apiRes.Error.Errors[0].Message)
 	})
 
 	t.Run("handles AppError kinds", func(t *testing.T) {

@@ -18,7 +18,7 @@ func NewEtcController() *EtcController {
 // HealthCheck godoc
 // @Summary      Health check
 // @Description  Check service health status
-// @Tags         API / etc
+// @Tags         API / Etc
 // @Accept       json
 // @Produce      json
 // @Success      200 {object} model.APIResponse[any]

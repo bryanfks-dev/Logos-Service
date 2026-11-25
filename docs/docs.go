@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "API / etc"
+                    "API / Etc"
                 ],
                 "summary": "Health check",
                 "responses": {
@@ -38,9 +38,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/sync/pull": {
+        "/api/sync/pull": {
             "get": {
-                "description": "Pull records updated since specified timestamp across all entities",
+                "description": "Pull records updated since specified datetime across all entities",
                 "consumes": [
                     "application/json"
                 ],
@@ -48,13 +48,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "API / sync"
+                    "API / Sync"
                 ],
                 "summary": "Sync pull delta",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Timestamp (int64 or datetime) to query records updated since",
+                        "type": "string",
+                        "description": "RFC3339 or YYYY-MM-DD datetime to query records updated since",
                         "name": "since",
                         "in": "query"
                     }
@@ -66,8 +66,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPullResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
                         }
@@ -81,7 +81,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/sync/push": {
+        "/api/sync/push": {
             "post": {
                 "description": "Push batch of entities to synchronize with server",
                 "consumes": [
@@ -91,7 +91,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "API / sync"
+                    "API / Sync"
                 ],
                 "summary": "Sync push batch",
                 "parameters": [
@@ -112,14 +112,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPushResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
                         }
@@ -589,7 +589,7 @@ const docTemplate = `{
                     }
                 },
                 "synced_at": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },

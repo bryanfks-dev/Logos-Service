@@ -32,12 +32,12 @@ func setupIntegrationServer(t *testing.T) *echo.Echo {
 	etcController := deliveryhttp.NewEtcController()
 	errorController := deliveryhttp.NewErrorController(logger)
 
-	routeConfig := route.NewRouteConfig(
-		server,
-		etcController,
-		errorController,
-		nil,
-	)
+	routeConfig := route.NewRouteConfig(&route.RouteConfigOption{
+		App:             server,
+		EtcController:   etcController,
+		ErrorController: errorController,
+		SyncHandler:     nil,
+	})
 	routeConfig.Setup()
 
 	return server
@@ -415,7 +415,7 @@ func TestDIContainerEndpoints_Integration(t *testing.T) {
 			assert.True(t, res.Success)
 			assert.NotEmpty(t, res.Meta.RequestID)
 			require.NotNil(t, res.Data)
-			assert.Greater(t, res.Data.SyncedAt, int64(0))
+			assert.False(t, res.Data.SyncedAt.IsZero())
 		},
 	)
 

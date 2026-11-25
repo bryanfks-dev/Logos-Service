@@ -6,7 +6,9 @@ import (
 )
 
 func GzipMiddleware() echo.MiddlewareFunc {
-	return middleware.GzipWithConfig(middleware.GzipConfig{
+	config := middleware.GzipConfig{
 		Level: 5,
-	})
+	}
+
+	return middleware.GzipWithConfig(config)
 }

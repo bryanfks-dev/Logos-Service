@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"time"
@@ -56,6 +58,30 @@ func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func (e *SermonNote) HasConflictWith(incoming *SermonNote) bool {
+	if e == nil || incoming == nil {
+		return false
+	}
+
+	return e.Version > incoming.Version &&
+		e.ContentHash != incoming.ContentHash
+}
+
+func (e *SermonNote) IsContentMissingFor(incoming *SermonNote) bool {
+	if e == nil || incoming == nil {
+		return false
+	}
+
+	storedHash := e.ContentHash
+
+	if e.ContentJSON != "" {
+		sum := sha256.Sum256([]byte(e.ContentJSON))
+		storedHash = hex.EncodeToString(sum[:])
+	}
+
+	return incoming.ContentHash != storedHash
 }
 
 type SermonNoteFilter struct {

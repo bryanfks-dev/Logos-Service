@@ -5,10 +5,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/bryanfks-dev/selah/db/correlation"
 	"github.com/bryanfks-dev/selah/pkg/entity"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
+	"github.com/bryanfks-dev/selah/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -29,7 +31,7 @@ type SermonNoteRepository interface {
 	) ([]entity.SermonNote, error)
 	FindUpdatedSince(
 		ctx context.Context,
-		since int64,
+		since time.Time,
 	) ([]*entity.SermonNote, error)
 	Delete(ctx context.Context, id string) error
 	Restore(ctx context.Context, id string) error
@@ -64,30 +66,52 @@ func (r *sermonNoteRepository) persistNoteFile(note *entity.SermonNote) error {
 	}
 
 	if note.FilePath == "" {
-		dir := filepath.Join(os.TempDir(), "selah_notes")
+		note.FilePath = filepath.Join(
+			os.TempDir(),
+			"selah_notes",
+			note.ID+".json",
+		)
+	}
 
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
-
-		note.FilePath = filepath.Join(dir, note.ID+".json")
-	} else {
-		dir := filepath.Dir(note.FilePath)
-
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
+	if err := os.MkdirAll(filepath.Dir(note.FilePath), 0o755); err != nil {
+		return err
 	}
 
 	return os.WriteFile(note.FilePath, []byte(note.ContentJSON), 0o644)
 }
 
 func (r *sermonNoteRepository) hydrateNoteFile(note *entity.SermonNote) {
-	if note.FilePath != "" {
-		if data, err := os.ReadFile(note.FilePath); err == nil {
-			note.ContentJSON = string(data)
-		}
+	if note.FilePath == "" {
+		return
 	}
+
+	if data, err := os.ReadFile(note.FilePath); err == nil {
+		note.ContentJSON = string(data)
+	}
+}
+
+func (r *sermonNoteRepository) hydrateNoteRelations(
+	ctx context.Context,
+	note *entity.SermonNote,
+) {
+	var verses []entity.NoteVerse
+	_ = r.conn(ctx).Where("note_id = ?", note.ID).Find(&verses).Error
+	note.Verses = verses
+
+	var tags []entity.Tag
+	_ = r.conn(ctx).Table("tags").
+		Joins("JOIN note_tags ON note_tags.tag_id = tags.id").
+		Where("note_tags.note_id = ?", note.ID).
+		Find(&tags).
+		Error
+	note.Tags = tags
+
+	var fts entity.NotesFTS
+	if err := r.conn(ctx).Where("note_id = ?", note.ID).First(&fts).Error; err == nil {
+		note.FTS = &fts
+	}
+
+	r.hydrateNoteFile(note)
 }
 
 func (r *sermonNoteRepository) saveChildren(
@@ -125,25 +149,17 @@ func (r *sermonNoteRepository) saveChildren(
 		return err
 	}
 
-	if note.FTS != nil {
-		note.FTS.NoteID = note.ID
-
-		if err := r.conn(ctx).Create(note.FTS).Error; err != nil {
-			return err
-		}
-	} else {
-		fts := &entity.NotesFTS{
-			NoteID:    note.ID,
+	fts := note.FTS
+	if fts == nil {
+		fts = &entity.NotesFTS{
 			Title:     note.Title,
 			PlainText: note.PlainText,
 		}
-
-		if err := r.conn(ctx).Create(fts).Error; err != nil {
-			return err
-		}
 	}
 
-	return nil
+	fts.NoteID = note.ID
+
+	return r.conn(ctx).Create(fts).Error
 }
 
 func (r *sermonNoteRepository) Create(
@@ -226,24 +242,7 @@ func (r *sermonNoteRepository) FindByID(
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
-	var verses []entity.NoteVerse
-	_ = r.conn(ctx).Where("note_id = ?", id).Find(&verses).Error
-	note.Verses = verses
-
-	var tags []entity.Tag
-	_ = r.conn(ctx).Table("tags").
-		Joins("JOIN note_tags ON note_tags.tag_id = tags.id").
-		Where("note_tags.note_id = ?", id).
-		Find(&tags).
-		Error
-	note.Tags = tags
-
-	var fts entity.NotesFTS
-	if err := r.conn(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
-		note.FTS = &fts
-	}
-
-	r.hydrateNoteFile(&note)
+	r.hydrateNoteRelations(ctx, &note)
 
 	r.log.Info("find by id completed", zap.Any("param", id))
 
@@ -272,24 +271,7 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
-	var verses []entity.NoteVerse
-	_ = r.conn(ctx).Where("note_id = ?", id).Find(&verses).Error
-	note.Verses = verses
-
-	var tags []entity.Tag
-	_ = r.conn(ctx).Table("tags").
-		Joins("JOIN note_tags ON note_tags.tag_id = tags.id").
-		Where("note_tags.note_id = ?", id).
-		Find(&tags).
-		Error
-	note.Tags = tags
-
-	var fts entity.NotesFTS
-	if err := r.conn(ctx).Where("note_id = ?", id).First(&fts).Error; err == nil {
-		note.FTS = &fts
-	}
-
-	r.hydrateNoteFile(&note)
+	r.hydrateNoteRelations(ctx, &note)
 
 	r.log.Info("find by id unscoped completed", zap.Any("param", id))
 
@@ -452,16 +434,18 @@ func (r *sermonNoteRepository) Restore(ctx context.Context, id string) error {
 
 func (r *sermonNoteRepository) FindUpdatedSince(
 	ctx context.Context,
-	since int64,
+	since time.Time,
 ) ([]*entity.SermonNote, error) {
-	r.log.Info("find updated since started", zap.Int64("since", since))
+	r.log.Info("find updated since started", zap.Time("since", since))
 
-	sinceTime := parseSinceTime(since)
 	var notes []*entity.SermonNote
 
-	err := r.conn(ctx).
-		Unscoped().
-		Where("updated_at > ?", sinceTime).
+	query := r.conn(ctx).Unscoped()
+	if !since.IsZero() {
+		query = query.Where("updated_at > ?", since)
+	}
+
+	err := query.
 		Order("updated_at ASC").
 		Preload("Verses").
 		Preload("Tags").
@@ -470,7 +454,7 @@ func (r *sermonNoteRepository) FindUpdatedSince(
 		r.log.Error(
 			"find updated since failed",
 			zap.Error(err),
-			zap.Int64("since", since),
+			zap.Time("since", since),
 		)
 
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
@@ -480,9 +464,7 @@ func (r *sermonNoteRepository) FindUpdatedSince(
 		r.hydrateNoteFile(n)
 	}
 
-	if notes == nil {
-		notes = make([]*entity.SermonNote, 0)
-	}
+	notes = util.NonNilSlice(notes)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(notes)))
 

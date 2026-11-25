@@ -57,16 +57,16 @@ func setupSyncHandlerTestEnv(
 	tagRepository := repository.NewTagRepository(testDB, log)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncUsecase := usecase.NewSyncUsecase(
-		txManager,
-		sermonNoteRepository,
-		gatheringRepository,
-		sermonSeriesRepository,
-		preacherRepository,
-		tagRepository,
-		syncOutboxRepository,
-		log,
-	)
+	syncUsecase := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+		TxManager:              txManager,
+		SermonNoteRepository:   sermonNoteRepository,
+		GatheringRepository:    gatheringRepository,
+		SermonSeriesRepository: sermonSeriesRepository,
+		PreacherRepository:     preacherRepository,
+		TagRepository:          tagRepository,
+		SyncOutboxRepository:   syncOutboxRepository,
+		Log:                    log,
+	})
 
 	syncHandler := deliveryhttp.NewSyncHandler(syncUsecase, log)
 
@@ -127,7 +127,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			assert.True(t, res.Success)
 			require.NotNil(t, res.Data)
-			assert.Greater(t, res.Data.SyncedAt, int64(0))
+			assert.False(t, res.Data.SyncedAt.IsZero())
 			assert.Contains(t, res.Data.MissingContentIDs, "push-note-1")
 			assert.Empty(t, res.Data.Conflicts)
 			assert.NotEmpty(t, res.Meta.RequestID)
@@ -178,6 +178,44 @@ func TestSyncHandler_Push(t *testing.T) {
 		require.NotNil(t, res.Error)
 		assert.Equal(t, "invalid_payload", res.Error.Code)
 	})
+
+	t.Run(
+		"returns 400 with field errors when validation fails",
+		func(t *testing.T) {
+			reqBody := model.SyncPushRequest{
+				Notes: []model.SyncNoteItem{
+					{ID: "push-note-invalid", Title: ""},
+				},
+				Gatherings: []model.SyncGatheringItem{
+					{ID: "push-g-invalid", Name: "Sunday", ColorHex: "bad"},
+				},
+			}
+
+			bodyBytes, err := json.Marshal(reqBody)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/v1/sync/push",
+				bytes.NewReader(bodyBytes),
+			)
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			app.ServeHTTP(rec, req)
+
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+			var res model.APIResponse[any]
+			err = json.Unmarshal(rec.Body.Bytes(), &res)
+			require.NoError(t, err)
+
+			assert.False(t, res.Success)
+			require.NotNil(t, res.Error)
+			assert.Equal(t, "invalid_payload", res.Error.Code)
+			assert.NotEmpty(t, res.Error.Errors)
+		},
+	)
 
 	t.Run(
 		"constructors instantiate handler and controller alias",
@@ -238,11 +276,34 @@ func TestSyncHandler_Pull(t *testing.T) {
 	)
 
 	t.Run(
-		"returns 200 with int64 numeric since query param",
+		"returns 400 when since query param is unix integer",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
 				"/api/v1/sync/pull?since=0",
+				nil,
+			)
+			rec := httptest.NewRecorder()
+
+			app.ServeHTTP(rec, req)
+
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+			var res model.APIResponse[any]
+			err := json.Unmarshal(rec.Body.Bytes(), &res)
+			require.NoError(t, err)
+			assert.False(t, res.Success)
+			require.NotNil(t, res.Error)
+			assert.Equal(t, "invalid_payload", res.Error.Code)
+		},
+	)
+
+	t.Run(
+		"returns 200 with date-only since query param",
+		func(t *testing.T) {
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/api/v1/sync/pull?since=2026-01-01",
 				nil,
 			)
 			rec := httptest.NewRecorder()

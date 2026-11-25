@@ -2,18 +2,16 @@ package usecase
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"os"
 	"time"
-	"uuid"
 
 	"github.com/bryanfks-dev/selah/db"
 	"github.com/bryanfks-dev/selah/internal/model"
 	"github.com/bryanfks-dev/selah/internal/repository"
 	"github.com/bryanfks-dev/selah/pkg/entity"
+	apperror "github.com/bryanfks-dev/selah/pkg/error"
 	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
+	"github.com/bryanfks-dev/selah/pkg/util"
 	"go.uber.org/zap"
 )
 
@@ -28,77 +26,73 @@ type SyncUsecase struct {
 	log                    *zap.Logger
 }
 
-func NewSyncUsecase(
-	txManager *db.TxManager,
-	sermonNoteRepository repository.SermonNoteRepository,
-	gatheringRepository repository.GatheringRepository,
-	sermonSeriesRepository repository.SermonSeriesRepository,
-	preacherRepository repository.PreacherRepository,
-	tagRepository repository.TagRepository,
-	syncOutboxRepository repository.SyncOutboxRepository,
-	log *zap.Logger,
-) *SyncUsecase {
+type SyncUsecaseOption struct {
+	TxManager              *db.TxManager
+	SermonNoteRepository   repository.SermonNoteRepository
+	GatheringRepository    repository.GatheringRepository
+	SermonSeriesRepository repository.SermonSeriesRepository
+	PreacherRepository     repository.PreacherRepository
+	TagRepository          repository.TagRepository
+	SyncOutboxRepository   repository.SyncOutboxRepository
+	Log                    *zap.Logger
+}
+
+func NewSyncUsecase(opt *SyncUsecaseOption) *SyncUsecase {
 	return &SyncUsecase{
-		txManager:              txManager,
-		sermonNoteRepository:   sermonNoteRepository,
-		gatheringRepository:    gatheringRepository,
-		sermonSeriesRepository: sermonSeriesRepository,
-		preacherRepository:     preacherRepository,
-		tagRepository:          tagRepository,
-		syncOutboxRepository:   syncOutboxRepository,
-		log:                    log,
+		txManager:              opt.TxManager,
+		sermonNoteRepository:   opt.SermonNoteRepository,
+		gatheringRepository:    opt.GatheringRepository,
+		sermonSeriesRepository: opt.SermonSeriesRepository,
+		preacherRepository:     opt.PreacherRepository,
+		tagRepository:          opt.TagRepository,
+		syncOutboxRepository:   opt.SyncOutboxRepository,
+		log:                    opt.Log,
 	}
 }
 
 func (u *SyncUsecase) Pull(
 	ctx context.Context,
-	since int64,
+	since time.Time,
 ) (*model.SyncPullResult, error) {
-	serverNow := time.Now().UTC()
-	serverTime := serverNow.UnixMilli()
+	serverTime := time.Now().UTC()
 
 	notes, err := u.sermonNoteRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		u.log.Error("failed to pull sermon notes", zap.Error(err))
 		return nil, err
 	}
 
 	gatherings, err := u.gatheringRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		u.log.Error("failed to pull gatherings", zap.Error(err))
 		return nil, err
 	}
 
 	series, err := u.sermonSeriesRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		u.log.Error("failed to pull sermon series", zap.Error(err))
 		return nil, err
 	}
 
 	preachers, err := u.preacherRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		u.log.Error("failed to pull preachers", zap.Error(err))
 		return nil, err
 	}
 
 	tags, err := u.tagRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		u.log.Error("failed to pull tags", zap.Error(err))
 		return nil, err
 	}
 
-	if notes == nil {
-		notes = make([]*entity.SermonNote, 0)
-	}
-	if gatherings == nil {
-		gatherings = make([]*entity.Gathering, 0)
-	}
-	if series == nil {
-		series = make([]*entity.SermonSeries, 0)
-	}
-	if preachers == nil {
-		preachers = make([]*entity.Preacher, 0)
-	}
-	if tags == nil {
-		tags = make([]*entity.Tag, 0)
-	}
+	notes = util.NonNilSlice(notes)
+	gatherings = util.NonNilSlice(gatherings)
+	series = util.NonNilSlice(series)
+	preachers = util.NonNilSlice(preachers)
+	tags = util.NonNilSlice(tags)
 
-	return &model.SyncPullResult{
+	result := &model.SyncPullResult{
 		ServerTime:   serverTime,
 		Notes:        notes,
 		SermonNotes:  notes,
@@ -107,7 +101,9 @@ func (u *SyncUsecase) Pull(
 		SermonSeries: series,
 		Preachers:    preachers,
 		Tags:         tags,
-	}, nil
+	}
+
+	return result, nil
 }
 
 func (u *SyncUsecase) Push(
@@ -118,198 +114,237 @@ func (u *SyncUsecase) Push(
 		batch = &model.SyncBatch{}
 	}
 
-	serverNow := time.Now().UTC()
-	syncedAt := serverNow.UnixMilli()
-	missingContentIDs := make([]string, 0)
-	conflicts := make([]string, 0)
+	syncedAt := time.Now().UTC()
+
+	var (
+		missingContentIDs []string
+		conflicts         []string
+	)
 
 	err := u.txManager.Do(ctx, func(txCtx context.Context) error {
-		// 1. Upsert Gatherings using last-write-wins (UpdatedAt)
-		for _, g := range batch.Gatherings {
-			if g == nil {
-				continue
-			}
+		var txErr error
+		missingContentIDs, conflicts, txErr = u.applyPushBatch(txCtx, batch)
 
-			if g.ID == "" {
-				g.ID = uuid.NewV7().String()
-			}
-
-			existing, err := u.gatheringRepository.FindByID(txCtx, g.ID)
-			if err != nil &&
-				!errors.Is(err, entityerror.ErrGatheringNotFound(g.ID)) {
-				return err
-			}
-
-			if existing == nil {
-				if err := u.gatheringRepository.Create(txCtx, g); err != nil {
-					return err
-				}
-			} else if !g.UpdatedAt.Before(existing.UpdatedAt) {
-				if err := u.gatheringRepository.Update(txCtx, g); err != nil {
-					return err
-				}
-			}
-		}
-
-		// 2. Upsert Series using last-write-wins (UpdatedAt)
-		seriesList := batch.Series
-		if len(seriesList) == 0 && len(batch.SermonSeries) > 0 {
-			seriesList = batch.SermonSeries
-		}
-
-		for _, s := range seriesList {
-			if s == nil {
-				continue
-			}
-
-			if s.ID == "" {
-				s.ID = uuid.NewV7().String()
-			}
-
-			existing, err := u.sermonSeriesRepository.FindByID(txCtx, s.ID)
-			if err != nil &&
-				!errors.Is(err, entityerror.ErrSermonSeriesNotFound(s.ID)) {
-				return err
-			}
-
-			if existing == nil {
-				if err := u.sermonSeriesRepository.Create(txCtx, s); err != nil {
-					return err
-				}
-			} else if !s.UpdatedAt.Before(existing.UpdatedAt) {
-				if err := u.sermonSeriesRepository.Update(txCtx, s); err != nil {
-					return err
-				}
-			}
-		}
-
-		// 3. Upsert Preachers using last-write-wins (UpdatedAt)
-		for _, p := range batch.Preachers {
-			if p == nil {
-				continue
-			}
-
-			if p.ID == "" {
-				p.ID = uuid.NewV7().String()
-			}
-
-			existing, err := u.preacherRepository.FindByID(txCtx, p.ID)
-			if err != nil &&
-				!errors.Is(err, entityerror.ErrPreacherNotFound(p.ID)) {
-				return err
-			}
-
-			if existing == nil {
-				if err := u.preacherRepository.Create(txCtx, p); err != nil {
-					return err
-				}
-			} else if !p.UpdatedAt.Before(existing.UpdatedAt) {
-				if err := u.preacherRepository.Update(txCtx, p); err != nil {
-					return err
-				}
-			}
-		}
-
-		// 4. Upsert Tags using last-write-wins (UpdatedAt)
-		for _, t := range batch.Tags {
-			if t == nil {
-				continue
-			}
-
-			if t.ID == "" {
-				t.ID = uuid.NewV7().String()
-			}
-
-			existing, err := u.tagRepository.FindByID(txCtx, t.ID)
-			if err != nil && !errors.Is(err, entityerror.ErrTagNotFound(t.ID)) {
-				return err
-			}
-
-			if existing == nil {
-				if err := u.tagRepository.Create(txCtx, t); err != nil {
-					return err
-				}
-			} else if !t.UpdatedAt.Before(existing.UpdatedAt) {
-				if err := u.tagRepository.Update(txCtx, t); err != nil {
-					return err
-				}
-			}
-		}
-
-		// 5. Upsert incoming SermonNotes
-		notes := batch.Notes
-		if len(notes) == 0 && len(batch.SermonNotes) > 0 {
-			notes = batch.SermonNotes
-		}
-
-		for _, note := range notes {
-			if note == nil {
-				continue
-			}
-
-			if note.ID == "" {
-				note.ID = uuid.NewV7().String()
-			}
-
-			existingNote, findErr := u.sermonNoteRepository.FindByID(
-				txCtx,
-				note.ID,
-			)
-			if findErr != nil &&
-				!errors.Is(
-					findErr,
-					entityerror.ErrSermonNoteNotFound(note.ID),
-				) {
-				return findErr
-			}
-
-			if existingNote != nil && existingNote.Version > note.Version &&
-				existingNote.ContentHash != note.ContentHash {
-				conflicts = append(conflicts, note.ID)
-				continue
-			}
-
-			isMissing := false
-			if existingNote == nil {
-				isMissing = true
-			} else {
-				storedHash := existingNote.ContentHash
-				if existingNote.FilePath != "" {
-					if data, err := os.ReadFile(existingNote.FilePath); err == nil {
-						h := sha256.Sum256(data)
-						storedHash = hex.EncodeToString(h[:])
-					}
-				}
-
-				if note.ContentHash != storedHash {
-					isMissing = true
-				}
-			}
-
-			if isMissing {
-				missingContentIDs = append(missingContentIDs, note.ID)
-			}
-
-			if existingNote == nil {
-				if err := u.sermonNoteRepository.Create(txCtx, note); err != nil {
-					return err
-				}
-			} else {
-				if err := u.sermonNoteRepository.Update(txCtx, note); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
+		return txErr
 	})
 	if err != nil {
+		u.log.Error("failed to push sync batch", zap.Error(err))
 		return nil, err
 	}
 
-	return &model.SyncPushResult{
+	result := &model.SyncPushResult{
 		SyncedAt:          syncedAt,
 		MissingContentIDs: missingContentIDs,
 		Conflicts:         conflicts,
-	}, nil
+	}
+
+	return result, nil
+}
+
+func (u *SyncUsecase) applyPushBatch(
+	ctx context.Context,
+	batch *model.SyncBatch,
+) ([]string, []string, error) {
+	if err := u.upsertGatherings(ctx, batch.Gatherings); err != nil {
+		return nil, nil, err
+	}
+
+	series := util.CoalesceSlice(batch.Series, batch.SermonSeries)
+	if err := u.upsertSermonSeries(ctx, series); err != nil {
+		return nil, nil, err
+	}
+
+	if err := u.upsertPreachers(ctx, batch.Preachers); err != nil {
+		return nil, nil, err
+	}
+
+	if err := u.upsertTags(ctx, batch.Tags); err != nil {
+		return nil, nil, err
+	}
+
+	notes := util.CoalesceSlice(batch.Notes, batch.SermonNotes)
+
+	return u.upsertSermonNotes(ctx, notes)
+}
+
+func (u *SyncUsecase) upsertGatherings(
+	ctx context.Context,
+	gatherings []*entity.Gathering,
+) error {
+	opt := lastWriteWinsOption[entity.Gathering]{
+		id:          func(g *entity.Gathering) string { return g.ID },
+		updatedAt:   func(g *entity.Gathering) time.Time { return g.UpdatedAt },
+		findByID:    u.gatheringRepository.FindByID,
+		notFoundErr: entityerror.ErrGatheringNotFound,
+		create:      u.gatheringRepository.Create,
+		update:      u.gatheringRepository.Update,
+	}
+
+	return upsertLastWriteWins(ctx, gatherings, opt)
+}
+
+func (u *SyncUsecase) upsertSermonSeries(
+	ctx context.Context,
+	series []*entity.SermonSeries,
+) error {
+	opt := lastWriteWinsOption[entity.SermonSeries]{
+		id:          func(s *entity.SermonSeries) string { return s.ID },
+		updatedAt:   func(s *entity.SermonSeries) time.Time { return s.UpdatedAt },
+		findByID:    u.sermonSeriesRepository.FindByID,
+		notFoundErr: entityerror.ErrSermonSeriesNotFound,
+		create:      u.sermonSeriesRepository.Create,
+		update:      u.sermonSeriesRepository.Update,
+	}
+
+	return upsertLastWriteWins(ctx, series, opt)
+}
+
+func (u *SyncUsecase) upsertPreachers(
+	ctx context.Context,
+	preachers []*entity.Preacher,
+) error {
+	opt := lastWriteWinsOption[entity.Preacher]{
+		id:          func(p *entity.Preacher) string { return p.ID },
+		updatedAt:   func(p *entity.Preacher) time.Time { return p.UpdatedAt },
+		findByID:    u.preacherRepository.FindByID,
+		notFoundErr: entityerror.ErrPreacherNotFound,
+		create:      u.preacherRepository.Create,
+		update:      u.preacherRepository.Update,
+	}
+
+	return upsertLastWriteWins(ctx, preachers, opt)
+}
+
+func (u *SyncUsecase) upsertTags(
+	ctx context.Context,
+	tags []*entity.Tag,
+) error {
+	opt := lastWriteWinsOption[entity.Tag]{
+		id:          func(t *entity.Tag) string { return t.ID },
+		updatedAt:   func(t *entity.Tag) time.Time { return t.UpdatedAt },
+		findByID:    u.tagRepository.FindByID,
+		notFoundErr: entityerror.ErrTagNotFound,
+		create:      u.tagRepository.Create,
+		update:      u.tagRepository.Update,
+	}
+
+	return upsertLastWriteWins(ctx, tags, opt)
+}
+
+func (u *SyncUsecase) upsertSermonNotes(
+	ctx context.Context,
+	notes []*entity.SermonNote,
+) ([]string, []string, error) {
+	missingContentIDs := make([]string, 0)
+	conflicts := make([]string, 0)
+
+	for _, note := range notes {
+		missing, conflict, err := u.upsertSermonNote(ctx, note)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if conflict {
+			conflicts = append(conflicts, note.ID)
+			continue
+		}
+
+		if missing {
+			missingContentIDs = append(missingContentIDs, note.ID)
+		}
+	}
+
+	return missingContentIDs, conflicts, nil
+}
+
+func (u *SyncUsecase) upsertSermonNote(
+	ctx context.Context,
+	note *entity.SermonNote,
+) (bool, bool, error) {
+	if note == nil {
+		return false, false, nil
+	}
+
+	var existing *entity.SermonNote
+	if note.ID != "" {
+		var err error
+		existing, err = u.sermonNoteRepository.FindByID(ctx, note.ID)
+		if err != nil &&
+			!errors.Is(err, entityerror.ErrSermonNoteNotFound(note.ID)) {
+			return false, false, err
+		}
+	}
+
+	if existing == nil {
+		if err := u.sermonNoteRepository.Create(ctx, note); err != nil {
+			return false, false, err
+		}
+
+		return true, false, nil
+	}
+
+	if existing.HasConflictWith(note) {
+		return false, true, nil
+	}
+
+	missing := existing.IsContentMissingFor(note)
+
+	if err := u.sermonNoteRepository.Update(ctx, note); err != nil {
+		return false, false, err
+	}
+
+	return missing, false, nil
+}
+
+type lastWriteWinsOption[T any] struct {
+	id          func(*T) string
+	updatedAt   func(*T) time.Time
+	findByID    func(context.Context, string) (*T, error)
+	notFoundErr func(string) *apperror.AppError
+	create      func(context.Context, *T) error
+	update      func(context.Context, *T) error
+}
+
+func upsertLastWriteWins[T any](
+	ctx context.Context,
+	items []*T,
+	opt lastWriteWinsOption[T],
+) error {
+	for _, item := range items {
+		if err := upsertLastWriteWinsItem(ctx, item, opt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func upsertLastWriteWinsItem[T any](
+	ctx context.Context,
+	item *T,
+	opt lastWriteWinsOption[T],
+) error {
+	if item == nil {
+		return nil
+	}
+
+	id := opt.id(item)
+	if id == "" {
+		return opt.create(ctx, item)
+	}
+
+	existing, err := opt.findByID(ctx, id)
+	if err != nil && !errors.Is(err, opt.notFoundErr(id)) {
+		return err
+	}
+
+	if existing == nil {
+		return opt.create(ctx, item)
+	}
+
+	if opt.updatedAt(item).Before(opt.updatedAt(existing)) {
+		return nil
+	}
+
+	return opt.update(ctx, item)
 }

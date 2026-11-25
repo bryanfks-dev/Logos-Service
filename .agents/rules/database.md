@@ -5,6 +5,10 @@
 - **Entity ID Generation (UUID v7)**:
   - For all entity primary keys and identifiers (`ID`), always generate and use UUID version 7 (`uuid.NewV7()`).
   - Never use random UUID v4 (`uuid.New()` or `uuid.NewV4()`) for database entity IDs, ensuring time-ordered sortability and optimal B-tree index performance.
+  - Always handle entity ID generation exclusively inside entity lifecycle hooks in `pkg/entity/` (e.g., `BeforeCreate`). Never generate or assign entity IDs in delivery, usecase, repository, or converter layers.
+
+- **Entity Domain Behavior & Logic**:
+  - Always place pure entity-level behavior—such as comparisons, calculations, derived values, conflict checks, validations, and state predicates/transitions (e.g., `SermonNote.HasConflictWith`, `SermonNote.IsContentMissingFor`)—directly as methods on the entity struct in `pkg/entity/`, rather than placing them in `internal/usecase/`.
 
 ## Database Migration & Schema Evolution Rules
 

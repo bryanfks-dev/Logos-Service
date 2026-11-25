@@ -39,6 +39,8 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 2. **Usecase Layer (`internal/usecase/`)**:
    - Encapsulates business logic, domain rules, workflow orchestration, and transaction demarcation (`TxManager`).
    - Interacts with persistence via repository interfaces and external integrations via gateway interfaces.
+   - **Keep Entity Logic on Entities**:
+     - Place pure entity-level domain logic—such as comparisons, calculations, derived values, conflict checks, validations, and state predicates/transitions (e.g., `HasConflictWith`, `IsContentMissingFor`)—as methods on the corresponding entity in `pkg/entity/`, rather than helper functions in `internal/usecase/`.
    - **No Interface Required for Usecases**:
      - Usecases do not need to create or declare interfaces; defining a concrete struct is enough for construction and dependency injection (e.g., `<AggregateEntity>Usecase` struct).
      - Constructors should return the concrete struct pointer directly (e.g., `New<AggregateEntity>Usecase(...) *<AggregateEntity>Usecase`).
@@ -106,3 +108,4 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 - Components must depend on abstractions (interfaces) rather than concrete implementations for persistence and external integrations (e.g., usecases depend on repository and gateway interfaces).
 - Usecases do not need to create interfaces; concrete structs are sufficient for construction and dependency injection.
 - Register all constructors in `di/providers.go` and update Wire injection with `make wire` or `make build`.
+- Assume constructor-injected attributes on application-layer structs (controllers, usecases, repositories, gateways) are always non-nil; never add `nil` checks for struct attributes or receivers inside layer methods.

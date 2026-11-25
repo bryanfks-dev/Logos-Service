@@ -27,8 +27,8 @@ func (b *APIResponseBuilder[T]) SetError(
 	return b
 }
 
-func (b *APIResponseBuilder[T]) SetData(data T) *APIResponseBuilder[T] {
-	b.data = &data
+func (b *APIResponseBuilder[T]) SetData(data *T) *APIResponseBuilder[T] {
+	b.data = data
 
 	return b
 }
