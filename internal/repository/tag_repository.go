@@ -55,9 +55,10 @@ func (r *tagRepository) conn(ctx context.Context) *gorm.DB {
 func (r *tagRepository) Create(ctx context.Context, tag *entity.Tag) error {
 	r.log.Info("create started", zap.Any("param", tag))
 
+	updateCols := []string{"updated_at"}
 	onConflict := clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+		DoUpdates: clause.AssignmentColumns(updateCols),
 	}
 
 	err := r.conn(ctx).Clauses(onConflict).Create(tag).Error
@@ -214,7 +215,8 @@ func (r *tagRepository) FindUpdatedSince(
 func (r *tagRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.Tag{}).Error; err != nil {
+	tagModel := &entity.Tag{}
+	if err := r.conn(ctx).Where("id = ?", id).Delete(tagModel).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrTagDeleteFailed(err)

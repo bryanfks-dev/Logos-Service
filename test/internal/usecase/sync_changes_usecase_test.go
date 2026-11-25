@@ -746,7 +746,7 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 			require.NoError(t, testDB.Create(existing).Error)
 
 			// Matching file hash -> not missing content
-			res, err := u.Push(ctx, &model.SyncChangesBatch{
+			matchingBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
@@ -757,12 +757,13 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 						ContentJSON: content,
 					},
 				},
-			})
+			}
+			res, err := u.Push(ctx, matchingBatch)
 			require.NoError(t, err)
 			assert.NotContains(t, res.MissingContentIDs, "note-hydrated-file")
 
 			// Differing hash -> reported as missing content
-			res, err = u.Push(ctx, &model.SyncChangesBatch{
+			diffBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
@@ -772,7 +773,8 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 						ContentHash: "different-client-hash",
 					},
 				},
-			})
+			}
+			res, err = u.Push(ctx, diffBatch)
 			require.NoError(t, err)
 			assert.Contains(t, res.MissingContentIDs, "note-hydrated-file")
 		},
@@ -787,7 +789,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("db query failed")
 
-		u := usecase.NewSyncChangesUsecase(&usecase.SyncChangesUsecaseOption{
+		opt := &usecase.SyncChangesUsecaseOption{
 			TxManager: db.NewTxManager(testDB),
 			SermonNoteRepository: &failingSermonNoteRepo{
 				SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -809,7 +811,8 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 				log,
 			),
 			Log: log,
-		})
+		}
+		u := usecase.NewSyncChangesUsecase(opt)
 
 		res, err := u.Pull(ctx, time.Time{})
 		assert.Nil(t, res)
@@ -821,7 +824,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("gathering query failed")
 
-		u := usecase.NewSyncChangesUsecase(&usecase.SyncChangesUsecaseOption{
+		opt := &usecase.SyncChangesUsecaseOption{
 			TxManager: db.NewTxManager(testDB),
 			SermonNoteRepository: repository.NewSermonNoteRepository(
 				testDB,
@@ -846,7 +849,8 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 				log,
 			),
 			Log: log,
-		})
+		}
+		u := usecase.NewSyncChangesUsecase(opt)
 
 		res, err := u.Pull(ctx, time.Time{})
 		assert.Nil(t, res)
@@ -1052,7 +1056,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			wg.Add(2)
 			go func() {
 				defer wg.Done()
-				resA, errA = u.Push(ctx, &model.SyncChangesBatch{
+				batchA := &model.SyncChangesBatch{
 					Notes: []*entity.SermonNote{
 						{
 							ID:          "note-concurrent-1",
@@ -1062,12 +1066,13 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 							PlainText:   "Content A",
 						},
 					},
-				})
+				}
+				resA, errA = u.Push(ctx, batchA)
 			}()
 
 			go func() {
 				defer wg.Done()
-				resB, errB = u.Push(ctx, &model.SyncChangesBatch{
+				batchB := &model.SyncChangesBatch{
 					Notes: []*entity.SermonNote{
 						{
 							ID:          "note-concurrent-1",
@@ -1077,7 +1082,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 							PlainText:   "Content B",
 						},
 					},
-				})
+				}
+				resB, errB = u.Push(ctx, batchB)
 			}()
 
 			wg.Wait()
@@ -1093,11 +1099,11 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				t,
 				testDB.First(&stored, "id = ?", "note-concurrent-1").Error,
 			)
-			assert.Contains(
-				t,
-				[]string{"Client A Concurrent", "Client B Concurrent"},
-				stored.Title,
-			)
+			expectedTitles := []string{
+				"Client A Concurrent",
+				"Client B Concurrent",
+			}
+			assert.Contains(t, expectedTitles, stored.Title)
 		},
 	)
 
@@ -1110,7 +1116,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 			t2 := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-			res, err := u.Push(ctx, &model.SyncChangesBatch{
+			dupBatch := &model.SyncChangesBatch{
 				Gatherings: []*entity.Gathering{
 					{ID: "g-dup", Name: "First", UpdatedAt: t1},
 					{ID: "g-dup", Name: "Second", UpdatedAt: t2},
@@ -1129,7 +1135,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						ContentHash: "h2",
 					},
 				},
-			})
+			}
+			res, err := u.Push(ctx, dupBatch)
 			require.NoError(t, err)
 			assert.Empty(t, res.Conflicts)
 
@@ -1153,7 +1160,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			t1 := time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC)
 			t2 := time.Date(2026, 2, 1, 11, 0, 0, 0, time.UTC)
 
-			resA, err := u.Push(ctx, &model.SyncChangesBatch{
+			batchA := &model.SyncChangesBatch{
 				Tags: []*entity.Tag{
 					{ID: "tag-client-a", Name: "Grace", UpdatedAt: t1},
 				},
@@ -1168,11 +1175,12 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						},
 					},
 				},
-			})
+			}
+			resA, err := u.Push(ctx, batchA)
 			require.NoError(t, err)
 			assert.Empty(t, resA.Conflicts)
 
-			resB, err := u.Push(ctx, &model.SyncChangesBatch{
+			batchB := &model.SyncChangesBatch{
 				Tags: []*entity.Tag{
 					{ID: "tag-client-b", Name: "Grace", UpdatedAt: t2},
 				},
@@ -1187,7 +1195,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						},
 					},
 				},
-			})
+			}
+			resB, err := u.Push(ctx, batchB)
 			require.NoError(t, err)
 			assert.Empty(t, resB.Conflicts)
 
@@ -1219,7 +1228,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, testDB.Create(g).Error)
 			require.NoError(t, testDB.Delete(g).Error)
 
-			_, err := u.Push(ctx, &model.SyncChangesBatch{
+			restoreBatch := &model.SyncChangesBatch{
 				Gatherings: []*entity.Gathering{
 					{
 						ID:        "g-soft-del",
@@ -1227,7 +1236,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						UpdatedAt: time.Now().UTC(),
 					},
 				},
-			})
+			}
+			_, err := u.Push(ctx, restoreBatch)
 			require.NoError(t, err)
 
 			var stored entity.Gathering
@@ -1250,7 +1260,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			origSum := sha256.Sum256([]byte(originalContent))
 			origHash := hex.EncodeToString(origSum[:])
 
-			_, err := u.Push(ctx, &model.SyncChangesBatch{
+			initialBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-file-rb-1",
@@ -1261,48 +1271,48 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						ContentHash: origHash,
 					},
 				},
-			})
+			}
+			_, err := u.Push(ctx, initialBatch)
 			require.NoError(t, err)
 
 			log := zap.NewNop()
 			failErr := errors.New("second note failed")
-			uFail := usecase.NewSyncChangesUsecase(
-				&usecase.SyncChangesUsecaseOption{
-					TxManager: db.NewTxManager(testDB),
-					SermonNoteRepository: &failingSermonNoteRepo{
-						SermonNoteRepository: repository.NewSermonNoteRepository(
-							testDB,
-							fs.NewManager(),
-							log,
-						),
-						createErr: failErr,
-					},
-					GatheringRepository: repository.NewGatheringRepository(
+			failOpt := &usecase.SyncChangesUsecaseOption{
+				TxManager: db.NewTxManager(testDB),
+				SermonNoteRepository: &failingSermonNoteRepo{
+					SermonNoteRepository: repository.NewSermonNoteRepository(
 						testDB,
+						fs.NewManager(),
 						log,
 					),
-					SermonSeriesRepository: repository.NewSermonSeriesRepository(
-						testDB,
-						log,
-					),
-					PreacherRepository: repository.NewPreacherRepository(
-						testDB,
-						log,
-					),
-					TagRepository: repository.NewTagRepository(testDB, log),
-					SyncOutboxRepository: repository.NewSyncOutboxRepository(
-						testDB,
-						log,
-					),
-					Log: log,
+					createErr: failErr,
 				},
-			)
+				GatheringRepository: repository.NewGatheringRepository(
+					testDB,
+					log,
+				),
+				SermonSeriesRepository: repository.NewSermonSeriesRepository(
+					testDB,
+					log,
+				),
+				PreacherRepository: repository.NewPreacherRepository(
+					testDB,
+					log,
+				),
+				TagRepository: repository.NewTagRepository(testDB, log),
+				SyncOutboxRepository: repository.NewSyncOutboxRepository(
+					testDB,
+					log,
+				),
+				Log: log,
+			}
+			uFail := usecase.NewSyncChangesUsecase(failOpt)
 
 			newContent := `{"ops":[{"insert":"should-not-persist"}]}`
 			newSum := sha256.Sum256([]byte(newContent))
 			newHash := hex.EncodeToString(newSum[:])
 
-			_, err = uFail.Push(ctx, &model.SyncChangesBatch{
+			rollbackBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-file-rb-1",
@@ -1319,7 +1329,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						ContentHash: "h2",
 					},
 				},
-			})
+			}
+			_, err = uFail.Push(ctx, rollbackBatch)
 			assert.ErrorIs(t, err, failErr)
 
 			diskBytes, readErr := os.ReadFile(noteFile)
@@ -1339,7 +1350,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			sum := sha256.Sum256([]byte(content))
 			hash := hex.EncodeToString(sum[:])
 
-			_, err := u.Push(ctx, &model.SyncChangesBatch{
+			createBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-meta-preserve",
@@ -1350,7 +1361,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						ContentHash: hash,
 					},
 				},
-			})
+			}
+			_, err := u.Push(ctx, createBatch)
 			require.NoError(t, err)
 
 			var created entity.SermonNote
@@ -1359,7 +1371,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				testDB.First(&created, "id = ?", "note-meta-preserve").Error,
 			)
 
-			res, err := u.Push(ctx, &model.SyncChangesBatch{
+			updateBatch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-meta-preserve",
@@ -1368,7 +1380,8 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						ContentHash: hash,
 					},
 				},
-			})
+			}
+			res, err := u.Push(ctx, updateBatch)
 			require.NoError(t, err)
 			assert.Empty(t, res.MissingContentIDs)
 

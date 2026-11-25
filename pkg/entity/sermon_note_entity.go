@@ -17,7 +17,7 @@ type SermonNote struct {
 	SeriesID    *string        `gorm:"column:series_id;type:varchar(36);index"`
 	PreacherID  *string        `gorm:"column:preacher_id;type:varchar(36);index"`
 	Title       string         `gorm:"column:title;type:varchar(255);not null"`
-	SermonDate  *time.Time     `gorm:"column:sermon_date"`
+	SermonDate  time.Time      `gorm:"column:sermon_date"`
 	FilePath    string         `gorm:"column:file_path;type:text"`
 	ContentHash string         `gorm:"column:content_hash;type:varchar(64)"`
 	PlainText   string         `gorm:"column:plain_text;type:text"`

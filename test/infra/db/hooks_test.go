@@ -14,7 +14,8 @@ import (
 func TestAfterCommitHooks(t *testing.T) {
 	t.Run("returns false when no hook list in context", func(t *testing.T) {
 		ctx := context.Background()
-		ok := db.AddAfterCommit(ctx, func() error { return nil })
+		noopHook := func() error { return nil }
+		ok := db.AddAfterCommit(ctx, noopHook)
 		assert.False(t, ok)
 	})
 
@@ -30,24 +31,28 @@ func TestAfterCommitHooks(t *testing.T) {
 			wrongKey("after_commit"),
 			"not-a-hook-list",
 		)
-		assert.False(t, db.AddAfterCommit(ctx, func() error { return nil }))
+		noopHook := func() error { return nil }
+		assert.False(t, db.AddAfterCommit(ctx, noopHook))
 	})
 
 	t.Run("executes registered hooks in FIFO order", func(t *testing.T) {
 		hookCtx, runHooks := db.WithAfterCommit(context.Background())
 
 		var order []int
-		require.True(t, db.AddAfterCommit(hookCtx, func() error {
+		firstHook := func() error {
 			order = append(order, 1)
 			return nil
-		}))
-		require.True(t, db.AddAfterCommit(hookCtx, func() error {
+		}
+		secondHook := func() error {
 			order = append(order, 2)
 			return nil
-		}))
+		}
+		require.True(t, db.AddAfterCommit(hookCtx, firstHook))
+		require.True(t, db.AddAfterCommit(hookCtx, secondHook))
 
+		expectedOrder := []int{1, 2}
 		assert.NoError(t, runHooks())
-		assert.Equal(t, []int{1, 2}, order)
+		assert.Equal(t, expectedOrder, order)
 	})
 
 	t.Run("stops and returns error when a hook fails", func(t *testing.T) {
@@ -55,13 +60,15 @@ func TestAfterCommitHooks(t *testing.T) {
 		expectedErr := errors.New("hook failed")
 		secondRan := false
 
-		require.True(t, db.AddAfterCommit(hookCtx, func() error {
+		failingHook := func() error {
 			return expectedErr
-		}))
-		require.True(t, db.AddAfterCommit(hookCtx, func() error {
+		}
+		secondHook := func() error {
 			secondRan = true
 			return nil
-		}))
+		}
+		require.True(t, db.AddAfterCommit(hookCtx, failingHook))
+		require.True(t, db.AddAfterCommit(hookCtx, secondHook))
 
 		err := runHooks()
 		assert.ErrorIs(t, err, expectedErr)
@@ -82,12 +89,13 @@ func TestAfterCommitHooks(t *testing.T) {
 		for range workers {
 			go func() {
 				defer wg.Done()
-				ok := db.AddAfterCommit(hookCtx, func() error {
+				incHook := func() error {
 					mu.Lock()
 					count++
 					mu.Unlock()
 					return nil
-				})
+				}
+				ok := db.AddAfterCommit(hookCtx, incHook)
 				assert.True(t, ok)
 			}()
 		}

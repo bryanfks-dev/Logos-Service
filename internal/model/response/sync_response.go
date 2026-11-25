@@ -11,10 +11,10 @@ type SyncPushChangesResponse struct {
 }
 
 type SyncPullChangesResponse struct {
-	ServerTime time.Time               `json:"server_time"`
-	Notes      []*SermonNoteResponse   `json:"notes"`
-	Gatherings []*GatheringResponse    `json:"gatherings"`
-	Series     []*SermonSeriesResponse `json:"series"`
-	Preachers  []*PreacherResponse     `json:"preachers"`
-	Tags       []*TagResponse          `json:"tags"`
+	ServerTime time.Time              `json:"server_time"`
+	Notes      []SermonNoteResponse   `json:"notes"`
+	Gatherings []GatheringResponse    `json:"gatherings"`
+	Series     []SermonSeriesResponse `json:"series"`
+	Preachers  []PreacherResponse     `json:"preachers"`
+	Tags       []TagResponse          `json:"tags"`
 }

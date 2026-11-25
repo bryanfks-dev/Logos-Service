@@ -160,40 +160,32 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 			assert.True(t, existing.HasConflictWith(incoming))
 
 			// Same content hash -> no conflict even if existing version is higher
-			assert.False(
-				t,
-				existing.HasConflictWith(&entity.SermonNote{
-					Version:     2,
-					ContentHash: "hash-b",
-				}),
-			)
+			sameHashOlder := &entity.SermonNote{
+				Version:     2,
+				ContentHash: "hash-b",
+			}
+			assert.False(t, existing.HasConflictWith(sameHashOlder))
 
 			// Same version with different content hash -> conflict
-			assert.True(
-				t,
-				existing.HasConflictWith(&entity.SermonNote{
-					Version:     3,
-					ContentHash: "hash-a",
-				}),
-			)
+			sameVersionDiffHash := &entity.SermonNote{
+				Version:     3,
+				ContentHash: "hash-a",
+			}
+			assert.True(t, existing.HasConflictWith(sameVersionDiffHash))
 
 			// Same version with same content hash -> no conflict
-			assert.False(
-				t,
-				existing.HasConflictWith(&entity.SermonNote{
-					Version:     3,
-					ContentHash: "hash-b",
-				}),
-			)
+			sameVersionSameHash := &entity.SermonNote{
+				Version:     3,
+				ContentHash: "hash-b",
+			}
+			assert.False(t, existing.HasConflictWith(sameVersionSameHash))
 
 			// Incoming version > existing version -> no conflict
-			assert.False(
-				t,
-				existing.HasConflictWith(&entity.SermonNote{
-					Version:     4,
-					ContentHash: "hash-a",
-				}),
-			)
+			newerVersion := &entity.SermonNote{
+				Version:     4,
+				ContentHash: "hash-a",
+			}
+			assert.False(t, existing.HasConflictWith(newerVersion))
 		},
 	)
 
@@ -207,12 +199,9 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 			existing := &entity.SermonNote{ContentHash: "hash-a"}
 			assert.False(t, existing.IsContentMissingFor(nil))
 			assert.False(t, existing.IsContentMissingFor(incoming))
-			assert.True(
-				t,
-				existing.IsContentMissingFor(&entity.SermonNote{
-					ContentHash: "hash-other",
-				}),
-			)
+
+			otherIncoming := &entity.SermonNote{ContentHash: "hash-other"}
+			assert.True(t, existing.IsContentMissingFor(otherIncoming))
 
 			content := `{"ops":[{"insert":"hello"}]}`
 			sum := sha256.Sum256([]byte(content))
@@ -222,18 +211,14 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 				ContentHash: "stale-db-hash",
 				ContentJSON: content,
 			}
-			assert.False(
-				t,
-				hydrated.IsContentMissingFor(&entity.SermonNote{
-					ContentHash: contentHash,
-				}),
-			)
-			assert.True(
-				t,
-				hydrated.IsContentMissingFor(&entity.SermonNote{
-					ContentHash: "stale-db-hash",
-				}),
-			)
+			matchingContentNote := &entity.SermonNote{
+				ContentHash: contentHash,
+			}
+			staleHashNote := &entity.SermonNote{
+				ContentHash: "stale-db-hash",
+			}
+			assert.False(t, hydrated.IsContentMissingFor(matchingContentNote))
+			assert.True(t, hydrated.IsContentMissingFor(staleHashNote))
 		},
 	)
 }

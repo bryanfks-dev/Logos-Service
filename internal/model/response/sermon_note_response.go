@@ -10,7 +10,7 @@ type SermonNoteResponse struct {
 	SeriesID    *string                   `json:"series_id,omitempty"`
 	PreacherID  *string                   `json:"preacher_id,omitempty"`
 	Title       string                    `json:"title"`
-	SermonDate  *time.Time                `json:"sermon_date,omitempty"`
+	SermonDate  time.Time                 `json:"sermon_date"`
 	FilePath    string                    `json:"file_path,omitempty"`
 	ContentHash string                    `json:"content_hash,omitempty"`
 	PlainText   string                    `json:"plain_text,omitempty"`
@@ -22,5 +22,4 @@ type SermonNoteResponse struct {
 	CreatedAt   time.Time                 `json:"created_at"`
 	UpdatedAt   time.Time                 `json:"updated_at"`
 	DeletedAt   *time.Time                `json:"deleted_at,omitempty"`
-	IsDeleted   bool                      `json:"is_deleted,omitempty"`
 }

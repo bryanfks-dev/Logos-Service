@@ -42,7 +42,7 @@ func TestSyncPushChangesRequest_Validate(t *testing.T) {
 					ContentHash: "abc123",
 					Version:     1,
 					Tags:        []string{"Grace"},
-					Verses: []request.SyncNoteVerse{
+					Verses: []request.SyncNoteVerseChangesItem{
 						{
 							ID:          "v-1",
 							Translation: "ESV",
@@ -79,7 +79,7 @@ func TestSyncPushChangesRequest_Validate(t *testing.T) {
 					Title:   "",
 					Version: -1,
 					Tags:    []string{""},
-					Verses: []request.SyncNoteVerse{
+					Verses: []request.SyncNoteVerseChangesItem{
 						{Translation: "", BookID: 0, Chapter: 0, VerseStart: 0},
 					},
 				},

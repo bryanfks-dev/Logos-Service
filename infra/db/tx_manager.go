@@ -47,10 +47,12 @@ func (m *TxManager) DoWithOptions(
 
 	hookCtx, hookFn := WithAfterCommit(ctx)
 
-	err := m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	txFn := func(tx *gorm.DB) error {
 		extendedCtx := correlation.WithTx(hookCtx, tx)
 		return fn(extendedCtx)
-	}, txOpts...)
+	}
+
+	err := m.db.WithContext(ctx).Transaction(txFn, txOpts...)
 	if err != nil {
 		return err
 	}

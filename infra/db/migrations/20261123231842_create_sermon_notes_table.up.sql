@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS sermon_notes (
     series_id VARCHAR(36) REFERENCES sermon_series(id) ON DELETE SET NULL,
     preacher_id VARCHAR(36) REFERENCES preachers(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
-    sermon_date TIMESTAMPTZ,
+    sermon_date TIMESTAMPTZ NOT NULL,
     file_path TEXT,
     content_hash VARCHAR(64),
     plain_text TEXT,

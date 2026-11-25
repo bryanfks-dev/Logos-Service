@@ -33,12 +33,13 @@ func setupIntegrationServer(t *testing.T) *echo.Echo {
 	etcController := deliveryhttp.NewEtcController()
 	errorController := deliveryhttp.NewErrorController(logger)
 
-	routeConfig := route.NewRouteConfig(&route.RouteConfigOption{
+	routeOpt := &route.RouteConfigOption{
 		App:             server,
 		EtcController:   etcController,
 		ErrorController: errorController,
 		SyncController:  nil,
-	})
+	}
+	routeConfig := route.NewRouteConfig(routeOpt)
 	routeConfig.Setup()
 
 	return server

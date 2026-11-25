@@ -17,16 +17,20 @@ func TestCoalesceSlice(t *testing.T) {
 
 	t.Run("returns fallback when primary is nil or empty", func(t *testing.T) {
 		fallback := []int{1, 2}
+		emptyInt := []int{}
 
 		assert.Equal(t, fallback, util.CoalesceSlice(nil, fallback))
-		assert.Equal(t, fallback, util.CoalesceSlice([]int{}, fallback))
+		assert.Equal(t, fallback, util.CoalesceSlice(emptyInt, fallback))
 	})
 
 	t.Run(
 		"returns nil or empty fallback when both are empty",
 		func(t *testing.T) {
+			emptyPrimary := []string{}
+			emptyFallback := []string{}
+
 			assert.Nil(t, util.CoalesceSlice[string](nil, nil))
-			assert.Empty(t, util.CoalesceSlice([]string{}, []string{}))
+			assert.Empty(t, util.CoalesceSlice(emptyPrimary, emptyFallback))
 		},
 	)
 }
@@ -39,7 +43,8 @@ func TestNonNilSlice(t *testing.T) {
 			assert.NotNil(t, nilResult)
 			assert.Empty(t, nilResult)
 
-			emptyResult := util.NonNilSlice([]string{})
+			emptyInput := []string{}
+			emptyResult := util.NonNilSlice(emptyInput)
 			assert.NotNil(t, emptyResult)
 			assert.Empty(t, emptyResult)
 		},

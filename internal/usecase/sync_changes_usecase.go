@@ -133,19 +133,17 @@ func (u *SyncChangesUsecase) Push(
 			return nil, ctx.Err()
 		}
 
-		err = u.txManager.DoWithOptions(
-			ctx,
-			txOpts,
-			func(txCtx context.Context) error {
-				var txErr error
-				missingContentIDs, conflicts, txErr = u.applyPushBatch(
-					txCtx,
-					batch,
-				)
+		txFn := func(txCtx context.Context) error {
+			var txErr error
+			missingContentIDs, conflicts, txErr = u.applyPushBatch(
+				txCtx,
+				batch,
+			)
 
-				return txErr
-			},
-		)
+			return txErr
+		}
+
+		err = u.txManager.DoWithOptions(ctx, txOpts, txFn)
 		if err == nil || !isRetryableSyncError(err) ||
 			attempt == maxPushTxRetries-1 {
 			break
@@ -500,10 +498,12 @@ func (u *SyncChangesUsecase) upsertSermonNotes(
 	missingContentIDs := make([]string, 0)
 	conflicts := make([]string, 0)
 
+	noteIDFn := func(n *entity.SermonNote) string { return n.ID }
+
 	existingByID, err := fetchExistingByID(
 		ctx,
 		notes,
-		func(n *entity.SermonNote) string { return n.ID },
+		noteIDFn,
 		u.sermonNoteRepository.FindByIDsUnscoped,
 	)
 	if err != nil {

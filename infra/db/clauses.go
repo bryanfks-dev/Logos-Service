@@ -14,7 +14,9 @@ func WithRowLock(ctx context.Context, query *gorm.DB) *gorm.DB {
 	}
 
 	if correlation.GetTx(ctx) != nil {
-		return query.Clauses(clause.Locking{Strength: "UPDATE"})
+		lockClause := clause.Locking{Strength: "UPDATE"}
+
+		return query.Clauses(lockClause)
 	}
 
 	return query

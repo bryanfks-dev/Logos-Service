@@ -191,7 +191,8 @@ func (r *gatheringRepository) FindUpdatedSince(
 func (r *gatheringRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.Gathering{}).Error; err != nil {
+	gatheringModel := &entity.Gathering{}
+	if err := r.conn(ctx).Where("id = ?", id).Delete(gatheringModel).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrGatheringDeleteFailed(err)

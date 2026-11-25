@@ -189,7 +189,8 @@ func (r *sermonSeriesRepository) FindUpdatedSince(
 func (r *sermonSeriesRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.SermonSeries{}).Error; err != nil {
+	seriesModel := &entity.SermonSeries{}
+	if err := r.conn(ctx).Where("id = ?", id).Delete(seriesModel).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonSeriesDeleteFailed(err)

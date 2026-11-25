@@ -159,7 +159,8 @@ func (r *bibleRepository) ListAvailableTranslations(
 
 	var translations []string
 
-	if err := r.conn(ctx).Model(&entity.BibleVerse{}).Distinct().Pluck("translation", &translations).Error; err != nil {
+	bibleVerseModel := &entity.BibleVerse{}
+	if err := r.conn(ctx).Model(bibleVerseModel).Distinct().Pluck("translation", &translations).Error; err != nil {
 		r.log.Error(
 			"list available translations failed",
 			zap.Error(err),

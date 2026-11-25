@@ -12,7 +12,6 @@ import (
 	"github.com/bryanfks-dev/logos/internal/model/response"
 	"github.com/bryanfks-dev/logos/internal/usecase"
 	apperror "github.com/bryanfks-dev/logos/pkg/error"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 )
@@ -48,8 +47,8 @@ func NewSyncController(
 func (h *SyncController) Push(ctx *echo.Context) error {
 	requestID := correlation.GetRequestID(ctx)
 
-	var req request.SyncPushChangesRequest
-	if err := ctx.Bind(&req); err != nil {
+	request := new(request.SyncPushChangesRequest)
+	if err := ctx.Bind(request); err != nil {
 		h.log.Warn(
 			"failed to bind sync push request",
 			zap.Error(err),
@@ -59,7 +58,7 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 		return apperror.ErrInvalidPayload
 	}
 
-	if err := req.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		h.log.Warn(
 			"failed to validate sync push request",
 			zap.Error(err),
@@ -69,14 +68,14 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 		return err
 	}
 
-	batch := converter.SyncPushChangesRequestToBatch(&req)
+	batch := converter.SyncPushChangesRequestToSyncChangesBatch(request)
 
 	result, err := h.syncChangesUsecase.Push(ctx.Request().Context(), batch)
 	if err != nil {
 		return err
 	}
 
-	responseData := converter.SyncPushResultToResponse(result)
+	responseData := converter.SyncPushChangesResultToResponse(result)
 	apiResponse := builder.NewAPIResponseBuilder[response.SyncPushChangesResponse]().
 		SetRequestID(requestID).
 		SetData(responseData).
@@ -100,8 +99,8 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 func (h *SyncController) Pull(ctx *echo.Context) error {
 	requestID := correlation.GetRequestID(ctx)
 
-	var syncParams params.SyncPullChangesParam
-	if err := ctx.Bind(&syncParams); err != nil {
+	params := new(params.SyncPullChangesParam)
+	if err := ctx.Bind(params); err != nil {
 		h.log.Warn(
 			"failed to bind sync pull params",
 			zap.Error(err),
@@ -111,18 +110,18 @@ func (h *SyncController) Pull(ctx *echo.Context) error {
 		return apperror.ErrInvalidPayload
 	}
 
-	if err := syncParams.Validate(); err != nil {
+	if err := params.Validate(); err != nil {
 		h.log.Warn(
 			"failed to validate sync pull params",
 			zap.Error(err),
-			zap.String("since", syncParams.Since),
+			zap.String("since", params.Since),
 			zap.String("request_id", requestID),
 		)
 
 		return err
 	}
 
-	since, err := util.ParseDatetimeParam(syncParams.Since)
+	since, err := params.ParsedSince()
 	if err != nil {
 		return apperror.ErrInvalidPayload
 	}

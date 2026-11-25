@@ -142,14 +142,16 @@ func TestPreacherRepository(t *testing.T) {
 
 	assert.NoError(t, repo.Create(ctx, p2))
 
-	filtered, err := repo.FindAll(ctx, entity.PreacherFilter{NamePrefix: "Jo"})
+	prefixFilter := entity.PreacherFilter{NamePrefix: "Jo"}
+	filtered, err := repo.FindAll(ctx, prefixFilter)
 	assert.NoError(t, err)
 	assert.Len(t, filtered, 1)
 	assert.Equal(t, "John Doe", filtered[0].Name)
 
 	assert.NoError(t, repo.Delete(ctx, p.ID))
 
-	filteredAfterDelete, err := repo.FindAll(ctx, entity.PreacherFilter{})
+	emptyFilter := entity.PreacherFilter{}
+	filteredAfterDelete, err := repo.FindAll(ctx, emptyFilter)
 	assert.NoError(t, err)
 	assert.Len(t, filteredAfterDelete, 1)
 }
@@ -204,7 +206,7 @@ func TestSermonNoteRepository(t *testing.T) {
 		Title:       "Faith and Works",
 		PlainText:   "Faith without works is dead",
 		ContentJSON: `{"root":{"type":"doc","children":[{"type":"paragraph","text":"Faith without works"}]}}`,
-		SermonDate:  &now,
+		SermonDate:  now,
 		Verses: []entity.NoteVerse{
 			{
 				Translation: "ESV",
@@ -243,24 +245,27 @@ func TestSermonNoteRepository(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, searched, 1)
 
-	byScripture, err := repo.FindByScripture(ctx, entity.ScriptureQuery{
+	scriptureQuery := entity.ScriptureQuery{
 		Translation: "ESV",
 		BookID:      59,
 		Chapter:     2,
 		VerseStart:  14,
-	})
+	}
+	byScripture, err := repo.FindByScripture(ctx, scriptureQuery)
 	assert.NoError(t, err)
 	assert.Len(t, byScripture, 1)
 
-	filtered, err := repo.FindAll(ctx, entity.SermonNoteFilter{
+	tagFilter := entity.SermonNoteFilter{
 		TagID: &graceTag.ID,
-	})
+	}
+	filtered, err := repo.FindAll(ctx, tagFilter)
 	assert.NoError(t, err)
 	assert.Len(t, filtered, 1)
 
 	assert.NoError(t, repo.Delete(ctx, note.ID))
 
-	remaining, err := repo.FindAll(ctx, entity.SermonNoteFilter{})
+	emptyNoteFilter := entity.SermonNoteFilter{}
+	remaining, err := repo.FindAll(ctx, emptyNoteFilter)
 	assert.NoError(t, err)
 	assert.Empty(t, remaining)
 }
@@ -309,13 +314,14 @@ func TestBibleRepository(t *testing.T) {
 
 	end := 2
 
-	fetched, err := repo.GetVerses(ctx, entity.VerseQuery{
+	verseQuery := entity.VerseQuery{
 		Translation: "ESV",
 		BookID:      1,
 		Chapter:     1,
 		VerseStart:  1,
 		VerseEnd:    &end,
-	})
+	}
+	fetched, err := repo.GetVerses(ctx, verseQuery)
 	assert.NoError(t, err)
 	assert.Len(t, fetched, 2)
 
@@ -357,7 +363,8 @@ func TestSyncOutboxRepository(t *testing.T) {
 	assert.Len(t, batch, 2)
 	assert.Equal(t, "note-1", batch[0].EntityID)
 
-	assert.NoError(t, repo.MarkSynced(ctx, []string{entry1.ID}))
+	syncedIDs := []string{entry1.ID}
+	assert.NoError(t, repo.MarkSynced(ctx, syncedIDs))
 
 	remaining, err := repo.GetPendingBatch(ctx, 10)
 	assert.NoError(t, err)

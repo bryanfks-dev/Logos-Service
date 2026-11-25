@@ -43,12 +43,14 @@ func (c *RouteConfig) Setup() {
 }
 
 func (c *RouteConfig) setupSwaggerRoute() {
-	c.App.GET("/swagger", func(ctx *echo.Context) error {
+	swaggerRedirect := func(ctx *echo.Context) error {
 		return ctx.Redirect(
 			nethttp.StatusMovedPermanently,
 			"/swagger/index.html",
 		)
-	})
+	}
+
+	c.App.GET("/swagger", swaggerRedirect)
 	c.App.GET("/swagger/*", echoSwagger.WrapHandler)
 }
 

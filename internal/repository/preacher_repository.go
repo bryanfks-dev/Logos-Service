@@ -197,7 +197,8 @@ func (r *preacherRepository) FindUpdatedSince(
 func (r *preacherRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.Preacher{}).Error; err != nil {
+	preacherModel := &entity.Preacher{}
+	if err := r.conn(ctx).Where("id = ?", id).Delete(preacherModel).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrPreacherDeleteFailed(err)

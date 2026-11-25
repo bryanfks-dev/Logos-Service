@@ -17,24 +17,27 @@ func (p SyncPullChangesParam) ParsedSince() (time.Time, error) {
 }
 
 func (p SyncPullChangesParam) Validate() error {
-	return validation.ValidateStruct(&p,
-		validation.Field(
-			&p.Since,
-			validation.Required,
-			validation.By(func(value any) error {
-				sinceStr, ok := value.(string)
-				if !ok {
-					return errors.New("must be a valid datetime string")
-				}
+	validateSince := func(value any) error {
+		sinceStr, ok := value.(string)
+		if !ok {
+			return errors.New("must be a valid datetime string")
+		}
 
-				if _, err := util.ParseDatetimeParam(sinceStr); err != nil {
-					return errors.New(
-						"must be a valid RFC3339 or YYYY-MM-DD datetime",
-					)
-				}
+		if _, err := util.ParseDatetimeParam(sinceStr); err != nil {
+			return errors.New(
+				"must be a valid RFC3339 or YYYY-MM-DD datetime",
+			)
+		}
 
-				return nil
-			}),
-		),
+		return nil
+	}
+
+	sinceRule := validation.By(validateSince)
+	sinceField := validation.Field(
+		&p.Since,
+		validation.Required,
+		sinceRule,
 	)
+
+	return validation.ValidateStruct(&p, sinceField)
 }

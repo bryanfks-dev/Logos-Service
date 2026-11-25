@@ -94,9 +94,11 @@ func (r *sermonNoteRepository) commitNoteFile(
 	filePath := note.FilePath
 	contentJSON := note.ContentJSON
 
-	if db.AddAfterCommit(ctx, func() error {
+	writeHook := func() error {
 		return r.fsManager.WriteFileAtomic(filePath, []byte(contentJSON))
-	}) {
+	}
+
+	if db.AddAfterCommit(ctx, writeHook) {
 		return nil
 	}
 
@@ -143,7 +145,8 @@ func (r *sermonNoteRepository) saveChildren(
 ) error {
 	db := r.conn(ctx)
 
-	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NoteVerse{}).Error; err != nil {
+	noteVerseModel := &entity.NoteVerse{}
+	if err := db.Where("note_id = ?", note.ID).Delete(noteVerseModel).Error; err != nil {
 		return err
 	}
 
@@ -157,7 +160,8 @@ func (r *sermonNoteRepository) saveChildren(
 		}
 	}
 
-	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NoteTag{}).Error; err != nil {
+	noteTagModel := &entity.NoteTag{}
+	if err := db.Where("note_id = ?", note.ID).Delete(noteTagModel).Error; err != nil {
 		return err
 	}
 
@@ -175,10 +179,11 @@ func (r *sermonNoteRepository) saveChildren(
 			}
 
 			seenTagIDs[tag.ID] = struct{}{}
-			noteTags = append(noteTags, entity.NoteTag{
+			noteTag := entity.NoteTag{
 				NoteID: note.ID,
 				TagID:  tag.ID,
-			})
+			}
+			noteTags = append(noteTags, noteTag)
 		}
 
 		if len(noteTags) > 0 {
@@ -188,7 +193,8 @@ func (r *sermonNoteRepository) saveChildren(
 		}
 	}
 
-	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NotesFTS{}).Error; err != nil {
+	notesFTSModel := &entity.NotesFTS{}
+	if err := db.Where("note_id = ?", note.ID).Delete(notesFTSModel).Error; err != nil {
 		return err
 	}
 
@@ -365,7 +371,8 @@ func (r *sermonNoteRepository) FindAll(
 		db = db.Unscoped()
 	}
 
-	query := db.Model(&entity.SermonNote{})
+	sermonNoteModel := &entity.SermonNote{}
+	query := db.Model(sermonNoteModel)
 
 	if !filter.IncludeDeleted {
 		query = query.Where("sermon_notes.deleted_at IS NULL")
@@ -483,7 +490,8 @@ func (r *sermonNoteRepository) FindByScripture(
 func (r *sermonNoteRepository) Delete(ctx context.Context, id string) error {
 	r.log.Info("delete started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Where("id = ?", id).Delete(&entity.SermonNote{}).Error; err != nil {
+	sermonNoteModel := &entity.SermonNote{}
+	if err := r.conn(ctx).Where("id = ?", id).Delete(sermonNoteModel).Error; err != nil {
 		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonNoteDeleteFailed(err)
@@ -497,7 +505,8 @@ func (r *sermonNoteRepository) Delete(ctx context.Context, id string) error {
 func (r *sermonNoteRepository) Restore(ctx context.Context, id string) error {
 	r.log.Info("restore started", zap.Any("param", id))
 
-	if err := r.conn(ctx).Unscoped().Model(&entity.SermonNote{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
+	sermonNoteModel := &entity.SermonNote{}
+	if err := r.conn(ctx).Unscoped().Model(sermonNoteModel).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
 		r.log.Error("restore failed", zap.Error(err), zap.Any("param", id))
 
 		return entityerror.ErrSermonNoteUpdateFailed(err)

@@ -111,20 +111,21 @@ func (i SyncTagChangesItem) Validate() error {
 }
 
 type SyncNoteChangesItem struct {
-	ID          string          `json:"id"`
-	GatheringID *string         `json:"gathering_id,omitempty"`
-	SeriesID    *string         `json:"series_id,omitempty"`
-	PreacherID  *string         `json:"preacher_id,omitempty"`
-	Title       string          `json:"title"`
-	SermonDate  *time.Time      `json:"sermon_date,omitempty"`
-	ContentHash string          `json:"content_hash,omitempty"`
-	PlainText   string          `json:"plain_text,omitempty"`
-	ContentJSON string          `json:"content_json,omitempty"`
-	Version     int             `json:"version"`
-	Tags        []string        `json:"tags,omitempty"`
-	Verses      []SyncNoteVerse `json:"verses,omitempty"`
-	IsDeleted   bool            `json:"is_deleted,omitempty"`
-	UpdatedAt   *time.Time      `json:"updated_at,omitempty"`
+	ID          string                     `json:"id"`
+	GatheringID *string                    `json:"gathering_id,omitempty"`
+	SeriesID    *string                    `json:"series_id,omitempty"`
+	PreacherID  *string                    `json:"preacher_id,omitempty"`
+	Title       string                     `json:"title"`
+	SermonDate  *time.Time                 `json:"sermon_date,omitempty"`
+	ContentHash string                     `json:"content_hash,omitempty"`
+	PlainText   string                     `json:"plain_text,omitempty"`
+	ContentJSON string                     `json:"content_json,omitempty"`
+	Version     int                        `json:"version"`
+	Tags        []string                   `json:"tags,omitempty"`
+	Verses      []SyncNoteVerseChangesItem `json:"verses,omitempty"`
+	IsDeleted   bool                       `json:"is_deleted,omitempty"`
+	CreateadAt  *time.Time                 `json:"created_at,omitempty"`
+	UpdatedAt   *time.Time                 `json:"updated_at,omitempty"`
 }
 
 func (i SyncNoteChangesItem) Validate() error {
@@ -148,7 +149,7 @@ func (i SyncNoteChangesItem) Validate() error {
 	)
 }
 
-type SyncNoteVerse struct {
+type SyncNoteVerseChangesItem struct {
 	ID          string `json:"id,omitempty"`
 	Translation string `json:"translation"`
 	BookID      int    `json:"book_id"`
@@ -158,7 +159,7 @@ type SyncNoteVerse struct {
 	DisplayRef  string `json:"display_ref"`
 }
 
-func (v SyncNoteVerse) Validate() error {
+func (v SyncNoteVerseChangesItem) Validate() error {
 	return validation.ValidateStruct(&v,
 		validation.Field(&v.ID, validation.Length(0, 36)),
 		validation.Field(

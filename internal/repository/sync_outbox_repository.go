@@ -90,7 +90,8 @@ func (r *syncOutboxRepository) MarkSynced(
 ) error {
 	r.log.Info("mark synced started", zap.Any("param", ids))
 
-	if err := r.conn(ctx).Where("id IN ?", ids).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
+	outboxModel := &entity.SyncOutboxEntry{}
+	if err := r.conn(ctx).Where("id IN ?", ids).Delete(outboxModel).Error; err != nil {
 		r.log.Error("mark synced failed", zap.Error(err), zap.Any("param", ids))
 
 		return entityerror.ErrSyncOutboxMarkSyncedFailed(err)
@@ -107,7 +108,8 @@ func (r *syncOutboxRepository) ClearSynced(
 ) error {
 	r.log.Info("clear synced started", zap.Time("before", before))
 
-	if err := r.conn(ctx).Where("queued_at <= ?", before).Delete(&entity.SyncOutboxEntry{}).Error; err != nil {
+	outboxModel := &entity.SyncOutboxEntry{}
+	if err := r.conn(ctx).Where("queued_at <= ?", before).Delete(outboxModel).Error; err != nil {
 		r.log.Error(
 			"clear synced failed",
 			zap.Error(err),

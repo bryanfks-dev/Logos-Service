@@ -39,8 +39,10 @@
   - When a function or method requires **more than 3 parameters**, group the parameters into a dedicated struct suffixed with `Option` (e.g., `SyncUsecaseOption`, `RouteConfigOption`, `FindSermonNoteOption`).
   - Keep **3 or fewer parameters** directly in the function signature instead of wrapping them in an `Option` struct.
 
-- **Variables for Composite Arguments**:
-  - When passing a constructed struct, `Option` struct, slice, or map literal into a function call (especially multi-parameter calls or multi-line literals), always assign it to a local variable before the call instead of constructing it inline:
+- **Variables for Non-Primitive Arguments**:
+  - Never construct a struct, `Option` struct, slice, map, function literal, or any other non-primitive value inline inside a function call's arguments (including single-argument calls and single-line literals).
+  - Only primitive literals/values (e.g., `string`, `int`, `bool`, `nil`) or already-declared variables may be passed directly as function arguments.
+  - Always declare and assign non-primitive values to a local variable first, then pass that variable to the function:
     ```go
     // Correct
     opt := lastWriteWinsOption[entity.Gathering]{
@@ -49,6 +51,10 @@
     }
 
     return upsertLastWriteWins(ctx, gatherings, opt)
+
+    // Correct (single-argument call)
+    note := &entity.SermonNote{ID: "note-1", Title: "Grace"}
+    res := converter.SermonNoteToResponse(note)
 
     // Incorrect
     return upsertLastWriteWins(
@@ -59,6 +65,9 @@
             findByID: u.gatheringRepository.FindByID,
         },
     )
+
+    // Incorrect (inline struct in single-argument call)
+    res := converter.SermonNoteToResponse(&entity.SermonNote{ID: "note-1", Title: "Grace"})
     ```
 
 - **Precondition & Nil Safety**:
