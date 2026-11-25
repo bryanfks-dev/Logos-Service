@@ -197,7 +197,7 @@ func TestSyncController_Push(t *testing.T) {
 
 		assert.False(t, res.Success)
 		require.NotNil(t, res.Error)
-		assert.Equal(t, "invalid_payload", res.Error.Code)
+		assert.Equal(t, "body_malformed", res.Error.Code)
 	})
 
 	t.Run(

@@ -38,12 +38,15 @@ var UsecaseSet = wire.NewSet(
 	usecase.NewPullSyncChangesUsecase,
 	wire.Struct(new(usecase.PushSyncChangesUsecaseOption), "*"),
 	usecase.NewPushSyncChangesUsecase,
+	wire.Struct(new(usecase.UploadSermonNoteAttachmentFileUsecaseOption), "*"),
+	usecase.NewUploadSermonNoteAttachmentFileUsecase,
 )
 
 var DeliverySet = wire.NewSet(
 	http.NewEtcController,
 	http.NewErrorController,
 	http.NewSyncController,
+	http.NewSermonNoteController,
 )
 
 var RouteSet = wire.NewSet(

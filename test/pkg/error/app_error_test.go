@@ -10,9 +10,9 @@ import (
 
 func TestErrKind_IsDomain(t *testing.T) {
 	assert.True(t, apperror.ErrKindNotFound.IsDomain())
+	assert.True(t, apperror.ErrKindBadRequest.IsDomain())
 	assert.True(t, apperror.ErrKindConflict.IsDomain())
-	assert.True(t, apperror.ErrKindMethodNotAllowed.IsDomain())
-	assert.False(t, apperror.ErrKindUnvailable.IsDomain())
+	assert.False(t, apperror.ErrKindUnavailable.IsDomain())
 	assert.False(t, apperror.ErrKindExternalService.IsDomain())
 	assert.False(t, apperror.ErrKindInternal.IsDomain())
 }
@@ -85,13 +85,13 @@ func TestAppError(t *testing.T) {
 		)
 		assert.Equal(
 			t,
-			apperror.ErrKindConflict,
-			apperror.NewErrConflict("c", "m").Kind,
+			apperror.ErrKindBadRequest,
+			apperror.NewErrBadRequest("c", "m").Kind,
 		)
 		assert.Equal(
 			t,
-			apperror.ErrKindMethodNotAllowed,
-			apperror.NewErrMethodNotAllowed("c", "m").Kind,
+			apperror.ErrKindConflict,
+			apperror.NewErrConflict("c", "m").Kind,
 		)
 		assert.Equal(
 			t,
@@ -100,7 +100,7 @@ func TestAppError(t *testing.T) {
 		)
 		assert.Equal(
 			t,
-			apperror.ErrKindUnvailable,
+			apperror.ErrKindUnavailable,
 			apperror.NewErrUnavailable("c", "m", nil).Kind,
 		)
 		assert.Equal(
@@ -110,17 +110,20 @@ func TestAppError(t *testing.T) {
 		)
 	})
 
-	t.Run("Sentinel errors", func(t *testing.T) {
-		assert.EqualError(t, apperror.ErrConflict, "conflict")
-		assert.EqualError(t, apperror.ErrInvalidPayload, "invalid payload")
-		assert.True(t, errors.Is(apperror.ErrConflict, apperror.ErrConflict))
-		assert.True(
-			t,
-			errors.Is(apperror.ErrInvalidPayload, apperror.ErrInvalidPayload),
-		)
-		assert.False(
-			t,
-			errors.Is(apperror.ErrConflict, apperror.ErrInvalidPayload),
-		)
+	t.Run("Web error constructors", func(t *testing.T) {
+		webErr := apperror.NewErrWeb("custom_web", "custom message")
+		assert.Equal(t, apperror.ErrKindBadRequest, webErr.Kind)
+		assert.Equal(t, "custom_web", webErr.Code)
+		assert.Equal(t, "custom message", webErr.Message)
+
+		bodyErr := apperror.NewErrRequestBodyMalformed()
+		assert.Equal(t, apperror.ErrKindBadRequest, bodyErr.Kind)
+		assert.Equal(t, "body_malformed", bodyErr.Code)
+		assert.Equal(t, "request body malformed", bodyErr.Message)
+
+		paramsErr := apperror.NewErrRequestParamsMalformed()
+		assert.Equal(t, apperror.ErrKindBadRequest, paramsErr.Kind)
+		assert.Equal(t, "params_malformed", paramsErr.Code)
+		assert.Equal(t, "request params malformed", paramsErr.Message)
 	})
 }

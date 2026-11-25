@@ -11,14 +11,14 @@ import (
 func RequestIDMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx *echo.Context) error {
-			requestID := ctx.Request().Header.Get("X-Request-ID")
-			if requestID == "" {
+			reqID := ctx.Request().Header.Get("X-Request-ID")
+			if reqID == "" {
 				randomUUID := uuid.New()
-				requestID = hex.EncodeToString(randomUUID[:])
+				reqID = hex.EncodeToString(randomUUID[:])
 			}
 
-			correlation.WithRequestID(ctx, requestID)
-			ctx.Response().Header().Set("X-Request-ID", requestID)
+			correlation.WithRequestID(ctx, reqID)
+			ctx.Response().Header().Set("X-Request-ID", reqID)
 
 			return next(ctx)
 		}

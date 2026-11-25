@@ -8,10 +8,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(config *viper.Viper) *zap.Logger {
+func NewLogger(cfg *viper.Viper) *zap.Logger {
 	zapConfig := zap.NewProductionConfig()
 
-	level := loggerLevel[config.GetString("log.level")]
+	level := loggerLevel[cfg.GetString("log.level")]
 	zapConfig.Level = zap.NewAtomicLevelAt(level)
 
 	logger, err := zapConfig.Build()

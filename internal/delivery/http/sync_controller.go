@@ -48,43 +48,43 @@ func NewSyncController(
 // @Failure      500 {object} model.APIResponse[any]
 // @Router       /api/sync/changes [post]
 func (h *SyncController) Push(ctx *echo.Context) error {
-	requestID := correlation.GetRequestID(ctx)
+	reqID := correlation.GetRequestID(ctx)
 
-	request := new(request.SyncPushChangesRequest)
-	if err := ctx.Bind(request); err != nil {
+	req := new(request.SyncPushChangesRequest)
+	if err := ctx.Bind(req); err != nil {
 		h.log.Warn(
 			"failed to bind sync push request",
 			zap.Error(err),
-			zap.String("request_id", requestID),
+			zap.String("request_id", reqID),
 		)
 
-		return apperror.ErrInvalidPayload
+		return apperror.NewErrRequestBodyMalformed()
 	}
 
-	if err := request.Validate(); err != nil {
+	if err := req.Validate(); err != nil {
 		h.log.Warn(
 			"failed to validate sync push request",
 			zap.Error(err),
-			zap.String("request_id", requestID),
+			zap.String("request_id", reqID),
 		)
 
 		return err
 	}
 
-	batch := converter.SyncPushChangesRequestToSyncChangesBatch(request)
+	batch := converter.SyncPushChangesRequestToSyncChangesBatch(req)
 
 	result, err := h.pushSyncChangesUsecase.Call(ctx.Request().Context(), batch)
 	if err != nil {
 		return err
 	}
 
-	responseData := converter.SyncPushChangesResultToResponse(result)
-	apiResponse := builder.NewAPIResponseBuilder[response.SyncPushChangesResponse]().
-		SetRequestID(requestID).
-		SetData(responseData).
+	resData := converter.SyncPushChangesResultToResponse(result)
+	res := builder.NewAPIResponseBuilder[response.SyncPushChangesResponse]().
+		SetRequestID(reqID).
+		SetData(resData).
 		Build()
 
-	return ctx.JSON(nethttp.StatusOK, apiResponse)
+	return ctx.JSON(nethttp.StatusOK, res)
 }
 
 // Pull godoc
@@ -100,17 +100,17 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 // @Failure      500 {object} model.APIResponse[any]
 // @Router       /api/sync/changes/{since} [get]
 func (h *SyncController) Pull(ctx *echo.Context) error {
-	requestID := correlation.GetRequestID(ctx)
+	reqID := correlation.GetRequestID(ctx)
 
 	params := new(params.SyncPullChangesParam)
 	if err := ctx.Bind(params); err != nil {
 		h.log.Warn(
 			"failed to bind sync pull params",
 			zap.Error(err),
-			zap.String("request_id", requestID),
+			zap.String("request_id", reqID),
 		)
 
-		return apperror.ErrInvalidPayload
+		return apperror.NewErrRequestParamsMalformed()
 	}
 
 	if err := params.Validate(); err != nil {
@@ -118,27 +118,25 @@ func (h *SyncController) Pull(ctx *echo.Context) error {
 			"failed to validate sync pull params",
 			zap.Error(err),
 			zap.String("since", params.Since),
-			zap.String("request_id", requestID),
+			zap.String("request_id", reqID),
 		)
 
 		return err
 	}
 
-	since, err := params.ParsedSince()
-	if err != nil {
-		return apperror.ErrInvalidPayload
-	}
-
-	result, err := h.pullSyncChangesUsecase.Call(ctx.Request().Context(), since)
+	result, err := h.pullSyncChangesUsecase.Call(
+		ctx.Request().Context(),
+		params.ParsedSince(),
+	)
 	if err != nil {
 		return err
 	}
 
-	responseData := converter.SyncPullChangesResultToResponse(result)
-	apiResponse := builder.NewAPIResponseBuilder[response.SyncPullChangesResponse]().
-		SetRequestID(requestID).
-		SetData(responseData).
+	resData := converter.SyncPullChangesResultToResponse(result)
+	res := builder.NewAPIResponseBuilder[response.SyncPullChangesResponse]().
+		SetRequestID(reqID).
+		SetData(resData).
 		Build()
 
-	return ctx.JSON(nethttp.StatusOK, apiResponse)
+	return ctx.JSON(nethttp.StatusOK, res)
 }

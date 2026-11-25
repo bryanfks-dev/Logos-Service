@@ -10,14 +10,14 @@ import (
 
 const headerXToken = "X-Token"
 
-func AuthMiddleware(config *viper.Viper) echo.MiddlewareFunc {
+func AuthMiddleware(cfg *viper.Viper) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx *echo.Context) error {
-			if config == nil {
+			if cfg == nil {
 				return nil
 			}
 
-			expectedToken := strings.TrimSpace(config.GetString("web.token"))
+			expectedToken := strings.TrimSpace(cfg.GetString("web.token"))
 			if expectedToken == "" {
 				return nil
 			}

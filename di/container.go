@@ -26,12 +26,14 @@ type Container struct {
 
 	RouteConfig *route.RouteConfig
 
-	EtcController   *deliveryhttp.EtcController
-	ErrorController *deliveryhttp.ErrorController
-	SyncController  *deliveryhttp.SyncController
+	EtcController        *deliveryhttp.EtcController
+	ErrorController      *deliveryhttp.ErrorController
+	SyncController       *deliveryhttp.SyncController
+	SermonNoteController *deliveryhttp.SermonNoteController
 
-	PullSyncChangesUsecase *usecase.PullSyncChangesUsecase
-	PushSyncChangesUsecase *usecase.PushSyncChangesUsecase
+	PullSyncChangesUsecase                *usecase.PullSyncChangesUsecase
+	PushSyncChangesUsecase                *usecase.PushSyncChangesUsecase
+	UploadSermonNoteAttachmentFileUsecase *usecase.UploadSermonNoteAttachmentFileUsecase
 }
 
 func NewContainer() (*Container, error) {

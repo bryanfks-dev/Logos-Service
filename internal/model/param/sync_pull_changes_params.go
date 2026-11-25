@@ -12,8 +12,9 @@ type SyncPullChangesParam struct {
 	Since string `param:"since"`
 }
 
-func (p SyncPullChangesParam) ParsedSince() (time.Time, error) {
-	return util.ParseDatetimeParam(p.Since)
+func (p SyncPullChangesParam) ParsedSince() time.Time {
+	time, _ := util.ParseDatetimeParam(p.Since)
+	return time
 }
 
 func (p SyncPullChangesParam) Validate() error {

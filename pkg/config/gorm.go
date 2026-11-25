@@ -11,15 +11,15 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func NewDatabase(config *viper.Viper, log *zap.Logger) *gorm.DB {
-	username := config.GetString("database.username")
-	password := config.GetString("database.password")
-	host := config.GetString("database.host")
-	port := config.GetInt("database.port")
-	database := config.GetString("database.name")
-	idleConnection := config.GetInt("database.pool.idle")
-	maxConnection := config.GetInt("database.pool.max")
-	maxLifeTimeConnection := config.GetInt("database.pool.lifetime")
+func NewDatabase(cfg *viper.Viper, log *zap.Logger) *gorm.DB {
+	username := cfg.GetString("database.username")
+	password := cfg.GetString("database.password")
+	host := cfg.GetString("database.host")
+	port := cfg.GetInt("database.port")
+	database := cfg.GetString("database.name")
+	idleConnection := cfg.GetInt("database.pool.idle")
+	maxConnection := cfg.GetInt("database.pool.max")
+	maxLifeTimeConnection := cfg.GetInt("database.pool.lifetime")
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",

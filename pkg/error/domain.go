@@ -1,12 +1,5 @@
 package apperror
 
-import "errors"
-
-var (
-	ErrConflict       = errors.New("conflict")
-	ErrInvalidPayload = errors.New("invalid payload")
-)
-
 func NewErrNotFound(code, message string) *AppError {
 	return &AppError{
 		Kind:    ErrKindNotFound,
@@ -15,17 +8,17 @@ func NewErrNotFound(code, message string) *AppError {
 	}
 }
 
-func NewErrConflict(code, message string) *AppError {
+func NewErrBadRequest(code, message string) *AppError {
 	return &AppError{
-		Kind:    ErrKindConflict,
+		Kind:    ErrKindBadRequest,
 		Code:    code,
 		Message: message,
 	}
 }
 
-func NewErrMethodNotAllowed(code, message string) *AppError {
+func NewErrConflict(code, message string) *AppError {
 	return &AppError{
-		Kind:    ErrKindMethodNotAllowed,
+		Kind:    ErrKindConflict,
 		Code:    code,
 		Message: message,
 	}

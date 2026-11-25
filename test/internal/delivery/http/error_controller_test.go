@@ -137,11 +137,6 @@ func TestErrorController(t *testing.T) {
 				"resource_conflict",
 			},
 			{
-				apperror.NewErrMethodNotAllowed("not_allowed", "not allowed"),
-				http.StatusMethodNotAllowed,
-				"not_allowed",
-			},
-			{
 				apperror.NewErrUnavailable("service_down", "down", nil),
 				http.StatusServiceUnavailable,
 				"service_down",

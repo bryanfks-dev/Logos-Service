@@ -14,12 +14,12 @@ import (
 )
 
 var errKindStatus = map[apperror.ErrKind]int{
-	apperror.ErrKindNotFound:         http.StatusNotFound,
-	apperror.ErrKindConflict:         http.StatusConflict,
-	apperror.ErrKindMethodNotAllowed: http.StatusMethodNotAllowed,
-	apperror.ErrKindUnavailable:      http.StatusServiceUnavailable,
-	apperror.ErrKindExternalService:  http.StatusBadGateway,
-	apperror.ErrKindInternal:         http.StatusInternalServerError,
+	apperror.ErrKindNotFound:        http.StatusNotFound,
+	apperror.ErrKindBadRequest:      http.StatusBadRequest,
+	apperror.ErrKindConflict:        http.StatusConflict,
+	apperror.ErrKindUnavailable:     http.StatusServiceUnavailable,
+	apperror.ErrKindExternalService: http.StatusBadGateway,
+	apperror.ErrKindInternal:        http.StatusInternalServerError,
 }
 
 type ErrorController struct {
@@ -35,8 +35,8 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		return
 	}
 
-	requestID := correlation.GetRequestID(ctx)
-	status := http.StatusInternalServerError
+	reqID := correlation.GetRequestID(ctx)
+	stat := http.StatusInternalServerError
 	code := "code_unavailable"
 
 	var statusCoder echo.HTTPStatusCoder
@@ -46,49 +46,43 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 
 	switch {
 	case errors.Is(err, echo.ErrUnauthorized):
-		status = http.StatusUnauthorized
+		stat = http.StatusUnauthorized
 		code = "unauthorized"
 	case errors.Is(err, echo.ErrNotFound):
-		status = http.StatusNotFound
+		stat = http.StatusNotFound
 		code = "not_found"
 	case errors.Is(err, echo.ErrMethodNotAllowed):
-		status = http.StatusMethodNotAllowed
+		stat = http.StatusMethodNotAllowed
 		code = "method_not_allowed"
 	case errors.Is(err, echo.ErrUnsupportedMediaType):
-		status = http.StatusUnsupportedMediaType
+		stat = http.StatusUnsupportedMediaType
 		code = "invalid_media_type"
-	case errors.Is(err, apperror.ErrInvalidPayload):
-		status = http.StatusBadRequest
-		code = "invalid_payload"
 	case errors.As(err, &validationErrs):
-		status = http.StatusUnprocessableEntity
+		stat = http.StatusUnprocessableEntity
 		code = "validation_error"
 		fieldErrors = toFieldErrors(validationErrs)
-	case errors.Is(err, apperror.ErrConflict):
-		status = http.StatusConflict
-		code = "conflict"
 	case errors.As(err, &appErr):
-		if stat, ok := errKindStatus[appErr.Kind]; ok {
-			status = stat
+		if s, ok := errKindStatus[appErr.Kind]; ok {
+			stat = s
 		}
 		code = appErr.Code
 	case errors.As(err, &statusCoder):
-		status = statusCoder.StatusCode()
+		stat = statusCoder.StatusCode()
 		code = "code_unavailable"
-		if status >= 500 {
+		if stat >= 500 {
 			c.log.Error(
 				"unexpected error",
 				zap.Error(err),
-				zap.String("request_id", requestID),
+				zap.String("request_id", reqID),
 			)
 		}
 	default:
-		status = http.StatusInternalServerError
+		stat = http.StatusInternalServerError
 		code = "code_unavailable"
 		c.log.Error(
 			"unexpected error",
 			zap.Error(err),
-			zap.String("request_id", requestID),
+			zap.String("request_id", reqID),
 		)
 	}
 
@@ -98,11 +92,11 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 	}
 
 	res := builder.NewAPIResponseBuilder[any]().
-		SetRequestID(requestID).
+		SetRequestID(reqID).
 		SetError(apiErr).
 		Build()
 
-	_ = ctx.JSON(status, res)
+	_ = ctx.JSON(stat, res)
 }
 
 func toFieldErrors(errs validation.Errors) []model.FieldError {

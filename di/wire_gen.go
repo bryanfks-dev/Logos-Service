@@ -55,25 +55,36 @@ func NewContainer() (*Container, error) {
 	}
 	pushSyncChangesUsecase := usecase.NewPushSyncChangesUsecase(pushSyncChangesUsecaseOption)
 	syncController := http.NewSyncController(pullSyncChangesUsecase, pushSyncChangesUsecase, logger)
+	uploadSermonNoteAttachmentFileUsecaseOption := &usecase.UploadSermonNoteAttachmentFileUsecaseOption{
+		SermonNoteRepository: sermonNoteRepository,
+		FsManager:            manager,
+		Config:               viper,
+		Log:                  logger,
+	}
+	uploadSermonNoteAttachmentFileUsecase := usecase.NewUploadSermonNoteAttachmentFileUsecase(uploadSermonNoteAttachmentFileUsecaseOption)
+	sermonNoteController := http.NewSermonNoteController(uploadSermonNoteAttachmentFileUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
-		App:             echo,
-		EtcController:   etcController,
-		ErrorController: errorController,
-		SyncController:  syncController,
+		App:                  echo,
+		EtcController:        etcController,
+		ErrorController:      errorController,
+		SyncController:       syncController,
+		SermonNoteController: sermonNoteController,
 	}
 	routeConfig := route.NewRouteConfig(routeConfigOption)
 	container := &Container{
-		Config:                 viper,
-		Log:                    logger,
-		App:                    echo,
-		TxManager:              txManager,
-		FsManager:              manager,
-		RouteConfig:            routeConfig,
-		EtcController:          etcController,
-		ErrorController:        errorController,
-		SyncController:         syncController,
-		PullSyncChangesUsecase: pullSyncChangesUsecase,
-		PushSyncChangesUsecase: pushSyncChangesUsecase,
+		Config:                                viper,
+		Log:                                   logger,
+		App:                                   echo,
+		TxManager:                             txManager,
+		FsManager:                             manager,
+		RouteConfig:                           routeConfig,
+		EtcController:                         etcController,
+		ErrorController:                       errorController,
+		SyncController:                        syncController,
+		SermonNoteController:                  sermonNoteController,
+		PullSyncChangesUsecase:                pullSyncChangesUsecase,
+		PushSyncChangesUsecase:                pushSyncChangesUsecase,
+		UploadSermonNoteAttachmentFileUsecase: uploadSermonNoteAttachmentFileUsecase,
 	}
 	return container, nil
 }
@@ -91,10 +102,12 @@ type Container struct {
 
 	RouteConfig *route.RouteConfig
 
-	EtcController   *http.EtcController
-	ErrorController *http.ErrorController
-	SyncController  *http.SyncController
+	EtcController        *http.EtcController
+	ErrorController      *http.ErrorController
+	SyncController       *http.SyncController
+	SermonNoteController *http.SermonNoteController
 
-	PullSyncChangesUsecase *usecase.PullSyncChangesUsecase
-	PushSyncChangesUsecase *usecase.PushSyncChangesUsecase
+	PullSyncChangesUsecase                *usecase.PullSyncChangesUsecase
+	PushSyncChangesUsecase                *usecase.PushSyncChangesUsecase
+	UploadSermonNoteAttachmentFileUsecase *usecase.UploadSermonNoteAttachmentFileUsecase
 }

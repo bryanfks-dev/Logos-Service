@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewServer(config *viper.Viper) *echo.Echo {
+func NewServer(cfg *viper.Viper) *echo.Echo {
 	echo := echo.New()
 
 	echo.Use(middleware.GzipMiddleware())

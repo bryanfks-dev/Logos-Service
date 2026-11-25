@@ -10,15 +10,15 @@ type KafkaConfig struct {
 	OffsetReset string
 }
 
-func NewKafka(v *viper.Viper) *KafkaConfig {
+func NewKafka(cfg *viper.Viper) *KafkaConfig {
 	enabled := false
-	if v.IsSet("kafka.enabled") {
-		enabled = v.GetBool("kafka.enabled")
+	if cfg.IsSet("kafka.enabled") {
+		enabled = cfg.GetBool("kafka.enabled")
 	}
 
-	server := v.GetString("kafka.server")
-	groupID := v.GetString("kafka.group.id")
-	offsetReset := v.GetString("kafka.offset.reset")
+	server := cfg.GetString("kafka.server")
+	groupID := cfg.GetString("kafka.group.id")
+	offsetReset := cfg.GetString("kafka.offset.reset")
 
 	return &KafkaConfig{
 		Enabled:     enabled,

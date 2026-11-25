@@ -7,6 +7,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/bryanfks-dev/logos/pkg/constant"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -107,18 +108,37 @@ func TestBeforeCreateHooks(t *testing.T) {
 	)
 
 	t.Run(
-		"SermonNoteAttachment BeforeCreate generates UUID if empty",
+		"SermonNoteAttachment BeforeCreate generates UUID and default status if empty",
 		func(t *testing.T) {
 			attachment := &entity.SermonNoteAttachment{}
 			assert.NoError(t, attachment.BeforeCreate(nil))
 			assert.NotEmpty(t, attachment.ID)
 			assertUUIDv7(t, attachment.ID)
+			assert.Equal(
+				t,
+				constant.UploadStatusNotUploaded,
+				attachment.Status,
+			)
 
 			attachmentExisting := &entity.SermonNoteAttachment{
-				ID: "attachment-id",
+				ID:     "attachment-id",
+				Status: constant.UploadStatusUploaded,
 			}
 			assert.NoError(t, attachmentExisting.BeforeCreate(nil))
 			assert.Equal(t, "attachment-id", attachmentExisting.ID)
+			assert.Equal(
+				t,
+				constant.UploadStatusUploaded,
+				attachmentExisting.Status,
+			)
+			assert.True(t, (&entity.SermonNoteAttachment{
+				Status:         constant.UploadStatusUploaded,
+				ChecksumSHA256: "abc123",
+			}).IsUploadedWithHash("ABC123"))
+			assert.False(t, (&entity.SermonNoteAttachment{
+				Status:         constant.UploadStatusProcessing,
+				ChecksumSHA256: "abc123",
+			}).IsUploadedWithHash("abc123"))
 		},
 	)
 

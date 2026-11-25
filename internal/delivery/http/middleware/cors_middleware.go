@@ -22,17 +22,18 @@ func CorsMiddleware() echo.MiddlewareFunc {
 		echo.HeaderAccept,
 		echo.HeaderAuthorization,
 		echo.HeaderXRequestID,
+		"X-Content-Hash",
 	}
 	unsafeAllowOriginFunc := func(ctx *echo.Context, origin string) (string, bool, error) {
 		return origin, true, nil
 	}
 
-	config := echomiddleware.CORSConfig{
+	cfg := echomiddleware.CORSConfig{
 		AllowCredentials:      true,
 		UnsafeAllowOriginFunc: unsafeAllowOriginFunc,
 		AllowMethods:          allowedMethods,
 		AllowHeaders:          allowedHeaders,
 	}
 
-	return echomiddleware.CORSWithConfig(config)
+	return echomiddleware.CORSWithConfig(cfg)
 }

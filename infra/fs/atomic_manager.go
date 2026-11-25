@@ -1,7 +1,10 @@
 package fs
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +13,9 @@ import (
 type Manager interface {
 	EnsureDir(dirPath string) error
 	WriteFileAtomic(filePath string, data []byte) error
+	WriteTempAndHash(tmpPath string, r io.Reader) (string, int64, error)
+	MoveAtomic(srcPath string, dstPath string) error
+	RemoveFile(filePath string) error
 }
 
 type manager struct{}
@@ -68,4 +74,81 @@ func (m *manager) WriteFileAtomic(filePath string, data []byte) error {
 	}
 
 	return nil
+}
+
+func (m *manager) WriteTempAndHash(
+	tmpPath string,
+	r io.Reader,
+) (string, int64, error) {
+	if strings.TrimSpace(tmpPath) == "" {
+		return "", 0, errors.New("temp file path is required")
+	}
+
+	if r == nil {
+		return "", 0, errors.New("reader is required")
+	}
+
+	dir := filepath.Dir(tmpPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", 0, err
+	}
+
+	tmpFile, err := os.Create(tmpPath)
+	if err != nil {
+		return "", 0, err
+	}
+
+	cleanup := func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+	}
+
+	hasher := sha256.New()
+	tee := io.TeeReader(r, hasher)
+
+	written, err := io.Copy(tmpFile, tee)
+	if err != nil {
+		cleanup()
+		return "", 0, err
+	}
+
+	if err := tmpFile.Chmod(0o644); err != nil {
+		cleanup()
+		return "", 0, err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", 0, err
+	}
+
+	digest := hex.EncodeToString(hasher.Sum(nil))
+
+	return digest, written, nil
+}
+
+func (m *manager) MoveAtomic(srcPath string, dstPath string) error {
+	if strings.TrimSpace(srcPath) == "" || strings.TrimSpace(dstPath) == "" {
+		return errors.New("source and destination paths are required")
+	}
+
+	dir := filepath.Dir(dstPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	return os.Rename(srcPath, dstPath)
+}
+
+func (m *manager) RemoveFile(filePath string) error {
+	if strings.TrimSpace(filePath) == "" {
+		return nil
+	}
+
+	err := os.Remove(filePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	return err
 }

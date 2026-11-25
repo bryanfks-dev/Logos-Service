@@ -8,10 +8,10 @@ import (
 )
 
 type APIResponseBuilder[T any] struct {
-	success   bool
-	data      *T
-	requestID string
-	error     *model.APIError
+	success bool
+	data    *T
+	reqID   string
+	err     *model.APIError
 }
 
 func NewAPIResponseBuilder[T any]() *APIResponseBuilder[T] {
@@ -22,7 +22,7 @@ func (b *APIResponseBuilder[T]) SetError(
 	err model.APIError,
 ) *APIResponseBuilder[T] {
 	b.success = false
-	b.error = &err
+	b.err = &err
 
 	return b
 }
@@ -34,28 +34,28 @@ func (b *APIResponseBuilder[T]) SetData(data *T) *APIResponseBuilder[T] {
 }
 
 func (b *APIResponseBuilder[T]) SetRequestID(
-	requestID string,
+	reqID string,
 ) *APIResponseBuilder[T] {
-	b.requestID = requestID
+	b.reqID = reqID
 
 	return b
 }
 
 func (b *APIResponseBuilder[T]) Build() *model.APIResponse[T] {
-	if strings.TrimSpace(b.requestID) == "" {
+	if strings.TrimSpace(b.reqID) == "" {
 		panic("`requestID` must not blank")
 	}
 
-	success := b.error == nil
+	success := b.err == nil
 	meta := model.APIMeta{
-		RequestID: b.requestID,
+		RequestID: b.reqID,
 		Timestamp: time.Now().UTC(),
 	}
 
 	return &model.APIResponse[T]{
 		Success: success,
 		Data:    b.data,
-		Error:   b.error,
+		Error:   b.err,
 		Meta:    meta,
 	}
 }

@@ -24,11 +24,11 @@ func NewEtcController() *EtcController {
 // @Success      200 {object} model.APIResponse[any]
 // @Router       /api/healthz [get]
 func (c *EtcController) HealthCheck(ctx *echo.Context) error {
-	requestID := correlation.GetRequestID(ctx)
+	reqID := correlation.GetRequestID(ctx)
 
-	response := builder.NewAPIResponseBuilder[any]().
-		SetRequestID(requestID).
+	res := builder.NewAPIResponseBuilder[any]().
+		SetRequestID(reqID).
 		Build()
 
-	return ctx.JSON(http.StatusOK, response)
+	return ctx.JSON(http.StatusOK, res)
 }

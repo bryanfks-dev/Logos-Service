@@ -9,19 +9,17 @@ type ErrKind int
 
 const (
 	ErrKindNotFound ErrKind = iota
+	ErrKindBadRequest
 	ErrKindConflict
-	ErrKindMethodNotAllowed
 	ErrKindUnavailable
 	ErrKindExternalService
 	ErrKindInternal
 )
 
-const ErrKindUnvailable = ErrKindUnavailable
-
 var domainErrKind = []ErrKind{
 	ErrKindNotFound,
+	ErrKindBadRequest,
 	ErrKindConflict,
-	ErrKindMethodNotAllowed,
 }
 
 func (k ErrKind) IsDomain() bool {
@@ -61,8 +59,7 @@ func (e *AppError) WithCause(cause error) *AppError {
 }
 
 func KindOf(err error) (ErrKind, bool) {
-	var ae *AppError
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*AppError](err); ok {
 		return ae.Kind, true
 	}
 	return 0, false

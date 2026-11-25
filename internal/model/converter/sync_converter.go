@@ -10,9 +10,9 @@ import (
 )
 
 func SyncPushChangesRequestToSyncChangesBatch(
-	request *request.SyncPushChangesRequest,
+	req *request.SyncPushChangesRequest,
 ) *model.SyncChangesBatch {
-	if request == nil {
+	if req == nil {
 		return &model.SyncChangesBatch{
 			SermonNotes:  make([]*entity.SermonNote, 0),
 			Gatherings:   make([]*entity.Gathering, 0),
@@ -22,9 +22,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		}
 	}
 
-	notes := make([]*entity.SermonNote, 0, len(request.SermonNotes))
-	for i := range request.SermonNotes {
-		noteItem := &request.SermonNotes[i]
+	notes := make([]*entity.SermonNote, 0, len(req.SermonNotes))
+	for i := range req.SermonNotes {
+		noteItem := &req.SermonNotes[i]
 		n := SyncNoteChangesItemToEntity(noteItem)
 		if noteItem.UpdatedAt != nil {
 			n.UpdatedAt = *noteItem.UpdatedAt
@@ -32,9 +32,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		notes = append(notes, &n)
 	}
 
-	gatherings := make([]*entity.Gathering, 0, len(request.Gatherings))
-	for i := range request.Gatherings {
-		gatheringItem := &request.Gatherings[i]
+	gatherings := make([]*entity.Gathering, 0, len(req.Gatherings))
+	for i := range req.Gatherings {
+		gatheringItem := &req.Gatherings[i]
 		g := &entity.Gathering{
 			ID:        gatheringItem.ID,
 			Name:      gatheringItem.Name,
@@ -50,9 +50,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		gatherings = append(gatherings, g)
 	}
 
-	seriesList := make([]*entity.SermonSeries, 0, len(request.SermonSeries))
-	for i := range request.SermonSeries {
-		seriesItem := &request.SermonSeries[i]
+	seriesList := make([]*entity.SermonSeries, 0, len(req.SermonSeries))
+	for i := range req.SermonSeries {
+		seriesItem := &req.SermonSeries[i]
 		s := &entity.SermonSeries{
 			ID:          seriesItem.ID,
 			Name:        seriesItem.Name,
@@ -67,9 +67,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		seriesList = append(seriesList, s)
 	}
 
-	preachers := make([]*entity.Preacher, 0, len(request.Preachers))
-	for i := range request.Preachers {
-		preacherItem := &request.Preachers[i]
+	preachers := make([]*entity.Preacher, 0, len(req.Preachers))
+	for i := range req.Preachers {
+		preacherItem := &req.Preachers[i]
 		p := &entity.Preacher{
 			ID:         preacherItem.ID,
 			Name:       preacherItem.Name,
@@ -84,9 +84,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		preachers = append(preachers, p)
 	}
 
-	tags := make([]*entity.Tag, 0, len(request.Tags))
-	for i := range request.Tags {
-		tagItem := &request.Tags[i]
+	tags := make([]*entity.Tag, 0, len(req.Tags))
+	for i := range req.Tags {
+		tagItem := &req.Tags[i]
 		t := &entity.Tag{
 			ID:   tagItem.ID,
 			Name: tagItem.Name,

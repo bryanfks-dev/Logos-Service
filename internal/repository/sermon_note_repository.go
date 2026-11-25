@@ -40,6 +40,14 @@ type SermonNoteRepository interface {
 	) ([]*entity.SermonNote, error)
 	Delete(ctx context.Context, id string) error
 	Restore(ctx context.Context, id string) error
+	FindAttachmentByID(
+		ctx context.Context,
+		id string,
+	) (*entity.SermonNoteAttachment, error)
+	UpdateAttachment(
+		ctx context.Context,
+		attachment *entity.SermonNoteAttachment,
+	) error
 }
 
 type sermonNoteRepository struct {
@@ -551,4 +559,66 @@ func (r *sermonNoteRepository) FindUpdatedSince(
 	r.log.Info("find updated since completed", zap.Int("count", len(notes)))
 
 	return notes, nil
+}
+
+func (r *sermonNoteRepository) FindAttachmentByID(
+	ctx context.Context,
+	id string,
+) (*entity.SermonNoteAttachment, error) {
+	if id == "" {
+		return nil, entityerror.ErrSermonNoteAttachmentNotFound(id)
+	}
+
+	var attachment entity.SermonNoteAttachment
+
+	err := r.conn(ctx).Where("id = ?", id).First(&attachment).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, entityerror.ErrSermonNoteAttachmentNotFound(id)
+		}
+
+		r.log.Error(
+			"find attachment by id failed",
+			zap.Error(err),
+			zap.String("id", id),
+		)
+
+		return nil, entityerror.ErrSermonNoteAttachmentRetrievalFailed(err)
+	}
+
+	return &attachment, nil
+}
+
+func (r *sermonNoteRepository) UpdateAttachment(
+	ctx context.Context,
+	attachment *entity.SermonNoteAttachment,
+) error {
+	if attachment == nil {
+		return entityerror.ErrSermonNoteAttachmentUpdateFailed(
+			errors.New("attachment is nil"),
+		)
+	}
+
+	updates := map[string]any{
+		"storage_path": attachment.StoragePath,
+		"status":       attachment.Status,
+		"file_size":    attachment.FileSize,
+		"updated_at":   attachment.UpdatedAt,
+	}
+
+	err := r.conn(ctx).
+		Model(&entity.SermonNoteAttachment{}).
+		Where("id = ?", attachment.ID).
+		Updates(updates).Error
+	if err != nil {
+		r.log.Error(
+			"update attachment failed",
+			zap.Error(err),
+			zap.String("id", attachment.ID),
+		)
+
+		return entityerror.ErrSermonNoteAttachmentUpdateFailed(err)
+	}
+
+	return nil
 }

@@ -9,17 +9,19 @@ import (
 )
 
 type RouteConfig struct {
-	App             *echo.Echo
-	EtcController   *deliveryhttp.EtcController
-	ErrorController *deliveryhttp.ErrorController
-	SyncController  *deliveryhttp.SyncController
+	App                  *echo.Echo
+	EtcController        *deliveryhttp.EtcController
+	ErrorController      *deliveryhttp.ErrorController
+	SyncController       *deliveryhttp.SyncController
+	SermonNoteController *deliveryhttp.SermonNoteController
 }
 
 type RouteConfigOption struct {
-	App             *echo.Echo
-	EtcController   *deliveryhttp.EtcController
-	ErrorController *deliveryhttp.ErrorController
-	SyncController  *deliveryhttp.SyncController
+	App                  *echo.Echo
+	EtcController        *deliveryhttp.EtcController
+	ErrorController      *deliveryhttp.ErrorController
+	SyncController       *deliveryhttp.SyncController
+	SermonNoteController *deliveryhttp.SermonNoteController
 }
 
 func NewRouteConfig(opt *RouteConfigOption) *RouteConfig {
@@ -28,10 +30,11 @@ func NewRouteConfig(opt *RouteConfigOption) *RouteConfig {
 	}
 
 	return &RouteConfig{
-		App:             opt.App,
-		EtcController:   opt.EtcController,
-		ErrorController: opt.ErrorController,
-		SyncController:  opt.SyncController,
+		App:                  opt.App,
+		EtcController:        opt.EtcController,
+		ErrorController:      opt.ErrorController,
+		SyncController:       opt.SyncController,
+		SermonNoteController: opt.SermonNoteController,
 	}
 }
 
@@ -39,6 +42,7 @@ func (c *RouteConfig) Setup() {
 	c.setupSwaggerRoute()
 	c.setupEtcRoute()
 	c.setupSyncRoute()
+	c.setupAttachmentRoute()
 	c.setupErrorHandler()
 }
 
@@ -63,6 +67,14 @@ func (c *RouteConfig) setupSyncRoute() {
 	api := c.App.Group("/api")
 	api.POST("/sync/changes", c.SyncController.Push)
 	api.GET("/sync/changes/:since", c.SyncController.Pull)
+}
+
+func (c *RouteConfig) setupAttachmentRoute() {
+	api := c.App.Group("/api")
+	api.PUT(
+		"/attachments/:id/file",
+		c.SermonNoteController.UploadAttachmentFile,
+	)
 }
 
 func (c *RouteConfig) setupErrorHandler() {

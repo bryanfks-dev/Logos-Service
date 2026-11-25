@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS note_attachments (
     file_size BIGINT NOT NULL,
     storage_path TEXT NOT NULL,
     checksum_sha256 TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'not_uploaded',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ

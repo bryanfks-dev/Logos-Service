@@ -1,8 +1,11 @@
 package fs_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bryanfks-dev/logos/infra/fs"
@@ -128,6 +131,55 @@ func TestManager_EnsureDir(t *testing.T) {
 
 			err := manager.EnsureDir(targetFile)
 			assert.Error(t, err)
+		},
+	)
+}
+
+func TestManager_WriteTempAndHash_MoveAtomic_RemoveFile(t *testing.T) {
+	manager := fs.NewManager()
+	require.NotNil(t, manager)
+
+	t.Run("WriteTempAndHash validates inputs", func(t *testing.T) {
+		_, _, err := manager.WriteTempAndHash("", strings.NewReader("abc"))
+		assert.EqualError(t, err, "temp file path is required")
+
+		_, _, err = manager.WriteTempAndHash(
+			filepath.Join(t.TempDir(), "a.part"),
+			nil,
+		)
+		assert.EqualError(t, err, "reader is required")
+	})
+
+	t.Run(
+		"WriteTempAndHash streams, hashes, and MoveAtomic moves atomically",
+		func(t *testing.T) {
+			baseDir := t.TempDir()
+			tmpPath := filepath.Join(baseDir, ".tmp", "att-1.part")
+			finalPath := filepath.Join(baseDir, "2026", "att-1.pdf")
+			payload := "hello attachment bytes"
+
+			sum := sha256.Sum256([]byte(payload))
+			expectedHash := hex.EncodeToString(sum[:])
+
+			gotHash, written, err := manager.WriteTempAndHash(
+				tmpPath,
+				strings.NewReader(payload),
+			)
+			require.NoError(t, err)
+			assert.Equal(t, expectedHash, gotHash)
+			assert.Equal(t, int64(len(payload)), written)
+
+			require.NoError(t, manager.MoveAtomic(tmpPath, finalPath))
+
+			_, err = os.Stat(tmpPath)
+			assert.True(t, os.IsNotExist(err))
+
+			gotBytes, err := os.ReadFile(finalPath)
+			require.NoError(t, err)
+			assert.Equal(t, payload, string(gotBytes))
+
+			require.NoError(t, manager.RemoveFile(finalPath))
+			require.NoError(t, manager.RemoveFile(finalPath))
 		},
 	)
 }
