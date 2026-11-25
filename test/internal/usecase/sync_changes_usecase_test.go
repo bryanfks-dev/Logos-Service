@@ -485,7 +485,7 @@ func TestSyncChangesUsecase_Pull(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	past := now.Add(-2 * time.Hour)
 	future := now.Add(2 * time.Hour)
 

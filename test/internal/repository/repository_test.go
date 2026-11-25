@@ -200,7 +200,7 @@ func TestSermonNoteRepository(t *testing.T) {
 
 	assert.NoError(t, tagRepo.Create(ctx, graceTag))
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	note := &entity.SermonNote{
 		Title:       "Faith and Works",
@@ -409,7 +409,7 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 	testDB := setupTestDB(t)
 	testLog := zap.NewNop()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	past := now.Add(-2 * time.Hour)
 	future := now.Add(2 * time.Hour)
 

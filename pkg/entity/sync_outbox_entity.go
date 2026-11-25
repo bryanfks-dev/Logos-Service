@@ -27,7 +27,7 @@ func (e *SyncOutbox) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	if e.QueuedAt.IsZero() {
-		e.QueuedAt = time.Now()
+		e.QueuedAt = time.Now().UTC()
 	}
 
 	return nil

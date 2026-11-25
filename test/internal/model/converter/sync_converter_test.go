@@ -24,7 +24,7 @@ func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
 	})
 
 	t.Run("converts full sync push request to batch", func(t *testing.T) {
-		now := time.Now()
+		now := time.Now().UTC()
 		req := &request.SyncPushChangesRequest{
 			SermonNotes: []request.SyncNoteChangesItem{
 				{

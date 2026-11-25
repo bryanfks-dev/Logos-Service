@@ -242,7 +242,7 @@ func TestSyncController_Push(t *testing.T) {
 func TestSyncController_Pull(t *testing.T) {
 	app, _, testDB := setupSyncControllerTestEnv(t)
 
-	now := time.Now()
+	now := time.Now().UTC()
 	g := &entity.Gathering{
 		ID:        "g-pull-test-1",
 		Name:      "Sunday Worship",

@@ -11,7 +11,7 @@ import (
 )
 
 func TestTagToResponse(t *testing.T) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	t.Run("nil tag returns nil", func(t *testing.T) {
 		assert.Nil(t, converter.TagToResponse(nil))

@@ -12,7 +12,7 @@ import (
 )
 
 func TestSermonSeriesToResponse(t *testing.T) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	t.Run("nil series returns nil", func(t *testing.T) {
 		assert.Nil(t, converter.SermonSeriesToResponse(nil))

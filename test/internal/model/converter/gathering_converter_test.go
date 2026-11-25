@@ -11,7 +11,7 @@ import (
 )
 
 func TestGatheringToResponse(t *testing.T) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	t.Run("nil gathering returns nil", func(t *testing.T) {
 		assert.Nil(t, converter.GatheringToResponse(nil))

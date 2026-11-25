@@ -49,7 +49,7 @@ func (b *APIResponseBuilder[T]) Build() *model.APIResponse[T] {
 	success := b.error == nil
 	meta := model.APIMeta{
 		RequestID: b.requestID,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 
 	return &model.APIResponse[T]{

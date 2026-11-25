@@ -101,7 +101,7 @@ func TestHealthCheckEndpoint_Integration(t *testing.T) {
 			assert.False(t, res.Meta.Timestamp.IsZero())
 			assert.WithinDuration(
 				t,
-				time.Now(),
+				time.Now().UTC(),
 				res.Meta.Timestamp,
 				5*time.Second,
 			)

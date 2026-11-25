@@ -43,7 +43,7 @@ func SyncNoteChangesItemToEntity(
 		tags = append(tags, tag)
 	}
 
-	sermonDate := time.Now()
+	sermonDate := time.Now().UTC()
 	if noteItem.SermonDate != nil {
 		sermonDate = *noteItem.SermonDate
 	}
