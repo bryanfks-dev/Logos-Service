@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 	"uuid"
 
-	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/repository"
 	"github.com/bryanfks-dev/logos/internal/usecase"
@@ -52,7 +54,11 @@ func setupSyncTestEnv(
 
 	log := zap.NewNop()
 	txManager := db.NewTxManager(testDB)
-	sermonNoteRepository := repository.NewSermonNoteRepository(testDB, log)
+	sermonNoteRepository := repository.NewSermonNoteRepository(
+		testDB,
+		fs.NewManager(),
+		log,
+	)
 	gatheringRepository := repository.NewGatheringRepository(testDB, log)
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
@@ -609,6 +615,17 @@ func (f *failingSermonNoteRepo) FindByID(
 	return f.SermonNoteRepository.FindByID(ctx, id)
 }
 
+func (f *failingSermonNoteRepo) FindByIDsUnscoped(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.SermonNote, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+
+	return f.SermonNoteRepository.FindByIDsUnscoped(ctx, ids)
+}
+
 func (f *failingSermonNoteRepo) Create(
 	ctx context.Context,
 	note *entity.SermonNote,
@@ -657,6 +674,17 @@ func (f *failingGatheringRepo) FindByID(
 	}
 
 	return f.GatheringRepository.FindByID(ctx, id)
+}
+
+func (f *failingGatheringRepo) FindByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.Gathering, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+
+	return f.GatheringRepository.FindByIDs(ctx, ids)
 }
 
 func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
@@ -764,6 +792,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 			SermonNoteRepository: &failingSermonNoteRepo{
 				SermonNoteRepository: repository.NewSermonNoteRepository(
 					testDB,
+					fs.NewManager(),
 					log,
 				),
 				findUpdatedSinceErr: expectedErr,
@@ -796,6 +825,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 			TxManager: db.NewTxManager(testDB),
 			SermonNoteRepository: repository.NewSermonNoteRepository(
 				testDB,
+				fs.NewManager(),
 				log,
 			),
 			GatheringRepository: &failingGatheringRepo{
@@ -836,6 +866,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 					SermonNoteRepository: &failingSermonNoteRepo{
 						SermonNoteRepository: repository.NewSermonNoteRepository(
 							testDB,
+							fs.NewManager(),
 							log,
 						),
 						createErr: expectedErr,
@@ -883,6 +914,472 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 					Error,
 			)
 			assert.Equal(t, int64(0), count)
+		},
+	)
+}
+
+func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
+	t.Run(
+		"detects conflict when two clients push same version with different ContentHash",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			clientABatch := &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-same-ver",
+						Title:       "Client A Title",
+						Version:     2,
+						ContentHash: "hash-client-a",
+						PlainText:   "Client A content",
+					},
+				},
+			}
+			resA, err := u.Push(ctx, clientABatch)
+			require.NoError(t, err)
+			assert.Empty(t, resA.Conflicts)
+
+			clientBBatch := &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-same-ver",
+						Title:       "Client B Title",
+						Version:     2,
+						ContentHash: "hash-client-b",
+						PlainText:   "Client B content",
+					},
+				},
+			}
+			resB, err := u.Push(ctx, clientBBatch)
+			require.NoError(t, err)
+			assert.Contains(t, resB.Conflicts, "note-same-ver")
+
+			var stored entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&stored, "id = ?", "note-same-ver").Error,
+			)
+			assert.Equal(t, "Client A Title", stored.Title)
+			assert.Equal(t, "hash-client-a", stored.ContentHash)
+		},
+	)
+
+	t.Run(
+		"allows idempotent retry when same version and same ContentHash are pushed",
+		func(t *testing.T) {
+			_, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			batch := &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-idempotent",
+						Title:       "Initial Title",
+						Version:     2,
+						ContentHash: "hash-same",
+						PlainText:   "Same content",
+					},
+				},
+			}
+
+			res1, err := u.Push(ctx, batch)
+			require.NoError(t, err)
+			assert.Empty(t, res1.Conflicts)
+
+			res2, err := u.Push(ctx, batch)
+			require.NoError(t, err)
+			assert.Empty(t, res2.Conflicts)
+		},
+	)
+
+	t.Run(
+		"handles push for a soft-deleted note without primary key collision",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			note := &entity.SermonNote{
+				ID:          "note-soft-deleted",
+				Title:       "Deleted Note",
+				Version:     1,
+				ContentHash: "hash-v1",
+				PlainText:   "Old text",
+			}
+			require.NoError(t, testDB.Create(note).Error)
+			require.NoError(t, testDB.Delete(note).Error)
+
+			batch := &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-soft-deleted",
+						Title:       "Restored By Client B",
+						Version:     2,
+						ContentHash: "hash-v2",
+						PlainText:   "New text",
+					},
+				},
+			}
+
+			res, err := u.Push(ctx, batch)
+			require.NoError(t, err)
+			assert.Empty(t, res.Conflicts)
+
+			var stored entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&stored, "id = ?", "note-soft-deleted").Error,
+			)
+			assert.Equal(t, "Restored By Client B", stored.Title)
+			assert.Equal(t, 2, stored.Version)
+		},
+	)
+
+	t.Run(
+		"handles concurrent pushes from two clients for the same note ID",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			var (
+				wg   sync.WaitGroup
+				errA error
+				errB error
+				resA *model.SyncPushChangesResult
+				resB *model.SyncPushChangesResult
+			)
+
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				resA, errA = u.Push(ctx, &model.SyncChangesBatch{
+					Notes: []*entity.SermonNote{
+						{
+							ID:          "note-concurrent-1",
+							Title:       "Client A Concurrent",
+							Version:     1,
+							ContentHash: "hash-a",
+							PlainText:   "Content A",
+						},
+					},
+				})
+			}()
+
+			go func() {
+				defer wg.Done()
+				resB, errB = u.Push(ctx, &model.SyncChangesBatch{
+					Notes: []*entity.SermonNote{
+						{
+							ID:          "note-concurrent-1",
+							Title:       "Client B Concurrent",
+							Version:     1,
+							ContentHash: "hash-b",
+							PlainText:   "Content B",
+						},
+					},
+				})
+			}()
+
+			wg.Wait()
+
+			require.NoError(t, errA)
+			require.NoError(t, errB)
+
+			totalConflicts := len(resA.Conflicts) + len(resB.Conflicts)
+			assert.Equal(t, 1, totalConflicts)
+
+			var stored entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&stored, "id = ?", "note-concurrent-1").Error,
+			)
+			assert.Contains(
+				t,
+				[]string{"Client A Concurrent", "Client B Concurrent"},
+				stored.Title,
+			)
+		},
+	)
+
+	t.Run(
+		"handles duplicate IDs in the same push batch using pre-fetched state",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+			t2 := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
+
+			res, err := u.Push(ctx, &model.SyncChangesBatch{
+				Gatherings: []*entity.Gathering{
+					{ID: "g-dup", Name: "First", UpdatedAt: t1},
+					{ID: "g-dup", Name: "Second", UpdatedAt: t2},
+				},
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "n-dup",
+						Title:       "First Note",
+						Version:     1,
+						ContentHash: "h1",
+					},
+					{
+						ID:          "n-dup",
+						Title:       "Second Note",
+						Version:     2,
+						ContentHash: "h2",
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Empty(t, res.Conflicts)
+
+			var g entity.Gathering
+			require.NoError(t, testDB.First(&g, "id = ?", "g-dup").Error)
+			assert.Equal(t, "Second", g.Name)
+
+			var n entity.SermonNote
+			require.NoError(t, testDB.First(&n, "id = ?", "n-dup").Error)
+			assert.Equal(t, "Second Note", n.Title)
+			assert.Equal(t, 2, n.Version)
+		},
+	)
+
+	t.Run(
+		"remaps duplicate Tag.Name across clients with different UUIDs and links note_tags",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			t1 := time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC)
+			t2 := time.Date(2026, 2, 1, 11, 0, 0, 0, time.UTC)
+
+			resA, err := u.Push(ctx, &model.SyncChangesBatch{
+				Tags: []*entity.Tag{
+					{ID: "tag-client-a", Name: "Grace", UpdatedAt: t1},
+				},
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-tag-a",
+						Title:       "Note A",
+						Version:     1,
+						ContentHash: "hash-a",
+						Tags: []entity.Tag{
+							{ID: "tag-client-a", Name: "Grace"},
+						},
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Empty(t, resA.Conflicts)
+
+			resB, err := u.Push(ctx, &model.SyncChangesBatch{
+				Tags: []*entity.Tag{
+					{ID: "tag-client-b", Name: "Grace", UpdatedAt: t2},
+				},
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-tag-b",
+						Title:       "Note B",
+						Version:     1,
+						ContentHash: "hash-b",
+						Tags: []entity.Tag{
+							{ID: "tag-client-b", Name: "Grace"},
+						},
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Empty(t, resB.Conflicts)
+
+			var tags []entity.Tag
+			require.NoError(t, testDB.Find(&tags, "name = ?", "Grace").Error)
+			require.Len(t, tags, 1)
+			assert.Equal(t, "tag-client-a", tags[0].ID)
+
+			var noteTags []entity.NoteTag
+			require.NoError(
+				t,
+				testDB.Find(&noteTags, "note_id = ?", "note-tag-b").Error,
+			)
+			require.Len(t, noteTags, 1)
+			assert.Equal(t, "tag-client-a", noteTags[0].TagID)
+		},
+	)
+
+	t.Run(
+		"handles push for soft-deleted gathering without primary key collision",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			g := &entity.Gathering{
+				ID:   "g-soft-del",
+				Name: "Deleted Gathering",
+			}
+			require.NoError(t, testDB.Create(g).Error)
+			require.NoError(t, testDB.Delete(g).Error)
+
+			_, err := u.Push(ctx, &model.SyncChangesBatch{
+				Gatherings: []*entity.Gathering{
+					{
+						ID:        "g-soft-del",
+						Name:      "Restored Gathering",
+						UpdatedAt: time.Now().UTC(),
+					},
+				},
+			})
+			require.NoError(t, err)
+
+			var stored entity.Gathering
+			require.NoError(
+				t,
+				testDB.First(&stored, "id = ?", "g-soft-del").Error,
+			)
+			assert.Equal(t, "Restored Gathering", stored.Name)
+		},
+	)
+
+	t.Run(
+		"does not overwrite note file on disk when push transaction rolls back",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			noteFile := filepath.Join(t.TempDir(), "rollback-note.json")
+			originalContent := `{"ops":[{"insert":"original"}]}`
+			origSum := sha256.Sum256([]byte(originalContent))
+			origHash := hex.EncodeToString(origSum[:])
+
+			_, err := u.Push(ctx, &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-file-rb-1",
+						Title:       "Original",
+						Version:     1,
+						FilePath:    noteFile,
+						ContentJSON: originalContent,
+						ContentHash: origHash,
+					},
+				},
+			})
+			require.NoError(t, err)
+
+			log := zap.NewNop()
+			failErr := errors.New("second note failed")
+			uFail := usecase.NewSyncChangesUsecase(
+				&usecase.SyncChangesUsecaseOption{
+					TxManager: db.NewTxManager(testDB),
+					SermonNoteRepository: &failingSermonNoteRepo{
+						SermonNoteRepository: repository.NewSermonNoteRepository(
+							testDB,
+							fs.NewManager(),
+							log,
+						),
+						createErr: failErr,
+					},
+					GatheringRepository: repository.NewGatheringRepository(
+						testDB,
+						log,
+					),
+					SermonSeriesRepository: repository.NewSermonSeriesRepository(
+						testDB,
+						log,
+					),
+					PreacherRepository: repository.NewPreacherRepository(
+						testDB,
+						log,
+					),
+					TagRepository: repository.NewTagRepository(testDB, log),
+					SyncOutboxRepository: repository.NewSyncOutboxRepository(
+						testDB,
+						log,
+					),
+					Log: log,
+				},
+			)
+
+			newContent := `{"ops":[{"insert":"should-not-persist"}]}`
+			newSum := sha256.Sum256([]byte(newContent))
+			newHash := hex.EncodeToString(newSum[:])
+
+			_, err = uFail.Push(ctx, &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-file-rb-1",
+						Title:       "Updated",
+						Version:     2,
+						FilePath:    noteFile,
+						ContentJSON: newContent,
+						ContentHash: newHash,
+					},
+					{
+						ID:          "note-file-rb-2",
+						Title:       "Triggers Rollback",
+						Version:     1,
+						ContentHash: "h2",
+					},
+				},
+			})
+			assert.ErrorIs(t, err, failErr)
+
+			diskBytes, readErr := os.ReadFile(noteFile)
+			require.NoError(t, readErr)
+			assert.Equal(t, originalContent, string(diskBytes))
+		},
+	)
+
+	t.Run(
+		"preserves FilePath and CreatedAt on metadata-only note update",
+		func(t *testing.T) {
+			testDB, u := setupSyncTestEnv(t)
+			ctx := context.Background()
+
+			noteFile := filepath.Join(t.TempDir(), "meta-note.json")
+			content := `{"ops":[{"insert":"keep me"}]}`
+			sum := sha256.Sum256([]byte(content))
+			hash := hex.EncodeToString(sum[:])
+
+			_, err := u.Push(ctx, &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-meta-preserve",
+						Title:       "Before",
+						Version:     1,
+						FilePath:    noteFile,
+						ContentJSON: content,
+						ContentHash: hash,
+					},
+				},
+			})
+			require.NoError(t, err)
+
+			var created entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&created, "id = ?", "note-meta-preserve").Error,
+			)
+
+			res, err := u.Push(ctx, &model.SyncChangesBatch{
+				Notes: []*entity.SermonNote{
+					{
+						ID:          "note-meta-preserve",
+						Title:       "After",
+						Version:     2,
+						ContentHash: hash,
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Empty(t, res.MissingContentIDs)
+
+			var updated entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&updated, "id = ?", "note-meta-preserve").Error,
+			)
+			assert.Equal(t, "After", updated.Title)
+			assert.Equal(t, noteFile, updated.FilePath)
+			assert.False(t, updated.CreatedAt.IsZero())
 		},
 	)
 }

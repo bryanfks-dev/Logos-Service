@@ -4,7 +4,8 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
 	"github.com/bryanfks-dev/logos/internal/usecase"
@@ -20,6 +21,8 @@ type Container struct {
 	App    *echo.Echo
 
 	TxManager *db.TxManager
+
+	FsManager *fs.Manager
 
 	RouteConfig *route.RouteConfig
 

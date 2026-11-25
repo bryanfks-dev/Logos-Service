@@ -26,7 +26,7 @@
 - **Folder Mirroring**:
   - The folder structure inside `/test/` must strictly mirror the main source code folder structure:
     - `test/di/` for `di/`
-    - `test/db/...` for `db/...`
+    - `test/infra/...` for `infra/...`
     - `test/internal/...` for `internal/...`
     - `test/pkg/...` for `pkg/...`
 

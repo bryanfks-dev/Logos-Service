@@ -1,7 +1,8 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
 	"github.com/bryanfks-dev/logos/internal/repository"
@@ -19,6 +20,7 @@ var AppSet = wire.NewSet(
 
 var InfrastructureSet = wire.NewSet(
 	db.NewTxManager,
+	fs.NewManager,
 )
 
 var RepositorySet = wire.NewSet(

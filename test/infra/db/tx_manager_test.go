@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
+	"uuid"
 
-	"github.com/bryanfks-dev/logos/db"
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -20,13 +22,16 @@ type TestUser struct {
 }
 
 func setupTxTestDB(t *testing.T) *gorm.DB {
-	testDB, err := gorm.Open(
-		sqlite.Open("file::memory:?cache=shared"),
-		&gorm.Config{},
+	dsn := fmt.Sprintf(
+		"file:tx_test_%s?mode=memory&cache=shared",
+		uuid.NewV7().String(),
 	)
+	testDB, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
+
 	err = testDB.AutoMigrate(&TestUser{})
 	require.NoError(t, err)
+
 	return testDB
 }
 
@@ -60,7 +65,7 @@ func TestTxManager(t *testing.T) {
 	t.Run("successful transaction commits", func(t *testing.T) {
 		ctx := context.Background()
 		err := txManager.Do(ctx, func(txCtx context.Context) error {
-			tx := correlation.Tx(txCtx)
+			tx := correlation.GetTx(txCtx)
 			require.NotNil(t, tx)
 			return tx.Create(&TestUser{Name: "Alice"}).Error
 		})
@@ -76,7 +81,7 @@ func TestTxManager(t *testing.T) {
 		ctx := context.Background()
 		expectedErr := errors.New("business error")
 		err := txManager.Do(ctx, func(txCtx context.Context) error {
-			tx := correlation.Tx(txCtx)
+			tx := correlation.GetTx(txCtx)
 			require.NotNil(t, tx)
 			if err := tx.Create(&TestUser{Name: "Bob"}).Error; err != nil {
 				return err
@@ -96,18 +101,29 @@ func TestTxManager(t *testing.T) {
 			ctx := context.Background()
 			outerExecuted := false
 			innerExecuted := false
+			innerHookRan := false
 
 			err := txManager.Do(ctx, func(outerCtx context.Context) error {
 				outerExecuted = true
-				outerTx := correlation.Tx(outerCtx)
+				outerTx := correlation.GetTx(outerCtx)
 				require.NotNil(t, outerTx)
 
 				return txManager.Do(
 					outerCtx,
 					func(innerCtx context.Context) error {
 						innerExecuted = true
-						innerTx := correlation.Tx(innerCtx)
+						innerTx := correlation.GetTx(innerCtx)
 						assert.Equal(t, outerTx, innerTx)
+
+						require.True(
+							t,
+							db.AddAfterCommit(innerCtx, func() error {
+								innerHookRan = true
+								return nil
+							}),
+						)
+						assert.False(t, innerHookRan)
+
 						return innerTx.Create(&TestUser{Name: "Charlie"}).Error
 					},
 				)
@@ -115,6 +131,7 @@ func TestTxManager(t *testing.T) {
 			assert.NoError(t, err)
 			assert.True(t, outerExecuted)
 			assert.True(t, innerExecuted)
+			assert.True(t, innerHookRan)
 
 			var user TestUser
 			err = testDB.First(&user, "name = ?", "Charlie").Error
@@ -131,11 +148,50 @@ func TestTxManager(t *testing.T) {
 			ctx,
 			opts,
 			func(txCtx context.Context) error {
-				tx := correlation.Tx(txCtx)
+				tx := correlation.GetTx(txCtx)
 				require.NotNil(t, tx)
 				return nil
 			},
 		)
 		assert.NoError(t, err)
 	})
+
+	t.Run(
+		"after commit hooks run only on commit and propagate hook error",
+		func(t *testing.T) {
+			ctx := context.Background()
+			committed := false
+			err := txManager.Do(ctx, func(txCtx context.Context) error {
+				require.True(t, db.AddAfterCommit(txCtx, func() error {
+					committed = true
+					return nil
+				}))
+				assert.False(t, committed)
+				return nil
+			})
+			assert.NoError(t, err)
+			assert.True(t, committed)
+
+			rolledBackHookRan := false
+			txErr := errors.New("rollback")
+			err = txManager.Do(ctx, func(txCtx context.Context) error {
+				require.True(t, db.AddAfterCommit(txCtx, func() error {
+					rolledBackHookRan = true
+					return nil
+				}))
+				return txErr
+			})
+			assert.ErrorIs(t, err, txErr)
+			assert.False(t, rolledBackHookRan)
+
+			hookErr := errors.New("after commit failed")
+			err = txManager.Do(ctx, func(txCtx context.Context) error {
+				require.True(t, db.AddAfterCommit(txCtx, func() error {
+					return hookErr
+				}))
+				return nil
+			})
+			assert.ErrorIs(t, err, hookErr)
+		},
+	)
 }

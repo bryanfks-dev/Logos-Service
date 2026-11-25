@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -19,10 +19,10 @@ func TestWithTx_And_Tx(t *testing.T) {
 
 	t.Run("with standard context", func(t *testing.T) {
 		ctx := context.Background()
-		assert.Nil(t, correlation.Tx(ctx))
+		assert.Nil(t, correlation.GetTx(ctx))
 
 		ctxWithTx := correlation.WithTx(ctx, db)
-		assert.Equal(t, db, correlation.Tx(ctxWithTx))
+		assert.Equal(t, db, correlation.GetTx(ctxWithTx))
 		assert.Equal(t, db, correlation.GetTx(ctxWithTx))
 	})
 
@@ -33,6 +33,6 @@ func TestWithTx_And_Tx(t *testing.T) {
 			customKey("tx"),
 			"not-a-gorm-db",
 		)
-		assert.Nil(t, correlation.Tx(ctx))
+		assert.Nil(t, correlation.GetTx(ctx))
 	})
 }

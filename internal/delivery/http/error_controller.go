@@ -35,7 +35,7 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 		return
 	}
 
-	requestID := correlation.RequestID(ctx)
+	requestID := correlation.GetRequestID(ctx)
 	status := http.StatusInternalServerError
 	code := "code_unavailable"
 

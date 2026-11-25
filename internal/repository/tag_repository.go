@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/bryanfks-dev/logos/pkg/util"
@@ -18,6 +19,11 @@ type TagRepository interface {
 	Create(ctx context.Context, tag *entity.Tag) error
 	Update(ctx context.Context, tag *entity.Tag) error
 	FindByID(ctx context.Context, id string) (*entity.Tag, error)
+	FindByIDsOrNames(
+		ctx context.Context,
+		ids []string,
+		names []string,
+	) ([]*entity.Tag, error)
 	FindAll(ctx context.Context) ([]entity.Tag, error)
 	FindUpdatedSince(
 		ctx context.Context,
@@ -39,7 +45,7 @@ func NewTagRepository(db *gorm.DB, log *zap.Logger) TagRepository {
 }
 
 func (r *tagRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -102,6 +108,42 @@ func (r *tagRepository) FindByID(
 	r.log.Info("find by id completed", zap.Any("param", id))
 
 	return &item, nil
+}
+
+func (r *tagRepository) FindByIDsOrNames(
+	ctx context.Context,
+	ids []string,
+	names []string,
+) ([]*entity.Tag, error) {
+	if len(ids) == 0 && len(names) == 0 {
+		return make([]*entity.Tag, 0), nil
+	}
+
+	var items []*entity.Tag
+
+	query := r.conn(ctx)
+	switch {
+	case len(ids) > 0 && len(names) > 0:
+		query = query.Where("id IN ? OR name IN ?", ids, names)
+	case len(ids) > 0:
+		query = query.Where("id IN ?", ids)
+	default:
+		query = query.Where("name IN ?", names)
+	}
+
+	query = db.WithRowLock(ctx, query)
+	if err := query.Find(&items).Error; err != nil {
+		r.log.Error(
+			"find by ids or names failed",
+			zap.Error(err),
+			zap.Strings("ids", ids),
+			zap.Strings("names", names),
+		)
+
+		return nil, entityerror.ErrTagRetrievalFailed(err)
+	}
+
+	return items, nil
 }
 
 func (r *tagRepository) FindAll(ctx context.Context) ([]entity.Tag, error) {

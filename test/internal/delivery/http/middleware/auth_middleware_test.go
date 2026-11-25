@@ -248,7 +248,7 @@ func TestAuthMiddleware(t *testing.T) {
 			e.Use(middleware.RequestIDMiddleware())
 			e.Use(middleware.AuthMiddleware(v))
 			e.GET("/captured", func(c *echo.Context) error {
-				capturedRequestID = correlation.RequestID(c)
+				capturedRequestID = correlation.GetRequestID(c)
 				return c.String(http.StatusOK, "ok")
 			})
 

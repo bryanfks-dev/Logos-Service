@@ -8,7 +8,7 @@ func WithRequestID(ctx *echo.Context, requestID string) {
 	ctx.Set(requestIDKey, requestID)
 }
 
-func RequestID(ctx *echo.Context) string {
+func GetRequestID(ctx *echo.Context) string {
 	if val := ctx.Get(requestIDKey); val != nil {
 		if id, ok := val.(string); ok {
 			return id
@@ -16,8 +16,4 @@ func RequestID(ctx *echo.Context) string {
 	}
 
 	return ""
-}
-
-func GetRequestID(ctx *echo.Context) string {
-	return RequestID(ctx)
 }

@@ -24,7 +24,7 @@ func NewEtcController() *EtcController {
 // @Success      200 {object} model.APIResponse[any]
 // @Router       /api/healthz [get]
 func (c *EtcController) HealthCheck(ctx *echo.Context) error {
-	requestID := correlation.RequestID(ctx)
+	requestID := correlation.GetRequestID(ctx)
 
 	response := builder.NewAPIResponseBuilder[any]().
 		SetRequestID(requestID).

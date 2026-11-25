@@ -46,7 +46,7 @@ func NewSyncController(
 // @Failure      500 {object} model.APIResponse[any]
 // @Router       /api/sync/changes [post]
 func (h *SyncController) Push(ctx *echo.Context) error {
-	requestID := correlation.RequestID(ctx)
+	requestID := correlation.GetRequestID(ctx)
 
 	var req request.SyncPushChangesRequest
 	if err := ctx.Bind(&req); err != nil {
@@ -98,7 +98,7 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 // @Failure      500 {object} model.APIResponse[any]
 // @Router       /api/sync/changes/{since} [get]
 func (h *SyncController) Pull(ctx *echo.Context) error {
-	requestID := correlation.RequestID(ctx)
+	requestID := correlation.GetRequestID(ctx)
 
 	var syncParams params.SyncPullChangesParam
 	if err := ctx.Bind(&syncParams); err != nil {

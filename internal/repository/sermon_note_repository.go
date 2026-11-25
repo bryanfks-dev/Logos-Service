@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/bryanfks-dev/logos/pkg/util"
@@ -20,6 +22,10 @@ type SermonNoteRepository interface {
 	Update(ctx context.Context, note *entity.SermonNote) error
 	FindByID(ctx context.Context, id string) (*entity.SermonNote, error)
 	FindByIDUnscoped(ctx context.Context, id string) (*entity.SermonNote, error)
+	FindByIDsUnscoped(
+		ctx context.Context,
+		ids []string,
+	) ([]*entity.SermonNote, error)
 	FindAll(
 		ctx context.Context,
 		filter entity.SermonNoteFilter,
@@ -38,46 +44,63 @@ type SermonNoteRepository interface {
 }
 
 type sermonNoteRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
+	db        *gorm.DB
+	fsManager *fs.Manager
+	log       *zap.Logger
 }
 
 func NewSermonNoteRepository(
 	db *gorm.DB,
+	fsManager *fs.Manager,
 	log *zap.Logger,
 ) SermonNoteRepository {
 	return &sermonNoteRepository{
-		db:  db,
-		log: log,
+		db:        db,
+		fsManager: fsManager,
+		log:       log,
 	}
 }
 
 func (r *sermonNoteRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
 	return r.db.WithContext(ctx)
 }
 
-func (r *sermonNoteRepository) persistNoteFile(note *entity.SermonNote) error {
+func (r *sermonNoteRepository) ensureNoteFilePath(note *entity.SermonNote) {
+	if note.ContentJSON == "" || note.FilePath != "" {
+		return
+	}
+
+	note.FilePath = filepath.Join(
+		os.TempDir(),
+		"logos_notes",
+		note.ID+".json",
+	)
+}
+
+func (r *sermonNoteRepository) commitNoteFile(
+	ctx context.Context,
+	note *entity.SermonNote,
+) error {
 	if note.ContentJSON == "" {
 		return nil
 	}
 
-	if note.FilePath == "" {
-		note.FilePath = filepath.Join(
-			os.TempDir(),
-			"logos_notes",
-			note.ID+".json",
-		)
+	r.ensureNoteFilePath(note)
+
+	filePath := note.FilePath
+	contentJSON := note.ContentJSON
+
+	if db.AddAfterCommit(ctx, func() error {
+		return r.fsManager.WriteFileAtomic(filePath, []byte(contentJSON))
+	}) {
+		return nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(note.FilePath), 0o755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(note.FilePath, []byte(note.ContentJSON), 0o644)
+	return r.fsManager.WriteFileAtomic(filePath, []byte(contentJSON))
 }
 
 func (r *sermonNoteRepository) hydrateNoteFile(note *entity.SermonNote) {
@@ -118,34 +141,54 @@ func (r *sermonNoteRepository) saveChildren(
 	ctx context.Context,
 	note *entity.SermonNote,
 ) error {
-	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteVerse{}).Error; err != nil {
+	db := r.conn(ctx)
+
+	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NoteVerse{}).Error; err != nil {
 		return err
 	}
 
-	for i := range note.Verses {
-		note.Verses[i].NoteID = note.ID
+	if len(note.Verses) > 0 {
+		for i := range note.Verses {
+			note.Verses[i].NoteID = note.ID
+		}
 
-		if err := r.conn(ctx).Create(&note.Verses[i]).Error; err != nil {
+		if err := db.Create(&note.Verses).Error; err != nil {
 			return err
 		}
 	}
 
-	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NoteTag{}).Error; err != nil {
+	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NoteTag{}).Error; err != nil {
 		return err
 	}
 
-	for _, tag := range note.Tags {
-		noteTag := entity.NoteTag{
-			NoteID: note.ID,
-			TagID:  tag.ID,
+	if len(note.Tags) > 0 {
+		noteTags := make([]entity.NoteTag, 0, len(note.Tags))
+		seenTagIDs := make(map[string]struct{}, len(note.Tags))
+
+		for _, tag := range note.Tags {
+			if tag.ID == "" {
+				continue
+			}
+
+			if _, ok := seenTagIDs[tag.ID]; ok {
+				continue
+			}
+
+			seenTagIDs[tag.ID] = struct{}{}
+			noteTags = append(noteTags, entity.NoteTag{
+				NoteID: note.ID,
+				TagID:  tag.ID,
+			})
 		}
 
-		if err := r.conn(ctx).Create(&noteTag).Error; err != nil {
-			return err
+		if len(noteTags) > 0 {
+			if err := db.Create(&noteTags).Error; err != nil {
+				return err
+			}
 		}
 	}
 
-	if err := r.conn(ctx).Where("note_id = ?", note.ID).Delete(&entity.NotesFTS{}).Error; err != nil {
+	if err := db.Where("note_id = ?", note.ID).Delete(&entity.NotesFTS{}).Error; err != nil {
 		return err
 	}
 
@@ -159,7 +202,7 @@ func (r *sermonNoteRepository) saveChildren(
 
 	fts.NoteID = note.ID
 
-	return r.conn(ctx).Create(fts).Error
+	return db.Create(fts).Error
 }
 
 func (r *sermonNoteRepository) Create(
@@ -176,13 +219,13 @@ func (r *sermonNoteRepository) Create(
 		return entityerror.ErrSermonNoteCreationFailed(err)
 	}
 
-	if err := r.persistNoteFile(note); err != nil {
+	if err := r.saveChildren(ctx, note); err != nil {
 		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
 
 		return entityerror.ErrSermonNoteCreationFailed(err)
 	}
 
-	if err := r.saveChildren(ctx, note); err != nil {
+	if err := r.commitNoteFile(ctx, note); err != nil {
 		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
 
 		return entityerror.ErrSermonNoteCreationFailed(err)
@@ -199,11 +242,7 @@ func (r *sermonNoteRepository) Update(
 ) error {
 	r.log.Info("update started", zap.Any("param", note))
 
-	if err := r.persistNoteFile(note); err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
-
-		return entityerror.ErrSermonNoteUpdateFailed(err)
-	}
+	r.ensureNoteFilePath(note)
 
 	db := r.conn(ctx)
 
@@ -214,6 +253,12 @@ func (r *sermonNoteRepository) Update(
 	}
 
 	if err := r.saveChildren(ctx, note); err != nil {
+		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
+
+		return entityerror.ErrSermonNoteUpdateFailed(err)
+	}
+
+	if err := r.commitNoteFile(ctx, note); err != nil {
 		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
 
 		return entityerror.ErrSermonNoteUpdateFailed(err)
@@ -276,6 +321,37 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 	r.log.Info("find by id unscoped completed", zap.Any("param", id))
 
 	return &note, nil
+}
+
+func (r *sermonNoteRepository) FindByIDsUnscoped(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.SermonNote, error) {
+	if len(ids) == 0 {
+		return make([]*entity.SermonNote, 0), nil
+	}
+
+	var notes []*entity.SermonNote
+
+	query := db.WithRowLock(
+		ctx,
+		r.conn(ctx).Unscoped().Where("id IN ?", ids),
+	)
+	if err := query.Find(&notes).Error; err != nil {
+		r.log.Error(
+			"find by ids unscoped failed",
+			zap.Error(err),
+			zap.Strings("ids", ids),
+		)
+
+		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
+	}
+
+	for _, note := range notes {
+		r.hydrateNoteFile(note)
+	}
+
+	return notes, nil
 }
 
 func (r *sermonNoteRepository) FindAll(

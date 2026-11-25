@@ -1,5 +1,6 @@
 app:
   name: logos
+  path: files/
 
 web:
   port: 3333

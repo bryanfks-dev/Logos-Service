@@ -65,7 +65,7 @@ func (e *SermonNote) HasConflictWith(incoming *SermonNote) bool {
 		return false
 	}
 
-	return e.Version > incoming.Version &&
+	return e.Version >= incoming.Version &&
 		e.ContentHash != incoming.ContentHash
 }
 

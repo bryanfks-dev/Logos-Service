@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
@@ -37,7 +37,7 @@ func NewSyncOutboxRepository(
 }
 
 func (r *syncOutboxRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 

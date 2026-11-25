@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/bryanfks-dev/logos/pkg/util"
@@ -17,6 +18,7 @@ type GatheringRepository interface {
 	Create(ctx context.Context, gathering *entity.Gathering) error
 	Update(ctx context.Context, gathering *entity.Gathering) error
 	FindByID(ctx context.Context, id string) (*entity.Gathering, error)
+	FindByIDs(ctx context.Context, ids []string) ([]*entity.Gathering, error)
 	FindAll(ctx context.Context) ([]entity.Gathering, error)
 	FindUpdatedSince(
 		ctx context.Context,
@@ -38,7 +40,7 @@ func NewGatheringRepository(db *gorm.DB, log *zap.Logger) GatheringRepository {
 }
 
 func (r *gatheringRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -108,6 +110,33 @@ func (r *gatheringRepository) FindByID(
 	r.log.Info("find by id completed", zap.Any("param", id))
 
 	return &item, nil
+}
+
+func (r *gatheringRepository) FindByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.Gathering, error) {
+	if len(ids) == 0 {
+		return make([]*entity.Gathering, 0), nil
+	}
+
+	var items []*entity.Gathering
+
+	query := db.WithRowLock(
+		ctx,
+		r.conn(ctx).Unscoped().Where("id IN ?", ids),
+	)
+	if err := query.Find(&items).Error; err != nil {
+		r.log.Error(
+			"find by ids failed",
+			zap.Error(err),
+			zap.Strings("ids", ids),
+		)
+
+		return nil, entityerror.ErrGatheringRetrievalFailed(err)
+	}
+
+	return items, nil
 }
 
 func (r *gatheringRepository) FindAll(

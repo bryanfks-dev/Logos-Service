@@ -18,7 +18,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 
 		e.Use(middleware.RequestIDMiddleware())
 		e.GET("/test", func(ctx *echo.Context) error {
-			capturedRequestID = correlation.RequestID(ctx)
+			capturedRequestID = correlation.GetRequestID(ctx)
 			return ctx.String(http.StatusOK, "ok")
 		})
 
@@ -38,7 +38,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 
 		e.Use(middleware.RequestIDMiddleware())
 		e.GET("/test", func(ctx *echo.Context) error {
-			capturedRequestID = correlation.RequestID(ctx)
+			capturedRequestID = correlation.GetRequestID(ctx)
 			return ctx.String(http.StatusOK, "ok")
 		})
 

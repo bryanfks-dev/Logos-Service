@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/bryanfks-dev/logos/pkg/util"
@@ -17,6 +18,7 @@ type PreacherRepository interface {
 	Create(ctx context.Context, preacher *entity.Preacher) error
 	Update(ctx context.Context, preacher *entity.Preacher) error
 	FindByID(ctx context.Context, id string) (*entity.Preacher, error)
+	FindByIDs(ctx context.Context, ids []string) ([]*entity.Preacher, error)
 	FindAll(
 		ctx context.Context,
 		filter entity.PreacherFilter,
@@ -41,7 +43,7 @@ func NewPreacherRepository(db *gorm.DB, log *zap.Logger) PreacherRepository {
 }
 
 func (r *preacherRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -103,6 +105,33 @@ func (r *preacherRepository) FindByID(
 	r.log.Info("find by id completed", zap.Any("param", id))
 
 	return &item, nil
+}
+
+func (r *preacherRepository) FindByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.Preacher, error) {
+	if len(ids) == 0 {
+		return make([]*entity.Preacher, 0), nil
+	}
+
+	var items []*entity.Preacher
+
+	query := db.WithRowLock(
+		ctx,
+		r.conn(ctx).Unscoped().Where("id IN ?", ids),
+	)
+	if err := query.Find(&items).Error; err != nil {
+		r.log.Error(
+			"find by ids failed",
+			zap.Error(err),
+			zap.Strings("ids", ids),
+		)
+
+		return nil, entityerror.ErrPreacherRetrievalFailed(err)
+	}
+
+	return items, nil
 }
 
 func (r *preacherRepository) FindAll(

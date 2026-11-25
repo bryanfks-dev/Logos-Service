@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"gorm.io/gorm"
 )
 
@@ -36,7 +36,7 @@ func (m *TxManager) DoWithOptions(
 		return nil
 	}
 
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return fn(ctx)
 	}
 
@@ -45,8 +45,15 @@ func (m *TxManager) DoWithOptions(
 		txOpts = append(txOpts, opts)
 	}
 
-	return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		extendedCtx := correlation.WithTx(ctx, tx)
+	hookCtx, hookFn := WithAfterCommit(ctx)
+
+	err := m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		extendedCtx := correlation.WithTx(hookCtx, tx)
 		return fn(extendedCtx)
 	}, txOpts...)
+	if err != nil {
+		return err
+	}
+
+	return hookFn()
 }

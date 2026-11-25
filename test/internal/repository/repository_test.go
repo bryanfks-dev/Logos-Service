@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/repository"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
@@ -189,7 +190,7 @@ func TestSermonNoteRepository(t *testing.T) {
 
 	testLog := zap.NewNop()
 
-	repo := repository.NewSermonNoteRepository(testDB, testLog)
+	repo := repository.NewSermonNoteRepository(testDB, fs.NewManager(), testLog)
 
 	tagRepo := repository.NewTagRepository(testDB, testLog)
 
@@ -511,7 +512,11 @@ func TestRepositories_FindUpdatedSince(t *testing.T) {
 	t.Run(
 		"SermonNoteRepository includes soft-deleted rows and hydrates notes",
 		func(t *testing.T) {
-			repo := repository.NewSermonNoteRepository(testDB, testLog)
+			repo := repository.NewSermonNoteRepository(
+				testDB,
+				fs.NewManager(),
+				testLog,
+			)
 			nActive := &entity.SermonNote{
 				ID:        "n-act",
 				Title:     "Active Note",

@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/bryanfks-dev/logos/pkg/util"
@@ -17,6 +18,10 @@ type SermonSeriesRepository interface {
 	Create(ctx context.Context, series *entity.SermonSeries) error
 	Update(ctx context.Context, series *entity.SermonSeries) error
 	FindByID(ctx context.Context, id string) (*entity.SermonSeries, error)
+	FindByIDs(
+		ctx context.Context,
+		ids []string,
+	) ([]*entity.SermonSeries, error)
 	FindAll(ctx context.Context) ([]entity.SermonSeries, error)
 	FindUpdatedSince(
 		ctx context.Context,
@@ -41,7 +46,7 @@ func NewSermonSeriesRepository(
 }
 
 func (r *sermonSeriesRepository) conn(ctx context.Context) *gorm.DB {
-	if tx := correlation.Tx(ctx); tx != nil {
+	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
 	}
 
@@ -103,6 +108,33 @@ func (r *sermonSeriesRepository) FindByID(
 	r.log.Info("find by id completed", zap.Any("param", id))
 
 	return &item, nil
+}
+
+func (r *sermonSeriesRepository) FindByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]*entity.SermonSeries, error) {
+	if len(ids) == 0 {
+		return make([]*entity.SermonSeries, 0), nil
+	}
+
+	var items []*entity.SermonSeries
+
+	query := db.WithRowLock(
+		ctx,
+		r.conn(ctx).Unscoped().Where("id IN ?", ids),
+	)
+	if err := query.Find(&items).Error; err != nil {
+		r.log.Error(
+			"find by ids failed",
+			zap.Error(err),
+			zap.Strings("ids", ids),
+		)
+
+		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
+	}
+
+	return items, nil
 }
 
 func (r *sermonSeriesRepository) FindAll(

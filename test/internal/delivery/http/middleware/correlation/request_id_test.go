@@ -20,7 +20,7 @@ func TestRequestID(t *testing.T) {
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
-			assert.Equal(t, "", correlation.RequestID(ctx))
+			assert.Equal(t, "", correlation.GetRequestID(ctx))
 			assert.Equal(t, "", correlation.GetRequestID(ctx))
 		},
 	)
@@ -32,7 +32,7 @@ func TestRequestID(t *testing.T) {
 
 		correlation.WithRequestID(ctx, "custom-req-id-123")
 
-		assert.Equal(t, "custom-req-id-123", correlation.RequestID(ctx))
+		assert.Equal(t, "custom-req-id-123", correlation.GetRequestID(ctx))
 		assert.Equal(t, "custom-req-id-123", correlation.GetRequestID(ctx))
 	})
 
@@ -45,7 +45,7 @@ func TestRequestID(t *testing.T) {
 
 			ctx.Set("request_id", 12345)
 
-			assert.Equal(t, "", correlation.RequestID(ctx))
+			assert.Equal(t, "", correlation.GetRequestID(ctx))
 		},
 	)
 }

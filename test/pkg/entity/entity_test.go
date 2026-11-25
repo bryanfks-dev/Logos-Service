@@ -168,11 +168,29 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 				}),
 			)
 
-			// Incoming version >= existing version -> no conflict
+			// Same version with different content hash -> conflict
+			assert.True(
+				t,
+				existing.HasConflictWith(&entity.SermonNote{
+					Version:     3,
+					ContentHash: "hash-a",
+				}),
+			)
+
+			// Same version with same content hash -> no conflict
 			assert.False(
 				t,
 				existing.HasConflictWith(&entity.SermonNote{
 					Version:     3,
+					ContentHash: "hash-b",
+				}),
+			)
+
+			// Incoming version > existing version -> no conflict
+			assert.False(
+				t,
+				existing.HasConflictWith(&entity.SermonNote{
+					Version:     4,
 					ContentHash: "hash-a",
 				}),
 			)

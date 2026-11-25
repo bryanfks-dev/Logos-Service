@@ -16,7 +16,7 @@
   - Avoid redundant prefixes/suffixes that stutter with package names (e.g., `entity.Gathering` not `entity.GatheringEntity`, `user.New` not `user.NewUser`).
 
 - **No "Get" Prefix on Getters**:
-  - Getter methods should be named directly after the property they return (e.g., `user.Owner()` rather than `user.GetOwner()`), unless conforming to an external interface.
+  - Getter methods in struct should be named directly after the property they return (e.g., `user.Owner()` rather than `user.GetOwner()`), unless conforming to an external interface.
 
 - **Context Propagation**:
   - `ctx context.Context` must always be the first parameter of any function/method performing I/O, database access, or remote calls: `func (r *repo) FindByID(ctx context.Context, id string)`.

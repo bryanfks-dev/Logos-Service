@@ -10,7 +10,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware"
 	"github.com/bryanfks-dev/logos/internal/model"
@@ -52,7 +53,11 @@ func setupSyncControllerTestEnv(
 
 	log := zap.NewNop()
 	txManager := db.NewTxManager(testDB)
-	sermonNoteRepository := repository.NewSermonNoteRepository(testDB, log)
+	sermonNoteRepository := repository.NewSermonNoteRepository(
+		testDB,
+		fs.NewManager(),
+		log,
+	)
 	gatheringRepository := repository.NewGatheringRepository(testDB, log)
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
 	preacherRepository := repository.NewPreacherRepository(testDB, log)

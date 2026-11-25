@@ -1,7 +1,7 @@
 .PHONY: wire swagger generate dev build create-migration apply-migration rollback-migration fmt format fmt-check test test-coverage
 
 CONFIG_FILE_PATH = config.yaml
-DB_MIGRATION_PATH = resources/db/migrations
+DB_MIGRATION_PATH = infra/db/migrations
 
 DB_DRIVER := postgres
 DB_USERNAME := $(shell yq '.database.username' $(CONFIG_FILE_PATH))

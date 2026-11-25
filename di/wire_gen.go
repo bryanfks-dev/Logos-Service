@@ -7,7 +7,8 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/infra/db"
+	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
 	"github.com/bryanfks-dev/logos/internal/repository"
@@ -26,9 +27,10 @@ func NewContainer() (*Container, error) {
 	echo := config.NewServer(viper)
 	gormDB := config.NewDatabase(viper, logger)
 	txManager := db.NewTxManager(gormDB)
+	manager := fs.NewManager()
 	etcController := http.NewEtcController()
 	errorController := http.NewErrorController(logger)
-	sermonNoteRepository := repository.NewSermonNoteRepository(gormDB, logger)
+	sermonNoteRepository := repository.NewSermonNoteRepository(gormDB, manager, logger)
 	gatheringRepository := repository.NewGatheringRepository(gormDB, logger)
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(gormDB, logger)
 	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
@@ -58,6 +60,7 @@ func NewContainer() (*Container, error) {
 		Log:                logger,
 		App:                echo,
 		TxManager:          txManager,
+		FsManager:          manager,
 		RouteConfig:        routeConfig,
 		EtcController:      etcController,
 		ErrorController:    errorController,
@@ -75,6 +78,8 @@ type Container struct {
 	App    *echo.Echo
 
 	TxManager *db.TxManager
+
+	FsManager *fs.Manager
 
 	RouteConfig *route.RouteConfig
 
