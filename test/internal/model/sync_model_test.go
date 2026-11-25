@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bryanfks-dev/selah/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

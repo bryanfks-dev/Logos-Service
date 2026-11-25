@@ -7,7 +7,7 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/bryanfks-dev/selah/pkg/entity"
+	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

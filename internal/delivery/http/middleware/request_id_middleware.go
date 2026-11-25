@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"uuid"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
 	"github.com/labstack/echo/v5"
 )
 

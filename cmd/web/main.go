@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 
-	"github.com/bryanfks-dev/selah/di"
-	_ "github.com/bryanfks-dev/selah/docs"
+	"github.com/bryanfks-dev/logos/di"
+	_ "github.com/bryanfks-dev/logos/docs"
 )
 
-// @title Selah Service API
+// @title Logos Service API
 // @version 1.0
-// @description API documentation for Selah Service
+// @description API documentation for Logos Service
 func main() {
 	container, err := di.NewContainer()
 	if err != nil {

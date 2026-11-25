@@ -3,7 +3,7 @@ package util_test
 import (
 	"testing"
 
-	"github.com/bryanfks-dev/selah/pkg/util"
+	"github.com/bryanfks-dev/logos/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 

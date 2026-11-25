@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/selah/db/correlation"
-	"github.com/bryanfks-dev/selah/internal/repository"
-	"github.com/bryanfks-dev/selah/pkg/entity"
+	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/internal/repository"
+	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

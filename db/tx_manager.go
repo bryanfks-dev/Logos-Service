@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/bryanfks-dev/selah/db/correlation"
+	"github.com/bryanfks-dev/logos/db/correlation"
 	"gorm.io/gorm"
 )
 

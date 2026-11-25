@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	deliveryhttp "github.com/bryanfks-dev/selah/internal/delivery/http"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
+	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"

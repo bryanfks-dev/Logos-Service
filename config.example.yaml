@@ -1,29 +1,29 @@
 app:
-  name: skeleton
+  name: logos
 
 web:
   port: 3333
-  token: ""
+  token: replace-with-32-string-length
 
 log:
   level: debug
 
 database:
-  username: selah_dev
-  password: vcVBncknc5FBmxrJ
-  host: postgres-db.pve.lab
+  username: postgres
+  password: ""
+  host: localhost
   port: 5432
-  name: selah_dev
+  name: logos
   pool:
     idle: 10
     max: 100
     lifetime: 300
 
 kafka:
-  enabled: true
+  enabled: false
   server: localhost:9092
   group:
-    id: selah
+    id: logos
   offset:
     reset: earliest
-  topic: selah-events
+  topic: logos-events

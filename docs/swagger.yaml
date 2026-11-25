@@ -1,60 +1,60 @@
 definitions:
-  github_com_bryanfks-dev_selah_internal_model.APIError:
+  github_com_bryanfks-dev_logos_internal_model.APIError:
     properties:
       code:
         type: string
       errors:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.FieldError'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.FieldError'
         type: array
     type: object
-  github_com_bryanfks-dev_selah_internal_model.APIMeta:
+  github_com_bryanfks-dev_logos_internal_model.APIMeta:
     properties:
       request_id:
         type: string
       timestamp:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.APIResponse-any:
+  github_com_bryanfks-dev_logos_internal_model.APIResponse-any:
     properties:
       data: {}
       error:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError'
       meta:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta'
       success:
         type: boolean
     type: object
-  github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPullResponse:
+  github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse:
     properties:
       data:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPullResponse'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPullResponse'
       error:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError'
       meta:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta'
       success:
         type: boolean
     type: object
-  github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPushResponse:
+  github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse:
     properties:
       data:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPushResponse'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushResponse'
       error:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError'
       meta:
-        $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta'
+        $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta'
       success:
         type: boolean
     type: object
-  github_com_bryanfks-dev_selah_internal_model.FieldError:
+  github_com_bryanfks-dev_logos_internal_model.FieldError:
     properties:
       field:
         type: string
       message:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.GatheringResponse:
+  github_com_bryanfks-dev_logos_internal_model.GatheringResponse:
     properties:
       color_hex:
         type: string
@@ -73,7 +73,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.PreacherResponse:
+  github_com_bryanfks-dev_logos_internal_model.PreacherResponse:
     properties:
       church_name:
         type: string
@@ -90,7 +90,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SermonNoteResponse:
+  github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse:
     properties:
       content_hash:
         type: string
@@ -128,12 +128,12 @@ definitions:
         type: string
       verses:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse'
         type: array
       version:
         type: integer
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SermonSeriesResponse:
+  github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse:
     properties:
       created_at:
         type: string
@@ -150,7 +150,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncGatheringItem:
+  github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem:
     properties:
       color_hex:
         type: string
@@ -165,7 +165,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncNoteItem:
+  github_com_bryanfks-dev_logos_internal_model.SyncNoteItem:
     properties:
       content_hash:
         type: string
@@ -195,12 +195,12 @@ definitions:
         type: string
       verses:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse'
         type: array
       version:
         type: integer
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse:
+  github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse:
     properties:
       book_id:
         type: integer
@@ -217,7 +217,7 @@ definitions:
       verse_start:
         type: integer
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncPreacherItem:
+  github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem:
     properties:
       church_name:
         type: string
@@ -230,63 +230,63 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncPullResponse:
+  github_com_bryanfks-dev_logos_internal_model.SyncPullResponse:
     properties:
       gatherings:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.GatheringResponse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.GatheringResponse'
         type: array
       notes:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SermonNoteResponse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse'
         type: array
       preachers:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.PreacherResponse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.PreacherResponse'
         type: array
       series:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SermonSeriesResponse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse'
         type: array
       server_time:
         type: string
       tags:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.TagResponse'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.TagResponse'
         type: array
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncPushRequest:
+  github_com_bryanfks-dev_logos_internal_model.SyncPushRequest:
     properties:
       gatherings:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncGatheringItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem'
         type: array
       notes:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem'
         type: array
       preachers:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPreacherItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem'
         type: array
       series:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem'
         type: array
       sermon_notes:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem'
         type: array
       sermon_series:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem'
         type: array
       tags:
         items:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncTagItem'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncTagItem'
         type: array
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncPushResponse:
+  github_com_bryanfks-dev_logos_internal_model.SyncPushResponse:
     properties:
       conflicts:
         items:
@@ -299,7 +299,7 @@ definitions:
       synced_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem:
+  github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem:
     properties:
       created_at:
         type: string
@@ -312,7 +312,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.SyncTagItem:
+  github_com_bryanfks-dev_logos_internal_model.SyncTagItem:
     properties:
       created_at:
         type: string
@@ -323,7 +323,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_bryanfks-dev_selah_internal_model.TagResponse:
+  github_com_bryanfks-dev_logos_internal_model.TagResponse:
     properties:
       created_at:
         type: string
@@ -338,8 +338,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: API documentation for Selah Service
-  title: Selah Service API
+  description: API documentation for Logos Service
+  title: Logos Service API
   version: "1.0"
 paths:
   /api/healthz:
@@ -353,7 +353,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
       summary: Health check
       tags:
       - API / Etc
@@ -373,15 +373,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPullResponse'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
       summary: Sync pull delta
       tags:
       - API / Sync
@@ -396,26 +396,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPushRequest'
+          $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPushResponse'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any'
+            $ref: '#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any'
       summary: Sync push batch
       tags:
       - API / Sync

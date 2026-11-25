@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	deliveryhttp "github.com/bryanfks-dev/selah/internal/delivery/http"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
-	"github.com/bryanfks-dev/selah/internal/model"
+	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
+	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

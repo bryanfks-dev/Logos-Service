@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/bryanfks-dev/selah/pkg/config"
+	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,7 +24,7 @@ func TestNewKafka_EnabledWithSettings(t *testing.T) {
 	v := viper.New()
 	v.Set("kafka.enabled", true)
 	v.Set("kafka.server", "localhost:9092")
-	v.Set("kafka.group.id", "selah")
+	v.Set("kafka.group.id", "logos")
 	v.Set("kafka.offset.reset", "earliest")
 
 	cfg := config.NewKafka(v)
@@ -32,7 +32,7 @@ func TestNewKafka_EnabledWithSettings(t *testing.T) {
 	assert.True(t, cfg.Enabled)
 	assert.Equal(t, "localhost:9092", cfg.Server)
 	assert.Equal(t, "localhost:9092", cfg.Broker)
-	assert.Equal(t, "selah", cfg.GroupID)
+	assert.Equal(t, "logos", cfg.GroupID)
 	assert.Equal(t, "earliest", cfg.OffsetReset)
 }
 

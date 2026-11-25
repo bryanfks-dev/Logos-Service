@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	apperror "github.com/bryanfks-dev/selah/pkg/error"
-	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
+	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"github.com/stretchr/testify/assert"
 )
 

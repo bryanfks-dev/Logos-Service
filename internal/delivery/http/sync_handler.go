@@ -4,12 +4,12 @@ import (
 	nethttp "net/http"
 	"time"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/builder"
-	"github.com/bryanfks-dev/selah/internal/model/converter"
-	"github.com/bryanfks-dev/selah/internal/usecase"
-	apperror "github.com/bryanfks-dev/selah/pkg/error"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/builder"
+	"github.com/bryanfks-dev/logos/internal/model/converter"
+	"github.com/bryanfks-dev/logos/internal/usecase"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 )

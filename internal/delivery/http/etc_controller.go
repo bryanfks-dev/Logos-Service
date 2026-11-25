@@ -3,9 +3,9 @@ package http
 import (
 	"net/http"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
-	_ "github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/builder"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
+	_ "github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/builder"
 	"github.com/labstack/echo/v5"
 )
 

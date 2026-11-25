@@ -32,7 +32,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     }
                 }
@@ -63,19 +63,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPullResponse"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     }
                 }
@@ -101,7 +101,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPushRequest"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushRequest"
                         }
                     }
                 ],
@@ -109,25 +109,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPushResponse"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIResponse-any"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     }
                 }
@@ -135,7 +135,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_bryanfks-dev_selah_internal_model.APIError": {
+        "github_com_bryanfks-dev_logos_internal_model.APIError": {
             "type": "object",
             "properties": {
                 "code": {
@@ -144,12 +144,12 @@ const docTemplate = `{
                 "errors": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.FieldError"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.FieldError"
                     }
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.APIMeta": {
+        "github_com_bryanfks-dev_logos_internal_model.APIMeta": {
             "type": "object",
             "properties": {
                 "request_id": {
@@ -160,56 +160,56 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.APIResponse-any": {
+        "github_com_bryanfks-dev_logos_internal_model.APIResponse-any": {
             "type": "object",
             "properties": {
                 "data": {},
                 "error": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta"
                 },
                 "success": {
                     "type": "boolean"
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPullResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPullResponse"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPullResponse"
                 },
                 "error": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta"
                 },
                 "success": {
                     "type": "boolean"
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.APIResponse-github_com_bryanfks-dev_selah_internal_model_SyncPushResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPushResponse"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushResponse"
                 },
                 "error": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIError"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.APIMeta"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIMeta"
                 },
                 "success": {
                     "type": "boolean"
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.FieldError": {
+        "github_com_bryanfks-dev_logos_internal_model.FieldError": {
             "type": "object",
             "properties": {
                 "field": {
@@ -220,7 +220,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.GatheringResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.GatheringResponse": {
             "type": "object",
             "properties": {
                 "color_hex": {
@@ -249,7 +249,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.PreacherResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.PreacherResponse": {
             "type": "object",
             "properties": {
                 "church_name": {
@@ -275,7 +275,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SermonNoteResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse": {
             "type": "object",
             "properties": {
                 "content_hash": {
@@ -332,7 +332,7 @@ const docTemplate = `{
                 "verses": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse"
                     }
                 },
                 "version": {
@@ -340,7 +340,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SermonSeriesResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -366,7 +366,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncGatheringItem": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem": {
             "type": "object",
             "properties": {
                 "color_hex": {
@@ -389,7 +389,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncNoteItem": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncNoteItem": {
             "type": "object",
             "properties": {
                 "content_hash": {
@@ -434,7 +434,7 @@ const docTemplate = `{
                 "verses": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse"
                     }
                 },
                 "version": {
@@ -442,7 +442,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncNoteVerse": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse": {
             "type": "object",
             "properties": {
                 "book_id": {
@@ -468,7 +468,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncPreacherItem": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem": {
             "type": "object",
             "properties": {
                 "church_name": {
@@ -488,31 +488,31 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncPullResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncPullResponse": {
             "type": "object",
             "properties": {
                 "gatherings": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.GatheringResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.GatheringResponse"
                     }
                 },
                 "notes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SermonNoteResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse"
                     }
                 },
                 "preachers": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.PreacherResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.PreacherResponse"
                     }
                 },
                 "series": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SermonSeriesResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse"
                     }
                 },
                 "server_time": {
@@ -521,59 +521,59 @@ const docTemplate = `{
                 "tags": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.TagResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.TagResponse"
                     }
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncPushRequest": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncPushRequest": {
             "type": "object",
             "properties": {
                 "gatherings": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncGatheringItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem"
                     }
                 },
                 "notes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem"
                     }
                 },
                 "preachers": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncPreacherItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem"
                     }
                 },
                 "series": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem"
                     }
                 },
                 "sermon_notes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncNoteItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem"
                     }
                 },
                 "sermon_series": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem"
                     }
                 },
                 "tags": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_selah_internal_model.SyncTagItem"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncTagItem"
                     }
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncPushResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncPushResponse": {
             "type": "object",
             "properties": {
                 "conflicts": {
@@ -593,7 +593,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncSeriesItem": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -613,7 +613,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.SyncTagItem": {
+        "github_com_bryanfks-dev_logos_internal_model.SyncTagItem": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -630,7 +630,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_selah_internal_model.TagResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.TagResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -659,8 +659,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Selah Service API",
-	Description:      "API documentation for Selah Service",
+	Title:            "Logos Service API",
+	Description:      "API documentation for Logos Service",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -4,10 +4,10 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/selah/db"
-	deliveryhttp "github.com/bryanfks-dev/selah/internal/delivery/http"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
-	"github.com/bryanfks-dev/selah/internal/usecase"
+	"github.com/bryanfks-dev/logos/db"
+	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
+	"github.com/bryanfks-dev/logos/internal/usecase"
 	"github.com/google/wire"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"

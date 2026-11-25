@@ -3,9 +3,9 @@ package converter
 import (
 	"time"
 
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/pkg/entity"
-	"github.com/bryanfks-dev/selah/pkg/util"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/pkg/entity"
+	"github.com/bryanfks-dev/logos/pkg/util"
 )
 
 func SermonNoteToSyncItem(note *entity.SermonNote) model.SyncNoteItem {

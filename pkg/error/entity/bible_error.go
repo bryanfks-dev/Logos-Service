@@ -1,7 +1,7 @@
 package entityerror
 
 import (
-	apperror "github.com/bryanfks-dev/selah/pkg/error"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
 )
 
 func ErrBibleRetrievalFailed(cause error) *apperror.AppError {

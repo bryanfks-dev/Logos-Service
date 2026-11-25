@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bryanfks-dev/selah/di"
+	"github.com/bryanfks-dev/logos/di"
 	"go.uber.org/zap"
 )
 

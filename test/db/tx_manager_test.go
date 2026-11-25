@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bryanfks-dev/selah/db"
-	"github.com/bryanfks-dev/selah/db/correlation"
+	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/db/correlation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/selah/di"
-	"github.com/bryanfks-dev/selah/pkg/config"
+	"github.com/bryanfks-dev/logos/di"
+	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

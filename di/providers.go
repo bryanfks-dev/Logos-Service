@@ -1,12 +1,12 @@
 package di
 
 import (
-	"github.com/bryanfks-dev/selah/db"
-	"github.com/bryanfks-dev/selah/internal/delivery/http"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
-	"github.com/bryanfks-dev/selah/internal/repository"
-	"github.com/bryanfks-dev/selah/internal/usecase"
-	"github.com/bryanfks-dev/selah/pkg/config"
+	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/internal/delivery/http"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
+	"github.com/bryanfks-dev/logos/internal/repository"
+	"github.com/bryanfks-dev/logos/internal/usecase"
+	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/google/wire"
 )
 

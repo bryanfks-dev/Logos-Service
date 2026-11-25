@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	"github.com/bryanfks-dev/selah/pkg/entity"
+	"github.com/bryanfks-dev/logos/pkg/entity"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 )

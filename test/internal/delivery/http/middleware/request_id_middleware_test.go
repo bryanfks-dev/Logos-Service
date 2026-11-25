@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/middleware/correlation"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )

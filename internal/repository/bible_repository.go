@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 
-	"github.com/bryanfks-dev/selah/db/correlation"
-	"github.com/bryanfks-dev/selah/pkg/entity"
-	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
+	"github.com/bryanfks-dev/logos/db/correlation"
+	"github.com/bryanfks-dev/logos/pkg/entity"
+	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

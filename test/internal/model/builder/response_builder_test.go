@@ -3,8 +3,8 @@ package builder_test
 import (
 	"testing"
 
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/builder"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/builder"
 	"github.com/stretchr/testify/assert"
 )
 

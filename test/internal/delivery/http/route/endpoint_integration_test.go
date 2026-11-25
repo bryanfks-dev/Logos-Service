@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/selah/di"
-	_ "github.com/bryanfks-dev/selah/docs"
-	deliveryhttp "github.com/bryanfks-dev/selah/internal/delivery/http"
-	"github.com/bryanfks-dev/selah/internal/delivery/http/route"
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/pkg/config"
+	"github.com/bryanfks-dev/logos/di"
+	_ "github.com/bryanfks-dev/logos/docs"
+	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
+	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -136,7 +136,7 @@ func TestHealthCheckEndpoint_Integration(t *testing.T) {
 		"supports CORS preflight OPTIONS request on healthz",
 		func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodOptions, "/api/healthz", nil)
-			req.Header.Set(echo.HeaderOrigin, "https://app.selah.local")
+			req.Header.Set(echo.HeaderOrigin, "https://app.logos.local")
 			req.Header.Set(
 				echo.HeaderAccessControlRequestMethod,
 				http.MethodGet,
@@ -152,7 +152,7 @@ func TestHealthCheckEndpoint_Integration(t *testing.T) {
 			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Equal(
 				t,
-				"https://app.selah.local",
+				"https://app.logos.local",
 				rec.Header().Get(echo.HeaderAccessControlAllowOrigin),
 			)
 			assert.Equal(
@@ -172,7 +172,7 @@ func TestHealthCheckEndpoint_Integration(t *testing.T) {
 		"includes CORS headers on regular GET request with Origin",
 		func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
-			req.Header.Set(echo.HeaderOrigin, "https://app.selah.local")
+			req.Header.Set(echo.HeaderOrigin, "https://app.logos.local")
 			rec := httptest.NewRecorder()
 
 			app.ServeHTTP(rec, req)
@@ -180,7 +180,7 @@ func TestHealthCheckEndpoint_Integration(t *testing.T) {
 			assert.Equal(t, http.StatusOK, rec.Code)
 			assert.Equal(
 				t,
-				"https://app.selah.local",
+				"https://app.logos.local",
 				rec.Header().Get(echo.HeaderAccessControlAllowOrigin),
 			)
 			assert.Equal(
@@ -227,7 +227,7 @@ func TestSwaggerEndpoints_Integration(t *testing.T) {
 			assert.Equal(t, "2.0", swaggerDoc["swagger"])
 			info, ok := swaggerDoc["info"].(map[string]any)
 			require.True(t, ok)
-			assert.Equal(t, "Selah Service API", info["title"])
+			assert.Equal(t, "Logos Service API", info["title"])
 		},
 	)
 }

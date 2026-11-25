@@ -50,7 +50,7 @@ func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	if e.FilePath == "" {
-		dir := filepath.Join(os.TempDir(), "selah_notes")
+		dir := filepath.Join(os.TempDir(), "logos_notes")
 
 		_ = os.MkdirAll(dir, 0o755)
 

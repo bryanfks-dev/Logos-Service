@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/model/converter"
-	"github.com/bryanfks-dev/selah/pkg/entity"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/converter"
+	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"

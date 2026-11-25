@@ -1,4 +1,4 @@
-module github.com/bryanfks-dev/selah
+module github.com/bryanfks-dev/logos
 
 go 1.27.4
 

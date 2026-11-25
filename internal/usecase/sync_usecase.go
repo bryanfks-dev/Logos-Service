@@ -5,13 +5,13 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bryanfks-dev/selah/db"
-	"github.com/bryanfks-dev/selah/internal/model"
-	"github.com/bryanfks-dev/selah/internal/repository"
-	"github.com/bryanfks-dev/selah/pkg/entity"
-	apperror "github.com/bryanfks-dev/selah/pkg/error"
-	entityerror "github.com/bryanfks-dev/selah/pkg/error/entity"
-	"github.com/bryanfks-dev/selah/pkg/util"
+	"github.com/bryanfks-dev/logos/db"
+	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/repository"
+	"github.com/bryanfks-dev/logos/pkg/entity"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
+	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
+	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 )
 

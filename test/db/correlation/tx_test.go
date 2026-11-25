@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/bryanfks-dev/selah/db/correlation"
+	"github.com/bryanfks-dev/logos/db/correlation"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
