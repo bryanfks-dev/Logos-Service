@@ -4,12 +4,21 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Manager struct{}
 
 func NewManager() *Manager {
 	return &Manager{}
+}
+
+func (m *Manager) EnsureDir(dirPath string) error {
+	if strings.TrimSpace(dirPath) == "" {
+		return errors.New("directory path is required")
+	}
+
+	return os.MkdirAll(dirPath, 0o755)
 }
 
 func (m *Manager) WriteFileAtomic(filePath string, data []byte) error {

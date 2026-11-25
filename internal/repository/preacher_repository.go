@@ -9,7 +9,6 @@ import (
 	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -22,7 +21,7 @@ type PreacherRepository interface {
 	FindAll(
 		ctx context.Context,
 		filter entity.PreacherFilter,
-	) ([]entity.Preacher, error)
+	) ([]*entity.Preacher, error)
 	FindUpdatedSince(
 		ctx context.Context,
 		since time.Time,
@@ -137,7 +136,7 @@ func (r *preacherRepository) FindByIDs(
 func (r *preacherRepository) FindAll(
 	ctx context.Context,
 	filter entity.PreacherFilter,
-) ([]entity.Preacher, error) {
+) ([]*entity.Preacher, error) {
 	r.log.Info("find all started", zap.Any("param", filter))
 
 	query := r.conn(ctx)
@@ -150,7 +149,7 @@ func (r *preacherRepository) FindAll(
 		query = query.Where("name LIKE ?", filter.NamePrefix+"%")
 	}
 
-	var items []entity.Preacher
+	var items []*entity.Preacher
 
 	if err := query.Find(&items).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", filter))
@@ -186,8 +185,6 @@ func (r *preacherRepository) FindUpdatedSince(
 
 		return nil, entityerror.ErrPreacherRetrievalFailed(err)
 	}
-
-	items = util.NonNilSlice(items)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(items)))
 

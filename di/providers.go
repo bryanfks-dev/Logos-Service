@@ -34,8 +34,10 @@ var RepositorySet = wire.NewSet(
 )
 
 var UsecaseSet = wire.NewSet(
-	wire.Struct(new(usecase.SyncChangesUsecaseOption), "*"),
-	usecase.NewSyncChangesUsecase,
+	wire.Struct(new(usecase.SyncPullChangesUsecaseOption), "*"),
+	usecase.NewSyncPullChangesUsecase,
+	wire.Struct(new(usecase.SyncPushChangesUsecaseOption), "*"),
+	usecase.NewSyncPushChangesUsecase,
 )
 
 var DeliverySet = wire.NewSet(

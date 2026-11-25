@@ -28,7 +28,7 @@ import (
 
 func setupSyncTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.SyncChangesUsecase) {
+) (*gorm.DB, *usecase.SyncPushChangesUsecase) {
 	dbName := fmt.Sprintf(
 		"file:sync_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -63,29 +63,27 @@ func setupSyncTestEnv(
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
 	tagRepository := repository.NewTagRepository(testDB, log)
-	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncChangesUsecase := usecase.NewSyncChangesUsecase(
-		&usecase.SyncChangesUsecaseOption{
+	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(
+		&usecase.SyncPushChangesUsecaseOption{
 			TxManager:              txManager,
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
 			PreacherRepository:     preacherRepository,
 			TagRepository:          tagRepository,
-			SyncOutboxRepository:   syncOutboxRepository,
 			Log:                    log,
 		},
 	)
 
-	return testDB, syncChangesUsecase
+	return testDB, syncPushChangesUsecase
 }
 
-func TestSyncChangesUsecase_Push_NilBatch(t *testing.T) {
+func TestSyncPushChangesUsecase_Push_NilBatch(t *testing.T) {
 	_, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
-	result, err := u.Push(ctx, nil)
+	result, err := u.Call(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.False(t, result.SyncedAt.IsZero())
@@ -93,7 +91,7 @@ func TestSyncChangesUsecase_Push_NilBatch(t *testing.T) {
 	assert.Empty(t, result.MissingContentIDs)
 }
 
-func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
+func TestSyncPushChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -152,7 +150,7 @@ func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 						UpdatedAt: newerTime,
 					},
 				},
-				Series: []*entity.SermonSeries{
+				SermonSeries: []*entity.SermonSeries{
 					{
 						ID:        "s-new",
 						Name:      "New Series",
@@ -190,7 +188,7 @@ func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 
@@ -241,7 +239,7 @@ func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 						UpdatedAt: olderTime,
 					},
 				},
-				Series: []*entity.SermonSeries{
+				SermonSeries: []*entity.SermonSeries{
 					{
 						ID:        "s-1",
 						Name:      "Should Not Overwrite Series",
@@ -264,7 +262,7 @@ func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 
@@ -287,7 +285,7 @@ func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	)
 }
 
-func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
+func TestSyncPushChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 	t *testing.T,
 ) {
 	testDB, u := setupSyncTestEnv(t)
@@ -306,7 +304,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			require.NoError(t, testDB.Create(note).Error)
 
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-conflict-1",
 						Title:       "Client Overwrite Attempt",
@@ -317,7 +315,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Contains(t, result.Conflicts, "note-conflict-1")
 			assert.NotContains(t, result.MissingContentIDs, "note-conflict-1")
@@ -339,7 +337,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 		func(t *testing.T) {
 			verseEnd := 4
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-new-1",
 						Title:       "Brand New Note",
@@ -366,7 +364,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Contains(t, result.MissingContentIDs, "note-new-1")
 			assert.Empty(t, result.Conflicts)
@@ -410,7 +408,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			require.NoError(t, testDB.Create(note).Error)
 
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-update-diff-hash",
 						Title:       "Updated Title",
@@ -421,7 +419,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Contains(
 				t,
@@ -454,7 +452,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			require.NoError(t, testDB.Create(note).Error)
 
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-same-hash",
 						Title:       "Metadata Only Change",
@@ -465,7 +463,7 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 				},
 			}
 
-			result, err := u.Push(ctx, batch)
+			result, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.NotContains(t, result.MissingContentIDs, "note-same-hash")
 			assert.Empty(t, result.Conflicts)
@@ -479,110 +477,6 @@ func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			assert.Equal(t, 3, stored.Version)
 		},
 	)
-}
-
-func TestSyncChangesUsecase_Pull(t *testing.T) {
-	testDB, u := setupSyncTestEnv(t)
-	ctx := context.Background()
-
-	now := time.Now().UTC()
-	past := now.Add(-2 * time.Hour)
-	future := now.Add(2 * time.Hour)
-
-	// Create records with different updated_at
-	gActive := &entity.Gathering{
-		ID:        "g-pull-act",
-		Name:      "Active",
-		UpdatedAt: future,
-	}
-	gDeleted := &entity.Gathering{
-		ID:        "g-pull-del",
-		Name:      "Deleted",
-		UpdatedAt: future,
-		DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
-	}
-	gOld := &entity.Gathering{ID: "g-pull-old", Name: "Old", UpdatedAt: past}
-	require.NoError(t, testDB.Create(gActive).Error)
-	require.NoError(t, testDB.Create(gDeleted).Error)
-	require.NoError(t, testDB.Create(gOld).Error)
-
-	sActive := &entity.SermonSeries{
-		ID:        "s-pull-act",
-		Name:      "Series",
-		UpdatedAt: future,
-	}
-	require.NoError(t, testDB.Create(sActive).Error)
-
-	pActive := &entity.Preacher{
-		ID:        "p-pull-act",
-		Name:      "Preacher",
-		UpdatedAt: future,
-	}
-	require.NoError(t, testDB.Create(pActive).Error)
-
-	tagActive := &entity.Tag{ID: "t-pull-act", Name: "Tag", UpdatedAt: future}
-	require.NoError(t, testDB.Create(tagActive).Error)
-
-	noteActive := &entity.SermonNote{
-		ID:        "n-pull-act",
-		Title:     "Note",
-		UpdatedAt: future,
-	}
-	noteDeleted := &entity.SermonNote{
-		ID:        "n-pull-del",
-		Title:     "Deleted Note",
-		UpdatedAt: future,
-		DeletedAt: gorm.DeletedAt{Time: future, Valid: true},
-	}
-	require.NoError(t, testDB.Create(noteActive).Error)
-	require.NoError(t, testDB.Create(noteDeleted).Error)
-
-	t.Run(
-		"queries all repositories and returns records modified after since including soft deleted",
-		func(t *testing.T) {
-			res, err := u.Pull(ctx, now)
-			require.NoError(t, err)
-			require.NotNil(t, res)
-
-			assert.False(t, res.ServerTime.IsZero())
-
-			var gIDs []string
-			for _, g := range res.Gatherings {
-				gIDs = append(gIDs, g.ID)
-			}
-			assert.Contains(t, gIDs, "g-pull-act")
-			assert.Contains(t, gIDs, "g-pull-del")
-			assert.NotContains(t, gIDs, "g-pull-old")
-
-			require.Len(t, res.Series, 1)
-			assert.Equal(t, "s-pull-act", res.Series[0].ID)
-
-			require.Len(t, res.Preachers, 1)
-			assert.Equal(t, "p-pull-act", res.Preachers[0].ID)
-
-			require.Len(t, res.Tags, 1)
-			assert.Equal(t, "t-pull-act", res.Tags[0].ID)
-
-			var noteIDs []string
-			for _, n := range res.Notes {
-				noteIDs = append(noteIDs, n.ID)
-			}
-			assert.Contains(t, noteIDs, "n-pull-act")
-			assert.Contains(t, noteIDs, "n-pull-del")
-		},
-	)
-
-	t.Run("zero since time returns all records", func(t *testing.T) {
-		res, err := u.Pull(ctx, time.Time{})
-		require.NoError(t, err)
-		require.NotNil(t, res)
-
-		var gIDs []string
-		for _, g := range res.Gatherings {
-			gIDs = append(gIDs, g.ID)
-		}
-		assert.Contains(t, gIDs, "g-pull-old")
-	})
 }
 
 type failingSermonNoteRepo struct {
@@ -687,7 +581,7 @@ func (f *failingGatheringRepo) FindByIDs(
 	return f.GatheringRepository.FindByIDs(ctx, ids)
 }
 
-func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
+func TestSyncPushChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -712,7 +606,7 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 				SermonNotes:  []*entity.SermonNote{nil, note},
 			}
 
-			res, err := u.Push(ctx, batch)
+			res, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 
@@ -747,7 +641,7 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 
 			// Matching file hash -> not missing content
 			matchingBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
 						Title:       "Hydrated Updated",
@@ -758,13 +652,13 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 					},
 				},
 			}
-			res, err := u.Push(ctx, matchingBatch)
+			res, err := u.Call(ctx, matchingBatch)
 			require.NoError(t, err)
 			assert.NotContains(t, res.MissingContentIDs, "note-hydrated-file")
 
 			// Differing hash -> reported as missing content
 			diffBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
 						Title:       "Hydrated Updated Again",
@@ -774,98 +668,25 @@ func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 					},
 				},
 			}
-			res, err = u.Push(ctx, diffBatch)
+			res, err = u.Call(ctx, diffBatch)
 			require.NoError(t, err)
 			assert.Contains(t, res.MissingContentIDs, "note-hydrated-file")
 		},
 	)
 }
 
-func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
+func TestSyncPushChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("Pull returns repository errors", func(t *testing.T) {
-		testDB, _ := setupSyncTestEnv(t)
-		log := zap.NewNop()
-		expectedErr := errors.New("db query failed")
-
-		opt := &usecase.SyncChangesUsecaseOption{
-			TxManager: db.NewTxManager(testDB),
-			SermonNoteRepository: &failingSermonNoteRepo{
-				SermonNoteRepository: repository.NewSermonNoteRepository(
-					testDB,
-					fs.NewManager(),
-					log,
-				),
-				findUpdatedSinceErr: expectedErr,
-			},
-			GatheringRepository: repository.NewGatheringRepository(testDB, log),
-			SermonSeriesRepository: repository.NewSermonSeriesRepository(
-				testDB,
-				log,
-			),
-			PreacherRepository: repository.NewPreacherRepository(testDB, log),
-			TagRepository:      repository.NewTagRepository(testDB, log),
-			SyncOutboxRepository: repository.NewSyncOutboxRepository(
-				testDB,
-				log,
-			),
-			Log: log,
-		}
-		u := usecase.NewSyncChangesUsecase(opt)
-
-		res, err := u.Pull(ctx, time.Time{})
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, expectedErr)
-	})
-
-	t.Run("Pull returns gathering repository errors", func(t *testing.T) {
-		testDB, _ := setupSyncTestEnv(t)
-		log := zap.NewNop()
-		expectedErr := errors.New("gathering query failed")
-
-		opt := &usecase.SyncChangesUsecaseOption{
-			TxManager: db.NewTxManager(testDB),
-			SermonNoteRepository: repository.NewSermonNoteRepository(
-				testDB,
-				fs.NewManager(),
-				log,
-			),
-			GatheringRepository: &failingGatheringRepo{
-				GatheringRepository: repository.NewGatheringRepository(
-					testDB,
-					log,
-				),
-				findUpdatedSinceErr: expectedErr,
-			},
-			SermonSeriesRepository: repository.NewSermonSeriesRepository(
-				testDB,
-				log,
-			),
-			PreacherRepository: repository.NewPreacherRepository(testDB, log),
-			TagRepository:      repository.NewTagRepository(testDB, log),
-			SyncOutboxRepository: repository.NewSyncOutboxRepository(
-				testDB,
-				log,
-			),
-			Log: log,
-		}
-		u := usecase.NewSyncChangesUsecase(opt)
-
-		res, err := u.Pull(ctx, time.Time{})
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, expectedErr)
-	})
-
 	t.Run(
-		"Push rolls back transaction when repository fails",
+		"Call rolls back transaction when repository fails",
 		func(t *testing.T) {
 			testDB, _ := setupSyncTestEnv(t)
 			log := zap.NewNop()
 			expectedErr := errors.New("note create failed")
 
-			u := usecase.NewSyncChangesUsecase(
-				&usecase.SyncChangesUsecaseOption{
+			u := usecase.NewSyncPushChangesUsecase(
+				&usecase.SyncPushChangesUsecaseOption{
 					TxManager: db.NewTxManager(testDB),
 					SermonNoteRepository: &failingSermonNoteRepo{
 						SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -888,11 +709,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 						log,
 					),
 					TagRepository: repository.NewTagRepository(testDB, log),
-					SyncOutboxRepository: repository.NewSyncOutboxRepository(
-						testDB,
-						log,
-					),
-					Log: log,
+					Log:           log,
 				},
 			)
 
@@ -900,12 +717,12 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 				Gatherings: []*entity.Gathering{
 					{ID: "g-rollback", Name: "Should Roll Back"},
 				},
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{ID: "n-fail", Title: "Fail"},
 				},
 			}
 
-			res, err := u.Push(ctx, batch)
+			res, err := u.Call(ctx, batch)
 			assert.Nil(t, res)
 			assert.ErrorIs(t, err, expectedErr)
 
@@ -922,7 +739,7 @@ func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 	)
 }
 
-func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
+func TestSyncPushChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 	t.Run(
 		"detects conflict when two clients push same version with different ContentHash",
 		func(t *testing.T) {
@@ -930,7 +747,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			ctx := context.Background()
 
 			clientABatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-same-ver",
 						Title:       "Client A Title",
@@ -940,12 +757,12 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			resA, err := u.Push(ctx, clientABatch)
+			resA, err := u.Call(ctx, clientABatch)
 			require.NoError(t, err)
 			assert.Empty(t, resA.Conflicts)
 
 			clientBBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-same-ver",
 						Title:       "Client B Title",
@@ -955,7 +772,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			resB, err := u.Push(ctx, clientBBatch)
+			resB, err := u.Call(ctx, clientBBatch)
 			require.NoError(t, err)
 			assert.Contains(t, resB.Conflicts, "note-same-ver")
 
@@ -976,7 +793,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			ctx := context.Background()
 
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-idempotent",
 						Title:       "Initial Title",
@@ -987,11 +804,11 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				},
 			}
 
-			res1, err := u.Push(ctx, batch)
+			res1, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Empty(t, res1.Conflicts)
 
-			res2, err := u.Push(ctx, batch)
+			res2, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Empty(t, res2.Conflicts)
 		},
@@ -1014,7 +831,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, testDB.Delete(note).Error)
 
 			batch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-soft-deleted",
 						Title:       "Restored By Client B",
@@ -1025,7 +842,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				},
 			}
 
-			res, err := u.Push(ctx, batch)
+			res, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			assert.Empty(t, res.Conflicts)
 
@@ -1057,7 +874,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				batchA := &model.SyncChangesBatch{
-					Notes: []*entity.SermonNote{
+					SermonNotes: []*entity.SermonNote{
 						{
 							ID:          "note-concurrent-1",
 							Title:       "Client A Concurrent",
@@ -1067,13 +884,13 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						},
 					},
 				}
-				resA, errA = u.Push(ctx, batchA)
+				resA, errA = u.Call(ctx, batchA)
 			}()
 
 			go func() {
 				defer wg.Done()
 				batchB := &model.SyncChangesBatch{
-					Notes: []*entity.SermonNote{
+					SermonNotes: []*entity.SermonNote{
 						{
 							ID:          "note-concurrent-1",
 							Title:       "Client B Concurrent",
@@ -1083,7 +900,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 						},
 					},
 				}
-				resB, errB = u.Push(ctx, batchB)
+				resB, errB = u.Call(ctx, batchB)
 			}()
 
 			wg.Wait()
@@ -1121,7 +938,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					{ID: "g-dup", Name: "First", UpdatedAt: t1},
 					{ID: "g-dup", Name: "Second", UpdatedAt: t2},
 				},
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "n-dup",
 						Title:       "First Note",
@@ -1136,7 +953,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			res, err := u.Push(ctx, dupBatch)
+			res, err := u.Call(ctx, dupBatch)
 			require.NoError(t, err)
 			assert.Empty(t, res.Conflicts)
 
@@ -1164,7 +981,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				Tags: []*entity.Tag{
 					{ID: "tag-client-a", Name: "Grace", UpdatedAt: t1},
 				},
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-tag-a",
 						Title:       "Note A",
@@ -1176,7 +993,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			resA, err := u.Push(ctx, batchA)
+			resA, err := u.Call(ctx, batchA)
 			require.NoError(t, err)
 			assert.Empty(t, resA.Conflicts)
 
@@ -1184,7 +1001,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				Tags: []*entity.Tag{
 					{ID: "tag-client-b", Name: "Grace", UpdatedAt: t2},
 				},
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-tag-b",
 						Title:       "Note B",
@@ -1196,7 +1013,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			resB, err := u.Push(ctx, batchB)
+			resB, err := u.Call(ctx, batchB)
 			require.NoError(t, err)
 			assert.Empty(t, resB.Conflicts)
 
@@ -1237,7 +1054,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			_, err := u.Push(ctx, restoreBatch)
+			_, err := u.Call(ctx, restoreBatch)
 			require.NoError(t, err)
 
 			var stored entity.Gathering
@@ -1261,7 +1078,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			origHash := hex.EncodeToString(origSum[:])
 
 			initialBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-file-rb-1",
 						Title:       "Original",
@@ -1272,12 +1089,12 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			_, err := u.Push(ctx, initialBatch)
+			_, err := u.Call(ctx, initialBatch)
 			require.NoError(t, err)
 
 			log := zap.NewNop()
 			failErr := errors.New("second note failed")
-			failOpt := &usecase.SyncChangesUsecaseOption{
+			failOpt := &usecase.SyncPushChangesUsecaseOption{
 				TxManager: db.NewTxManager(testDB),
 				SermonNoteRepository: &failingSermonNoteRepo{
 					SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -1300,20 +1117,16 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					log,
 				),
 				TagRepository: repository.NewTagRepository(testDB, log),
-				SyncOutboxRepository: repository.NewSyncOutboxRepository(
-					testDB,
-					log,
-				),
-				Log: log,
+				Log:           log,
 			}
-			uFail := usecase.NewSyncChangesUsecase(failOpt)
+			uFail := usecase.NewSyncPushChangesUsecase(failOpt)
 
 			newContent := `{"ops":[{"insert":"should-not-persist"}]}`
 			newSum := sha256.Sum256([]byte(newContent))
 			newHash := hex.EncodeToString(newSum[:])
 
 			rollbackBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-file-rb-1",
 						Title:       "Updated",
@@ -1330,7 +1143,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			_, err = uFail.Push(ctx, rollbackBatch)
+			_, err = uFail.Call(ctx, rollbackBatch)
 			assert.ErrorIs(t, err, failErr)
 
 			diskBytes, readErr := os.ReadFile(noteFile)
@@ -1351,7 +1164,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			hash := hex.EncodeToString(sum[:])
 
 			createBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-meta-preserve",
 						Title:       "Before",
@@ -1362,7 +1175,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			_, err := u.Push(ctx, createBatch)
+			_, err := u.Call(ctx, createBatch)
 			require.NoError(t, err)
 
 			var created entity.SermonNote
@@ -1372,7 +1185,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			)
 
 			updateBatch := &model.SyncChangesBatch{
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:          "note-meta-preserve",
 						Title:       "After",
@@ -1381,7 +1194,7 @@ func TestSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 					},
 				},
 			}
-			res, err := u.Push(ctx, updateBatch)
+			res, err := u.Call(ctx, updateBatch)
 			require.NoError(t, err)
 			assert.Empty(t, res.MissingContentIDs)
 

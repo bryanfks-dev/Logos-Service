@@ -30,7 +30,8 @@ type Container struct {
 	ErrorController *deliveryhttp.ErrorController
 	SyncController  *deliveryhttp.SyncController
 
-	SyncChangesUsecase *usecase.SyncChangesUsecase
+	SyncPullChangesUsecase *usecase.SyncPullChangesUsecase
+	SyncPushChangesUsecase *usecase.SyncPushChangesUsecase
 }
 
 func NewContainer() (*Container, error) {

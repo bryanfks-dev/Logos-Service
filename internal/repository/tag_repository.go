@@ -9,7 +9,6 @@ import (
 	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -24,7 +23,7 @@ type TagRepository interface {
 		ids []string,
 		names []string,
 	) ([]*entity.Tag, error)
-	FindAll(ctx context.Context) ([]entity.Tag, error)
+	FindAll(ctx context.Context) ([]*entity.Tag, error)
 	FindUpdatedSince(
 		ctx context.Context,
 		since time.Time,
@@ -147,7 +146,7 @@ func (r *tagRepository) FindByIDsOrNames(
 	return items, nil
 }
 
-func (r *tagRepository) FindAll(ctx context.Context) ([]entity.Tag, error) {
+func (r *tagRepository) FindAll(ctx context.Context) ([]*entity.Tag, error) {
 	r.log.Info("find all started", zap.Any("param", nil))
 
 	type tagWithCount struct {
@@ -169,11 +168,12 @@ func (r *tagRepository) FindAll(ctx context.Context) ([]entity.Tag, error) {
 		return nil, entityerror.ErrTagRetrievalFailed(err)
 	}
 
-	tags := make([]entity.Tag, len(results))
+	tags := make([]*entity.Tag, len(results))
 
 	for i, res := range results {
-		tags[i] = res.Tag
-		tags[i].UsageCount = res.UsageCount
+		tag := res.Tag
+		tag.UsageCount = res.UsageCount
+		tags[i] = &tag
 	}
 
 	r.log.Info("find all completed", zap.Any("param", nil))
@@ -204,8 +204,6 @@ func (r *tagRepository) FindUpdatedSince(
 
 		return nil, entityerror.ErrTagRetrievalFailed(err)
 	}
-
-	items = util.NonNilSlice(items)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(items)))
 

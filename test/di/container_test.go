@@ -38,7 +38,8 @@ func TestNewContainer(t *testing.T) {
 	assert.NotNil(t, container.EtcController)
 	assert.NotNil(t, container.ErrorController)
 	assert.NotNil(t, container.SyncController)
-	assert.NotNil(t, container.SyncChangesUsecase)
+	assert.NotNil(t, container.SyncPullChangesUsecase)
+	assert.NotNil(t, container.SyncPushChangesUsecase)
 
 	// Verify route setup completes without panic
 	assert.NotPanics(t, func() {

@@ -16,7 +16,7 @@ type SyncOutboxRepository interface {
 	GetPendingBatch(
 		ctx context.Context,
 		limit int,
-	) ([]entity.SyncOutboxEntry, error)
+	) ([]*entity.SyncOutboxEntry, error)
 	MarkSynced(ctx context.Context, ids []string) error
 	ClearSynced(ctx context.Context, before time.Time) error
 }
@@ -64,10 +64,10 @@ func (r *syncOutboxRepository) Enqueue(
 func (r *syncOutboxRepository) GetPendingBatch(
 	ctx context.Context,
 	limit int,
-) ([]entity.SyncOutboxEntry, error) {
+) ([]*entity.SyncOutboxEntry, error) {
 	r.log.Info("get pending batch started", zap.Any("param", limit))
 
-	var entries []entity.SyncOutboxEntry
+	var entries []*entity.SyncOutboxEntry
 
 	if err := r.conn(ctx).Order("queued_at ASC").Limit(limit).Find(&entries).Error; err != nil {
 		r.log.Error(

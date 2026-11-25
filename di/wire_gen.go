@@ -35,19 +35,26 @@ func NewContainer() (*Container, error) {
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(gormDB, logger)
 	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
 	tagRepository := repository.NewTagRepository(gormDB, logger)
-	syncOutboxRepository := repository.NewSyncOutboxRepository(gormDB, logger)
-	syncChangesUsecaseOption := &usecase.SyncChangesUsecaseOption{
+	syncPullChangesUsecaseOption := &usecase.SyncPullChangesUsecaseOption{
+		SermonNoteRepository:   sermonNoteRepository,
+		GatheringRepository:    gatheringRepository,
+		SermonSeriesRepository: sermonSeriesRepository,
+		PreacherRepository:     preacherRepository,
+		TagRepository:          tagRepository,
+		Log:                    logger,
+	}
+	syncPullChangesUsecase := usecase.NewSyncPullChangesUsecase(syncPullChangesUsecaseOption)
+	syncPushChangesUsecaseOption := &usecase.SyncPushChangesUsecaseOption{
 		TxManager:              txManager,
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
 		SermonSeriesRepository: sermonSeriesRepository,
 		PreacherRepository:     preacherRepository,
 		TagRepository:          tagRepository,
-		SyncOutboxRepository:   syncOutboxRepository,
 		Log:                    logger,
 	}
-	syncChangesUsecase := usecase.NewSyncChangesUsecase(syncChangesUsecaseOption)
-	syncController := http.NewSyncController(syncChangesUsecase, logger)
+	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(syncPushChangesUsecaseOption)
+	syncController := http.NewSyncController(syncPullChangesUsecase, syncPushChangesUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
 		App:             echo,
 		EtcController:   etcController,
@@ -56,16 +63,17 @@ func NewContainer() (*Container, error) {
 	}
 	routeConfig := route.NewRouteConfig(routeConfigOption)
 	container := &Container{
-		Config:             viper,
-		Log:                logger,
-		App:                echo,
-		TxManager:          txManager,
-		FsManager:          manager,
-		RouteConfig:        routeConfig,
-		EtcController:      etcController,
-		ErrorController:    errorController,
-		SyncController:     syncController,
-		SyncChangesUsecase: syncChangesUsecase,
+		Config:                 viper,
+		Log:                    logger,
+		App:                    echo,
+		TxManager:              txManager,
+		FsManager:              manager,
+		RouteConfig:            routeConfig,
+		EtcController:          etcController,
+		ErrorController:        errorController,
+		SyncController:         syncController,
+		SyncPullChangesUsecase: syncPullChangesUsecase,
+		SyncPushChangesUsecase: syncPushChangesUsecase,
 	}
 	return container, nil
 }
@@ -87,5 +95,6 @@ type Container struct {
 	ErrorController *http.ErrorController
 	SyncController  *http.SyncController
 
-	SyncChangesUsecase *usecase.SyncChangesUsecase
+	SyncPullChangesUsecase *usecase.SyncPullChangesUsecase
+	SyncPushChangesUsecase *usecase.SyncPushChangesUsecase
 }

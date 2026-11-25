@@ -14,12 +14,12 @@ type BibleRepository interface {
 	GetVerses(
 		ctx context.Context,
 		query entity.VerseQuery,
-	) ([]entity.BibleVerse, error)
+	) ([]*entity.BibleVerse, error)
 	SearchByText(
 		ctx context.Context,
 		translation string,
 		query string,
-	) ([]entity.BibleVerse, error)
+	) ([]*entity.BibleVerse, error)
 	ImportTranslationPack(ctx context.Context, verses []entity.BibleVerse) error
 	ListAvailableTranslations(ctx context.Context) ([]string, error)
 }
@@ -47,7 +47,7 @@ func (r *bibleRepository) conn(ctx context.Context) *gorm.DB {
 func (r *bibleRepository) GetVerses(
 	ctx context.Context,
 	query entity.VerseQuery,
-) ([]entity.BibleVerse, error) {
+) ([]*entity.BibleVerse, error) {
 	r.log.Info("get verses started", zap.Any("param", query))
 
 	q := r.conn(ctx).
@@ -58,7 +58,7 @@ func (r *bibleRepository) GetVerses(
 		q = q.Where("verse <= ?", *query.VerseEnd)
 	}
 
-	var verses []entity.BibleVerse
+	var verses []*entity.BibleVerse
 
 	if err := q.Order("verse ASC").Find(&verses).Error; err != nil {
 		r.log.Error(
@@ -79,12 +79,12 @@ func (r *bibleRepository) SearchByText(
 	ctx context.Context,
 	translation string,
 	query string,
-) ([]entity.BibleVerse, error) {
+) ([]*entity.BibleVerse, error) {
 	r.log.Info("search by text started", zap.Any("param", query))
 
 	pattern := "%" + query + "%"
 
-	var verses []entity.BibleVerse
+	var verses []*entity.BibleVerse
 
 	err := r.conn(ctx).Table("bible_verses").
 		Joins("JOIN bible_fts ON bible_fts.verse_id = bible_verses.id").

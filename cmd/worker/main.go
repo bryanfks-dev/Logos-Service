@@ -18,6 +18,11 @@ func main() {
 		panic(message)
 	}
 
+	appPath := container.Config.GetString("app.path")
+	if err := container.FsManager.EnsureDir(appPath); err != nil {
+		container.Log.Sugar().Fatalf("ensure app path error: %v", err)
+	}
+
 	_, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,

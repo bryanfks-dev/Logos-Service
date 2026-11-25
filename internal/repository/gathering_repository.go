@@ -9,7 +9,6 @@ import (
 	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -19,7 +18,7 @@ type GatheringRepository interface {
 	Update(ctx context.Context, gathering *entity.Gathering) error
 	FindByID(ctx context.Context, id string) (*entity.Gathering, error)
 	FindByIDs(ctx context.Context, ids []string) ([]*entity.Gathering, error)
-	FindAll(ctx context.Context) ([]entity.Gathering, error)
+	FindAll(ctx context.Context) ([]*entity.Gathering, error)
 	FindUpdatedSince(
 		ctx context.Context,
 		since time.Time,
@@ -141,10 +140,10 @@ func (r *gatheringRepository) FindByIDs(
 
 func (r *gatheringRepository) FindAll(
 	ctx context.Context,
-) ([]entity.Gathering, error) {
+) ([]*entity.Gathering, error) {
 	r.log.Info("find all started", zap.Any("param", nil))
 
-	var items []entity.Gathering
+	var items []*entity.Gathering
 
 	if err := r.conn(ctx).Order("sort_order ASC").Find(&items).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
@@ -180,8 +179,6 @@ func (r *gatheringRepository) FindUpdatedSince(
 
 		return nil, entityerror.ErrGatheringRetrievalFailed(err)
 	}
-
-	items = util.NonNilSlice(items)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(items)))
 

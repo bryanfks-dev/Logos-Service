@@ -9,7 +9,6 @@ import (
 	"github.com/bryanfks-dev/logos/infra/db/correlation"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -22,7 +21,7 @@ type SermonSeriesRepository interface {
 		ctx context.Context,
 		ids []string,
 	) ([]*entity.SermonSeries, error)
-	FindAll(ctx context.Context) ([]entity.SermonSeries, error)
+	FindAll(ctx context.Context) ([]*entity.SermonSeries, error)
 	FindUpdatedSince(
 		ctx context.Context,
 		since time.Time,
@@ -139,10 +138,10 @@ func (r *sermonSeriesRepository) FindByIDs(
 
 func (r *sermonSeriesRepository) FindAll(
 	ctx context.Context,
-) ([]entity.SermonSeries, error) {
+) ([]*entity.SermonSeries, error) {
 	r.log.Info("find all started", zap.Any("param", nil))
 
-	var items []entity.SermonSeries
+	var items []*entity.SermonSeries
 
 	if err := r.conn(ctx).Find(&items).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
@@ -178,8 +177,6 @@ func (r *sermonSeriesRepository) FindUpdatedSince(
 
 		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
-
-	items = util.NonNilSlice(items)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(items)))
 

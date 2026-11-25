@@ -7,27 +7,24 @@ import (
 	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/internal/model/response"
 	"github.com/bryanfks-dev/logos/pkg/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 )
 
 func SyncPushChangesRequestToSyncChangesBatch(
-	req *request.SyncPushChangesRequest,
+	request *request.SyncPushChangesRequest,
 ) *model.SyncChangesBatch {
-	if req == nil {
+	if request == nil {
 		return &model.SyncChangesBatch{
-			Notes:        make([]*entity.SermonNote, 0),
 			SermonNotes:  make([]*entity.SermonNote, 0),
 			Gatherings:   make([]*entity.Gathering, 0),
-			Series:       make([]*entity.SermonSeries, 0),
 			SermonSeries: make([]*entity.SermonSeries, 0),
 			Preachers:    make([]*entity.Preacher, 0),
 			Tags:         make([]*entity.Tag, 0),
 		}
 	}
 
-	notes := make([]*entity.SermonNote, 0, len(req.SermonNotes))
-	for i := range req.SermonNotes {
-		noteItem := &req.SermonNotes[i]
+	notes := make([]*entity.SermonNote, 0, len(request.SermonNotes))
+	for i := range request.SermonNotes {
+		noteItem := &request.SermonNotes[i]
 		n := SyncNoteChangesItemToEntity(noteItem)
 		if noteItem.UpdatedAt != nil {
 			n.UpdatedAt = *noteItem.UpdatedAt
@@ -35,9 +32,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		notes = append(notes, &n)
 	}
 
-	gatherings := make([]*entity.Gathering, 0, len(req.Gatherings))
-	for i := range req.Gatherings {
-		gatheringItem := &req.Gatherings[i]
+	gatherings := make([]*entity.Gathering, 0, len(request.Gatherings))
+	for i := range request.Gatherings {
+		gatheringItem := &request.Gatherings[i]
 		g := &entity.Gathering{
 			ID:        gatheringItem.ID,
 			Name:      gatheringItem.Name,
@@ -53,11 +50,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		gatherings = append(gatherings, g)
 	}
 
-	rawSeries := util.CoalesceSlice(req.Series, req.SermonSeries)
-
-	seriesList := make([]*entity.SermonSeries, 0, len(rawSeries))
-	for i := range rawSeries {
-		seriesItem := &rawSeries[i]
+	seriesList := make([]*entity.SermonSeries, 0, len(request.SermonSeries))
+	for i := range request.SermonSeries {
+		seriesItem := &request.SermonSeries[i]
 		s := &entity.SermonSeries{
 			ID:          seriesItem.ID,
 			Name:        seriesItem.Name,
@@ -72,9 +67,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		seriesList = append(seriesList, s)
 	}
 
-	preachers := make([]*entity.Preacher, 0, len(req.Preachers))
-	for i := range req.Preachers {
-		preacherItem := &req.Preachers[i]
+	preachers := make([]*entity.Preacher, 0, len(request.Preachers))
+	for i := range request.Preachers {
+		preacherItem := &request.Preachers[i]
 		p := &entity.Preacher{
 			ID:         preacherItem.ID,
 			Name:       preacherItem.Name,
@@ -89,9 +84,9 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		preachers = append(preachers, p)
 	}
 
-	tags := make([]*entity.Tag, 0, len(req.Tags))
-	for i := range req.Tags {
-		tagItem := &req.Tags[i]
+	tags := make([]*entity.Tag, 0, len(request.Tags))
+	for i := range request.Tags {
+		tagItem := &request.Tags[i]
 		t := &entity.Tag{
 			ID:   tagItem.ID,
 			Name: tagItem.Name,
@@ -106,10 +101,8 @@ func SyncPushChangesRequestToSyncChangesBatch(
 	}
 
 	return &model.SyncChangesBatch{
-		Notes:        notes,
 		SermonNotes:  notes,
 		Gatherings:   gatherings,
-		Series:       seriesList,
 		SermonSeries: seriesList,
 		Preachers:    preachers,
 		Tags:         tags,
@@ -127,13 +120,10 @@ func SyncPushChangesResultToResponse(
 		}
 	}
 
-	missing := util.NonNilSlice(result.MissingContentIDs)
-	conflicts := util.NonNilSlice(result.Conflicts)
-
 	return &response.SyncPushChangesResponse{
 		SyncedAt:          result.SyncedAt,
-		MissingContentIDs: missing,
-		Conflicts:         conflicts,
+		MissingContentIDs: result.MissingContentIDs,
+		Conflicts:         result.Conflicts,
 	}
 }
 
@@ -156,10 +146,8 @@ func SyncPullChangesResultToResponse(
 		serverTime = result.ServerTime.UTC()
 	}
 
-	rawNotes := util.CoalesceSlice(result.Notes, result.SermonNotes)
-
-	notes := make([]response.SermonNoteResponse, 0, len(rawNotes))
-	for _, n := range rawNotes {
+	notes := make([]response.SermonNoteResponse, 0, len(result.SermonNotes))
+	for _, n := range result.SermonNotes {
 		if res := SermonNoteToResponse(n); res != nil {
 			notes = append(notes, *res)
 		}
@@ -172,10 +160,8 @@ func SyncPullChangesResultToResponse(
 		}
 	}
 
-	rawSeries := util.CoalesceSlice(result.Series, result.SermonSeries)
-
-	series := make([]response.SermonSeriesResponse, 0, len(rawSeries))
-	for _, s := range rawSeries {
+	series := make([]response.SermonSeriesResponse, 0, len(result.SermonSeries))
+	for _, s := range result.SermonSeries {
 		if res := SermonSeriesToResponse(s); res != nil {
 			series = append(series, *res)
 		}

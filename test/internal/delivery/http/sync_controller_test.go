@@ -62,23 +62,32 @@ func setupSyncControllerTestEnv(
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
 	tagRepository := repository.NewTagRepository(testDB, log)
-	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncChangesUsecase := usecase.NewSyncChangesUsecase(
-		&usecase.SyncChangesUsecaseOption{
+	syncPullChangesUsecase := usecase.NewSyncPullChangesUsecase(
+		&usecase.SyncPullChangesUsecaseOption{
+			SermonNoteRepository:   sermonNoteRepository,
+			GatheringRepository:    gatheringRepository,
+			SermonSeriesRepository: sermonSeriesRepository,
+			PreacherRepository:     preacherRepository,
+			TagRepository:          tagRepository,
+			Log:                    log,
+		},
+	)
+	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(
+		&usecase.SyncPushChangesUsecaseOption{
 			TxManager:              txManager,
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
 			PreacherRepository:     preacherRepository,
 			TagRepository:          tagRepository,
-			SyncOutboxRepository:   syncOutboxRepository,
 			Log:                    log,
 		},
 	)
 
 	syncController := deliveryhttp.NewSyncController(
-		syncChangesUsecase,
+		syncPullChangesUsecase,
+		syncPushChangesUsecase,
 		log,
 	)
 
@@ -233,7 +242,7 @@ func TestSyncController_Push(t *testing.T) {
 		"constructor instantiates controller",
 		func(t *testing.T) {
 			assert.NotNil(t, controller)
-			ctrl := deliveryhttp.NewSyncController(nil, zap.NewNop())
+			ctrl := deliveryhttp.NewSyncController(nil, nil, zap.NewNop())
 			assert.NotNil(t, ctrl)
 		},
 	)

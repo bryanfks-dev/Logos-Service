@@ -16,9 +16,9 @@ func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
 	t.Run("nil request returns empty batch", func(t *testing.T) {
 		batch := converter.SyncPushChangesRequestToSyncChangesBatch(nil)
 		assert.NotNil(t, batch)
-		assert.Empty(t, batch.Notes)
+		assert.Empty(t, batch.SermonNotes)
 		assert.Empty(t, batch.Gatherings)
-		assert.Empty(t, batch.Series)
+		assert.Empty(t, batch.SermonSeries)
 		assert.Empty(t, batch.Preachers)
 		assert.Empty(t, batch.Tags)
 	})
@@ -44,7 +44,7 @@ func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
 					UpdatedAt: &now,
 				},
 			},
-			Series: []request.SyncSeriesChangesItem{
+			SermonSeries: []request.SyncSeriesChangesItem{
 				{
 					ID:          "s-1",
 					Name:        "Romans",
@@ -72,19 +72,19 @@ func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
 		batch := converter.SyncPushChangesRequestToSyncChangesBatch(req)
 		assert.NotNil(t, batch)
 
-		require.Len(t, batch.Notes, 1)
-		assert.Equal(t, "note-1", batch.Notes[0].ID)
-		assert.Equal(t, "Test Note", batch.Notes[0].Title)
-		assert.Equal(t, "hash-abc", batch.Notes[0].ContentHash)
+		require.Len(t, batch.SermonNotes, 1)
+		assert.Equal(t, "note-1", batch.SermonNotes[0].ID)
+		assert.Equal(t, "Test Note", batch.SermonNotes[0].Title)
+		assert.Equal(t, "hash-abc", batch.SermonNotes[0].ContentHash)
 
 		require.Len(t, batch.Gatherings, 1)
 		assert.Equal(t, "g-1", batch.Gatherings[0].ID)
 		assert.Equal(t, "Sunday Morning", batch.Gatherings[0].Name)
 		assert.Equal(t, "#FFFFFF", batch.Gatherings[0].ColorHex)
 
-		require.Len(t, batch.Series, 1)
-		assert.Equal(t, "s-1", batch.Series[0].ID)
-		assert.Equal(t, "Romans", batch.Series[0].Name)
+		require.Len(t, batch.SermonSeries, 1)
+		assert.Equal(t, "s-1", batch.SermonSeries[0].ID)
+		assert.Equal(t, "Romans", batch.SermonSeries[0].Name)
 
 		require.Len(t, batch.Preachers, 1)
 		assert.Equal(t, "p-1", batch.Preachers[0].ID)
@@ -148,7 +148,7 @@ func TestSyncPullChangesResultToResponse(t *testing.T) {
 		func(t *testing.T) {
 			result := &model.SyncPullChangesResult{
 				ServerTime: now,
-				Notes: []*entity.SermonNote{
+				SermonNotes: []*entity.SermonNote{
 					{
 						ID:        "n-1",
 						Title:     "Note 1",
@@ -164,7 +164,7 @@ func TestSyncPullChangesResultToResponse(t *testing.T) {
 						UpdatedAt: now,
 					},
 				},
-				Series: []*entity.SermonSeries{
+				SermonSeries: []*entity.SermonSeries{
 					{
 						ID:        "s-1",
 						Name:      "Series 1",

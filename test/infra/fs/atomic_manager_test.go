@@ -76,3 +76,58 @@ func TestManager_WriteFileAtomic(t *testing.T) {
 		},
 	)
 }
+
+func TestManager_EnsureDir(t *testing.T) {
+	manager := fs.NewManager()
+	require.NotNil(t, manager)
+
+	t.Run(
+		"returns error when dirPath is empty or whitespace",
+		func(t *testing.T) {
+			assert.EqualError(
+				t,
+				manager.EnsureDir(""),
+				"directory path is required",
+			)
+			assert.EqualError(
+				t,
+				manager.EnsureDir("   "),
+				"directory path is required",
+			)
+		},
+	)
+
+	t.Run("creates directory if it does not exist", func(t *testing.T) {
+		targetDir := filepath.Join(t.TempDir(), "app", "files")
+
+		err := manager.EnsureDir(targetDir)
+		require.NoError(t, err)
+
+		info, err := os.Stat(targetDir)
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run("succeeds when directory already exists", func(t *testing.T) {
+		targetDir := filepath.Join(t.TempDir(), "existing")
+		require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+		err := manager.EnsureDir(targetDir)
+		require.NoError(t, err)
+
+		info, err := os.Stat(targetDir)
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run(
+		"returns error when target path is an existing file",
+		func(t *testing.T) {
+			targetFile := filepath.Join(t.TempDir(), "file.txt")
+			require.NoError(t, os.WriteFile(targetFile, []byte("data"), 0o644))
+
+			err := manager.EnsureDir(targetFile)
+			assert.Error(t, err)
+		},
+	)
+}

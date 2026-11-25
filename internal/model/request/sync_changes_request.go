@@ -10,7 +10,6 @@ import (
 type SyncPushChangesRequest struct {
 	SermonNotes  []SyncNoteChangesItem      `json:"sermon_notes,omitempty"`
 	Gatherings   []SyncGatheringChangesItem `json:"gatherings,omitempty"`
-	Series       []SyncSeriesChangesItem    `json:"series,omitempty"`
 	SermonSeries []SyncSeriesChangesItem    `json:"sermon_series,omitempty"`
 	Preachers    []SyncPreacherChangesItem  `json:"preachers,omitempty"`
 	Tags         []SyncTagChangesItem       `json:"tags,omitempty"`
@@ -20,7 +19,6 @@ func (r SyncPushChangesRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.SermonNotes),
 		validation.Field(&r.Gatherings),
-		validation.Field(&r.Series),
 		validation.Field(&r.SermonSeries),
 		validation.Field(&r.Preachers),
 		validation.Field(&r.Tags),

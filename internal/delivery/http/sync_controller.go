@@ -17,17 +17,20 @@ import (
 )
 
 type SyncController struct {
-	syncChangesUsecase *usecase.SyncChangesUsecase
-	log                *zap.Logger
+	syncPullChangesUsecase *usecase.SyncPullChangesUsecase
+	syncPushChangesUsecase *usecase.SyncPushChangesUsecase
+	log                    *zap.Logger
 }
 
 func NewSyncController(
-	syncChangesUsecase *usecase.SyncChangesUsecase,
+	syncPullChangesUsecase *usecase.SyncPullChangesUsecase,
+	syncPushChangesUsecase *usecase.SyncPushChangesUsecase,
 	log *zap.Logger,
 ) *SyncController {
 	return &SyncController{
-		syncChangesUsecase: syncChangesUsecase,
-		log:                log,
+		syncPullChangesUsecase: syncPullChangesUsecase,
+		syncPushChangesUsecase: syncPushChangesUsecase,
+		log:                    log,
 	}
 }
 
@@ -70,7 +73,7 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 
 	batch := converter.SyncPushChangesRequestToSyncChangesBatch(request)
 
-	result, err := h.syncChangesUsecase.Push(ctx.Request().Context(), batch)
+	result, err := h.syncPushChangesUsecase.Call(ctx.Request().Context(), batch)
 	if err != nil {
 		return err
 	}
@@ -126,7 +129,7 @@ func (h *SyncController) Pull(ctx *echo.Context) error {
 		return apperror.ErrInvalidPayload
 	}
 
-	result, err := h.syncChangesUsecase.Pull(ctx.Request().Context(), since)
+	result, err := h.syncPullChangesUsecase.Call(ctx.Request().Context(), since)
 	if err != nil {
 		return err
 	}

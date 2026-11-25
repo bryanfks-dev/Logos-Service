@@ -46,13 +46,18 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
    - **Keep Entity Logic on Entities**:
      - Place pure entity-level domain logic—such as comparisons, calculations, derived values, conflict checks, validations, and state predicates/transitions (e.g., `HasConflictWith`, `IsContentMissingFor`)—as methods on the corresponding entity in `pkg/entity/`, rather than helper functions in `internal/usecase/`.
    - **No Interface Required for Usecases**:
-     - Usecases do not need to create or declare interfaces; defining a concrete struct is enough for construction and dependency injection (e.g., `<AggregateEntity>Usecase` struct).
-     - Constructors should return the concrete struct pointer directly (e.g., `New<AggregateEntity>Usecase(...) *<AggregateEntity>Usecase`).
+     - Usecases do not need to create or declare interfaces; defining a concrete struct is enough for construction and dependency injection (e.g., `<Action><AggregateEntity>Usecase` struct).
+     - Constructors should return the concrete struct pointer directly (e.g., `New<Action><AggregateEntity>Usecase(...) *<Action><AggregateEntity>Usecase`).
      - Delivery controllers should accept and depend directly on the concrete usecase struct.
+   - **Single Usecase Per Action & `Call` Entrypoint**:
+     - Each usecase must do only one job (a single, focused action or operation) and follow the naming format `<Action><AggregateEntity>Usecase` (e.g., `CreateSermonNoteUsecase`, `PullSyncChangesUsecase`, `PushSyncChangesUsecase`) rather than grouping multiple independent operations onto one struct.
+     - Every usecase must expose `Call(ctx context.Context, ...)` as its sole exported method (the single entrypoint); all other helper methods on the usecase struct must be unexported.
 
 3. **Repository Layer (`internal/repository/`)**:
    - Manages data persistence, queries, and mappings to and from the database.
-   - Implements repository interfaces defined for usecases.
+   - **Interface Required**:
+     - Always define and export a repository interface (e.g., `<AggregateEntity>Repository`) implemented by an unexported concrete struct (e.g., `<aggregateEntity>Repository`).
+     - Constructors must return the repository interface type (e.g., `New<AggregateEntity>Repository(...) <AggregateEntity>Repository`) so usecases and DI depend on the abstraction.
    - **Repository Naming Convention**:
      - Repositories must be named strictly after their corresponding aggregate root entity, suffixed with `_repository` (e.g., `<aggregate_entity>_repository.go` and `<AggregateEntity>Repository`).
      - Exactly one repository per Aggregate Root (e.g., `sermon_note_repository.go` / `SermonNoteRepository`, `gathering_repository.go` / `GatheringRepository`).
@@ -65,6 +70,9 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 4. **Gateway Layer (`internal/gateway/`)**:
    - Handles external APIs, third-party integrations, and remote service communication.
    - Encapsulates external protocols, returning clean domain or model types to usecases.
+   - **Interface Required**:
+     - Always define and export a gateway interface (e.g., `<Name>Gateway`) implemented by an unexported concrete struct (e.g., `<name>Gateway`).
+     - Constructors must return the gateway interface type (e.g., `New<Name>Gateway(...) <Name>Gateway`) so usecases and DI depend on the abstraction.
 
 5. **Converter Layer (`internal/model/converter/`)**:
    - Encapsulates mapping and data transformation between domain entities (`pkg/entity/`) and transport or external representations (e.g., HTTP response DTOs, messaging/Kafka event payloads, sync items).
@@ -110,8 +118,8 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
     - **Repositories**: `<aggregate_entity>_repository.go` and `<AggregateEntity>Repository`
       - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_repository.go` and `SermonNoteRepository`.
       - *Example*: For aggregate entity `Gathering` $\rightarrow$ `gathering_repository.go` and `GatheringRepository`.
-    - **Usecases**: `<aggregate_entity>_usecase.go` and `<AggregateEntity>Usecase`
-      - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_usecase.go` and `SermonNoteUsecase`.
+    - **Usecases**: `<action>_<aggregate_entity>_usecase.go` and `<Action><AggregateEntity>Usecase`
+      - *Example*: For aggregate entity `SermonNote` and action `Create` $\rightarrow$ `create_sermon_note_usecase.go` and `CreateSermonNoteUsecase`.
     - **Converters**: `<aggregate_entity>_converter.go`
       - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_converter.go`.
       - *Example*: For aggregate entity `Gathering` $\rightarrow$ `gathering_converter.go`.

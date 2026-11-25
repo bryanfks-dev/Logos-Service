@@ -17,6 +17,11 @@ func main() {
 		panic(message)
 	}
 
+	appPath := container.Config.GetString("app.path")
+	if err := container.FsManager.EnsureDir(appPath); err != nil {
+		container.Log.Sugar().Fatalf("ensure app path error: %v", err)
+	}
+
 	container.RouteConfig.Setup()
 
 	port := container.Config.GetInt("web.port")

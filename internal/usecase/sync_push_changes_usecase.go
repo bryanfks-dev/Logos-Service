@@ -11,104 +11,46 @@ import (
 	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/repository"
 	"github.com/bryanfks-dev/logos/pkg/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 )
 
 const maxPushTxRetries = 6
 
-type SyncChangesUsecase struct {
+type SyncPushChangesUsecase struct {
 	txManager              *db.TxManager
 	sermonNoteRepository   repository.SermonNoteRepository
 	gatheringRepository    repository.GatheringRepository
 	sermonSeriesRepository repository.SermonSeriesRepository
 	preacherRepository     repository.PreacherRepository
 	tagRepository          repository.TagRepository
-	syncOutboxRepository   repository.SyncOutboxRepository
 	log                    *zap.Logger
 }
 
-type SyncChangesUsecaseOption struct {
+type SyncPushChangesUsecaseOption struct {
 	TxManager              *db.TxManager
 	SermonNoteRepository   repository.SermonNoteRepository
 	GatheringRepository    repository.GatheringRepository
 	SermonSeriesRepository repository.SermonSeriesRepository
 	PreacherRepository     repository.PreacherRepository
 	TagRepository          repository.TagRepository
-	SyncOutboxRepository   repository.SyncOutboxRepository
 	Log                    *zap.Logger
 }
 
-func NewSyncChangesUsecase(opt *SyncChangesUsecaseOption) *SyncChangesUsecase {
-	return &SyncChangesUsecase{
+func NewSyncPushChangesUsecase(
+	opt *SyncPushChangesUsecaseOption,
+) *SyncPushChangesUsecase {
+	return &SyncPushChangesUsecase{
 		txManager:              opt.TxManager,
 		sermonNoteRepository:   opt.SermonNoteRepository,
 		gatheringRepository:    opt.GatheringRepository,
 		sermonSeriesRepository: opt.SermonSeriesRepository,
 		preacherRepository:     opt.PreacherRepository,
 		tagRepository:          opt.TagRepository,
-		syncOutboxRepository:   opt.SyncOutboxRepository,
 		log:                    opt.Log,
 	}
 }
 
-func (u *SyncChangesUsecase) Pull(
-	ctx context.Context,
-	since time.Time,
-) (*model.SyncPullChangesResult, error) {
-	serverTime := time.Now().UTC()
-
-	notes, err := u.sermonNoteRepository.FindUpdatedSince(ctx, since)
-	if err != nil {
-		u.log.Error("failed to pull sermon notes", zap.Error(err))
-		return nil, err
-	}
-
-	gatherings, err := u.gatheringRepository.FindUpdatedSince(ctx, since)
-	if err != nil {
-		u.log.Error("failed to pull gatherings", zap.Error(err))
-		return nil, err
-	}
-
-	series, err := u.sermonSeriesRepository.FindUpdatedSince(ctx, since)
-	if err != nil {
-		u.log.Error("failed to pull sermon series", zap.Error(err))
-		return nil, err
-	}
-
-	preachers, err := u.preacherRepository.FindUpdatedSince(ctx, since)
-	if err != nil {
-		u.log.Error("failed to pull preachers", zap.Error(err))
-		return nil, err
-	}
-
-	tags, err := u.tagRepository.FindUpdatedSince(ctx, since)
-	if err != nil {
-		u.log.Error("failed to pull tags", zap.Error(err))
-		return nil, err
-	}
-
-	notes = util.NonNilSlice(notes)
-	gatherings = util.NonNilSlice(gatherings)
-	series = util.NonNilSlice(series)
-	preachers = util.NonNilSlice(preachers)
-	tags = util.NonNilSlice(tags)
-
-	result := &model.SyncPullChangesResult{
-		ServerTime:   serverTime,
-		Notes:        notes,
-		SermonNotes:  notes,
-		Gatherings:   gatherings,
-		Series:       series,
-		SermonSeries: series,
-		Preachers:    preachers,
-		Tags:         tags,
-	}
-
-	return result, nil
-}
-
-func (u *SyncChangesUsecase) Push(
+func (u *SyncPushChangesUsecase) Call(
 	ctx context.Context,
 	batch *model.SyncChangesBatch,
 ) (*model.SyncPushChangesResult, error) {
@@ -190,7 +132,7 @@ func isRetryableSyncError(err error) bool {
 		strings.Contains(msg, "duplicate key")
 }
 
-func (u *SyncChangesUsecase) applyPushBatch(
+func (u *SyncPushChangesUsecase) applyPushBatch(
 	ctx context.Context,
 	batch *model.SyncChangesBatch,
 ) ([]string, []string, error) {
@@ -198,8 +140,7 @@ func (u *SyncChangesUsecase) applyPushBatch(
 		return nil, nil, err
 	}
 
-	series := util.CoalesceSlice(batch.Series, batch.SermonSeries)
-	if err := u.upsertSermonSeries(ctx, series); err != nil {
+	if err := u.upsertSermonSeries(ctx, batch.SermonSeries); err != nil {
 		return nil, nil, err
 	}
 
@@ -207,58 +148,272 @@ func (u *SyncChangesUsecase) applyPushBatch(
 		return nil, nil, err
 	}
 
-	notes := util.CoalesceSlice(batch.Notes, batch.SermonNotes)
-
-	if err := u.upsertAndResolveTags(ctx, batch.Tags, notes); err != nil {
+	if err := u.upsertAndResolveTags(ctx, batch.Tags, batch.SermonNotes); err != nil {
 		return nil, nil, err
 	}
 
-	return u.upsertSermonNotes(ctx, notes)
+	return u.upsertSermonNotes(ctx, batch.SermonNotes)
 }
 
-func (u *SyncChangesUsecase) upsertGatherings(
+func (u *SyncPushChangesUsecase) upsertGatherings(
 	ctx context.Context,
 	gatherings []*entity.Gathering,
 ) error {
-	opt := lastWriteWinsOption[entity.Gathering]{
-		id:        func(g *entity.Gathering) string { return g.ID },
-		updatedAt: func(g *entity.Gathering) time.Time { return g.UpdatedAt },
-		findByIDs: u.gatheringRepository.FindByIDs,
-		create:    u.gatheringRepository.Create,
-		update:    u.gatheringRepository.Update,
+	if len(gatherings) == 0 {
+		return nil
 	}
 
-	return upsertLastWriteWins(ctx, gatherings, opt)
+	ids := make([]string, 0, len(gatherings))
+	seen := make(map[string]struct{}, len(gatherings))
+
+	for _, gathering := range gatherings {
+		if gathering == nil || gathering.ID == "" {
+			continue
+		}
+
+		if _, ok := seen[gathering.ID]; ok {
+			continue
+		}
+
+		seen[gathering.ID] = struct{}{}
+		ids = append(ids, gathering.ID)
+	}
+
+	existingByID := make(map[string]*entity.Gathering, len(ids))
+
+	if len(ids) > 0 {
+		existingGatherings, err := u.gatheringRepository.FindByIDs(ctx, ids)
+		if err != nil {
+			return err
+		}
+
+		for _, existing := range existingGatherings {
+			if existing == nil {
+				continue
+			}
+
+			existingByID[existing.ID] = existing
+		}
+	}
+
+	for _, gathering := range gatherings {
+		if err := u.upsertGathering(ctx, gathering, existingByID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (u *SyncChangesUsecase) upsertSermonSeries(
+func (u *SyncPushChangesUsecase) upsertGathering(
+	ctx context.Context,
+	gathering *entity.Gathering,
+	existingByID map[string]*entity.Gathering,
+) error {
+	if gathering == nil {
+		return nil
+	}
+
+	if gathering.ID == "" {
+		return u.gatheringRepository.Create(ctx, gathering)
+	}
+
+	existing := existingByID[gathering.ID]
+	if existing == nil {
+		if err := u.gatheringRepository.Create(ctx, gathering); err != nil {
+			return err
+		}
+
+		existingByID[gathering.ID] = gathering
+
+		return nil
+	}
+
+	if gathering.UpdatedAt.Before(existing.UpdatedAt) {
+		return nil
+	}
+
+	if err := u.gatheringRepository.Update(ctx, gathering); err != nil {
+		return err
+	}
+
+	existingByID[gathering.ID] = gathering
+
+	return nil
+}
+
+func (u *SyncPushChangesUsecase) upsertSermonSeries(
 	ctx context.Context,
 	series []*entity.SermonSeries,
 ) error {
-	opt := lastWriteWinsOption[entity.SermonSeries]{
-		id:        func(s *entity.SermonSeries) string { return s.ID },
-		updatedAt: func(s *entity.SermonSeries) time.Time { return s.UpdatedAt },
-		findByIDs: u.sermonSeriesRepository.FindByIDs,
-		create:    u.sermonSeriesRepository.Create,
-		update:    u.sermonSeriesRepository.Update,
+	if len(series) == 0 {
+		return nil
 	}
 
-	return upsertLastWriteWins(ctx, series, opt)
+	ids := make([]string, 0, len(series))
+	seen := make(map[string]struct{}, len(series))
+
+	for _, item := range series {
+		if item == nil || item.ID == "" {
+			continue
+		}
+
+		if _, ok := seen[item.ID]; ok {
+			continue
+		}
+
+		seen[item.ID] = struct{}{}
+		ids = append(ids, item.ID)
+	}
+
+	existingByID := make(map[string]*entity.SermonSeries, len(ids))
+
+	if len(ids) > 0 {
+		existingSeries, err := u.sermonSeriesRepository.FindByIDs(ctx, ids)
+		if err != nil {
+			return err
+		}
+
+		for _, existing := range existingSeries {
+			if existing == nil {
+				continue
+			}
+
+			existingByID[existing.ID] = existing
+		}
+	}
+
+	for _, item := range series {
+		if err := u.upsertSermonSeriesItem(ctx, item, existingByID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (u *SyncChangesUsecase) upsertPreachers(
+func (u *SyncPushChangesUsecase) upsertSermonSeriesItem(
+	ctx context.Context,
+	series *entity.SermonSeries,
+	existingByID map[string]*entity.SermonSeries,
+) error {
+	if series == nil {
+		return nil
+	}
+
+	if series.ID == "" {
+		return u.sermonSeriesRepository.Create(ctx, series)
+	}
+
+	existing := existingByID[series.ID]
+	if existing == nil {
+		if err := u.sermonSeriesRepository.Create(ctx, series); err != nil {
+			return err
+		}
+
+		existingByID[series.ID] = series
+
+		return nil
+	}
+
+	if series.UpdatedAt.Before(existing.UpdatedAt) {
+		return nil
+	}
+
+	if err := u.sermonSeriesRepository.Update(ctx, series); err != nil {
+		return err
+	}
+
+	existingByID[series.ID] = series
+
+	return nil
+}
+
+func (u *SyncPushChangesUsecase) upsertPreachers(
 	ctx context.Context,
 	preachers []*entity.Preacher,
 ) error {
-	opt := lastWriteWinsOption[entity.Preacher]{
-		id:        func(p *entity.Preacher) string { return p.ID },
-		updatedAt: func(p *entity.Preacher) time.Time { return p.UpdatedAt },
-		findByIDs: u.preacherRepository.FindByIDs,
-		create:    u.preacherRepository.Create,
-		update:    u.preacherRepository.Update,
+	if len(preachers) == 0 {
+		return nil
 	}
 
-	return upsertLastWriteWins(ctx, preachers, opt)
+	ids := make([]string, 0, len(preachers))
+	seen := make(map[string]struct{}, len(preachers))
+
+	for _, preacher := range preachers {
+		if preacher == nil || preacher.ID == "" {
+			continue
+		}
+
+		if _, ok := seen[preacher.ID]; ok {
+			continue
+		}
+
+		seen[preacher.ID] = struct{}{}
+		ids = append(ids, preacher.ID)
+	}
+
+	existingByID := make(map[string]*entity.Preacher, len(ids))
+
+	if len(ids) > 0 {
+		existingPreachers, err := u.preacherRepository.FindByIDs(ctx, ids)
+		if err != nil {
+			return err
+		}
+
+		for _, existing := range existingPreachers {
+			if existing == nil {
+				continue
+			}
+
+			existingByID[existing.ID] = existing
+		}
+	}
+
+	for _, preacher := range preachers {
+		if err := u.upsertPreacher(ctx, preacher, existingByID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *SyncPushChangesUsecase) upsertPreacher(
+	ctx context.Context,
+	preacher *entity.Preacher,
+	existingByID map[string]*entity.Preacher,
+) error {
+	if preacher == nil {
+		return nil
+	}
+
+	if preacher.ID == "" {
+		return u.preacherRepository.Create(ctx, preacher)
+	}
+
+	existing := existingByID[preacher.ID]
+	if existing == nil {
+		if err := u.preacherRepository.Create(ctx, preacher); err != nil {
+			return err
+		}
+
+		existingByID[preacher.ID] = preacher
+
+		return nil
+	}
+
+	if preacher.UpdatedAt.Before(existing.UpdatedAt) {
+		return nil
+	}
+
+	if err := u.preacherRepository.Update(ctx, preacher); err != nil {
+		return err
+	}
+
+	existingByID[preacher.ID] = preacher
+
+	return nil
 }
 
 type tagIndex struct {
@@ -363,7 +518,7 @@ func collectTagLookupKeys(
 	return ids, names
 }
 
-func (u *SyncChangesUsecase) upsertAndResolveTags(
+func (u *SyncPushChangesUsecase) upsertAndResolveTags(
 	ctx context.Context,
 	tags []*entity.Tag,
 	notes []*entity.SermonNote,
@@ -395,7 +550,7 @@ func (u *SyncChangesUsecase) upsertAndResolveTags(
 	return nil
 }
 
-func (u *SyncChangesUsecase) upsertTag(
+func (u *SyncPushChangesUsecase) upsertTag(
 	ctx context.Context,
 	tag *entity.Tag,
 	idx *tagIndex,
@@ -447,7 +602,7 @@ func (u *SyncChangesUsecase) upsertTag(
 	return nil
 }
 
-func (u *SyncChangesUsecase) resolveNoteTags(
+func (u *SyncPushChangesUsecase) resolveNoteTags(
 	ctx context.Context,
 	note *entity.SermonNote,
 	idx *tagIndex,
@@ -491,23 +646,47 @@ func (u *SyncChangesUsecase) resolveNoteTags(
 	return nil
 }
 
-func (u *SyncChangesUsecase) upsertSermonNotes(
+func (u *SyncPushChangesUsecase) upsertSermonNotes(
 	ctx context.Context,
 	notes []*entity.SermonNote,
 ) ([]string, []string, error) {
 	missingContentIDs := make([]string, 0)
 	conflicts := make([]string, 0)
+	if len(notes) == 0 {
+		return missingContentIDs, conflicts, nil
+	}
 
-	noteIDFn := func(n *entity.SermonNote) string { return n.ID }
+	ids := make([]string, 0, len(notes))
+	seen := make(map[string]struct{}, len(notes))
 
-	existingByID, err := fetchExistingByID(
-		ctx,
-		notes,
-		noteIDFn,
-		u.sermonNoteRepository.FindByIDsUnscoped,
-	)
-	if err != nil {
-		return nil, nil, err
+	for _, note := range notes {
+		if note == nil || note.ID == "" {
+			continue
+		}
+
+		if _, ok := seen[note.ID]; ok {
+			continue
+		}
+
+		seen[note.ID] = struct{}{}
+		ids = append(ids, note.ID)
+	}
+
+	existingByID := make(map[string]*entity.SermonNote, len(ids))
+
+	if len(ids) > 0 {
+		existingNotes, err := u.sermonNoteRepository.FindByIDsUnscoped(ctx, ids)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, existing := range existingNotes {
+			if existing == nil {
+				continue
+			}
+
+			existingByID[existing.ID] = existing
+		}
 	}
 
 	for _, note := range notes {
@@ -529,7 +708,7 @@ func (u *SyncChangesUsecase) upsertSermonNotes(
 	return missingContentIDs, conflicts, nil
 }
 
-func (u *SyncChangesUsecase) upsertSermonNote(
+func (u *SyncPushChangesUsecase) upsertSermonNote(
 	ctx context.Context,
 	note *entity.SermonNote,
 	existingByID map[string]*entity.SermonNote,
@@ -576,122 +755,4 @@ func (u *SyncChangesUsecase) upsertSermonNote(
 	existingByID[note.ID] = note
 
 	return missing, false, nil
-}
-
-type lastWriteWinsOption[T any] struct {
-	id        func(*T) string
-	updatedAt func(*T) time.Time
-	findByIDs func(context.Context, []string) ([]*T, error)
-	create    func(context.Context, *T) error
-	update    func(context.Context, *T) error
-}
-
-func fetchExistingByID[T any](
-	ctx context.Context,
-	items []*T,
-	getID func(*T) string,
-	findByIDs func(context.Context, []string) ([]*T, error),
-) (map[string]*T, error) {
-	existingByID := make(map[string]*T)
-	if len(items) == 0 {
-		return existingByID, nil
-	}
-
-	ids := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-
-	for _, item := range items {
-		if item == nil {
-			continue
-		}
-
-		id := getID(item)
-		if id == "" {
-			continue
-		}
-
-		if _, ok := seen[id]; ok {
-			continue
-		}
-
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-
-	if len(ids) == 0 {
-		return existingByID, nil
-	}
-
-	existingItems, err := findByIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, existing := range existingItems {
-		if existing == nil {
-			continue
-		}
-
-		existingByID[getID(existing)] = existing
-	}
-
-	return existingByID, nil
-}
-
-func upsertLastWriteWins[T any](
-	ctx context.Context,
-	items []*T,
-	opt lastWriteWinsOption[T],
-) error {
-	existingByID, err := fetchExistingByID(ctx, items, opt.id, opt.findByIDs)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range items {
-		if err := upsertLastWriteWinsItem(ctx, item, existingByID, opt); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func upsertLastWriteWinsItem[T any](
-	ctx context.Context,
-	item *T,
-	existingByID map[string]*T,
-	opt lastWriteWinsOption[T],
-) error {
-	if item == nil {
-		return nil
-	}
-
-	id := opt.id(item)
-	if id == "" {
-		return opt.create(ctx, item)
-	}
-
-	existing := existingByID[id]
-	if existing == nil {
-		if err := opt.create(ctx, item); err != nil {
-			return err
-		}
-
-		existingByID[id] = item
-
-		return nil
-	}
-
-	if opt.updatedAt(item).Before(opt.updatedAt(existing)) {
-		return nil
-	}
-
-	if err := opt.update(ctx, item); err != nil {
-		return err
-	}
-
-	existingByID[id] = item
-
-	return nil
 }

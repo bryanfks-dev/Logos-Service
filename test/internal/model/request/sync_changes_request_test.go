@@ -26,7 +26,7 @@ func TestSyncPushChangesRequest_Validate(t *testing.T) {
 					SortOrder: 1,
 				},
 			},
-			Series: []request.SyncSeriesChangesItem{
+			SermonSeries: []request.SyncSeriesChangesItem{
 				{ID: "s-1", Name: "Romans"},
 			},
 			Preachers: []request.SyncPreacherChangesItem{
@@ -65,7 +65,7 @@ func TestSyncPushChangesRequest_Validate(t *testing.T) {
 			Gatherings: []request.SyncGatheringChangesItem{
 				{Name: "", ColorHex: "not-a-hex", SortOrder: -1},
 			},
-			Series: []request.SyncSeriesChangesItem{
+			SermonSeries: []request.SyncSeriesChangesItem{
 				{ID: strings.Repeat("a", 37), Name: ""},
 			},
 			Preachers: []request.SyncPreacherChangesItem{

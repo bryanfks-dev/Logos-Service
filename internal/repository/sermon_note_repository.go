@@ -12,7 +12,6 @@ import (
 	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
-	"github.com/bryanfks-dev/logos/pkg/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -29,12 +28,12 @@ type SermonNoteRepository interface {
 	FindAll(
 		ctx context.Context,
 		filter entity.SermonNoteFilter,
-	) ([]entity.SermonNote, error)
-	Search(ctx context.Context, query string) ([]entity.SermonNote, error)
+	) ([]*entity.SermonNote, error)
+	Search(ctx context.Context, query string) ([]*entity.SermonNote, error)
 	FindByScripture(
 		ctx context.Context,
 		query entity.ScriptureQuery,
-	) ([]entity.SermonNote, error)
+	) ([]*entity.SermonNote, error)
 	FindUpdatedSince(
 		ctx context.Context,
 		since time.Time,
@@ -363,7 +362,7 @@ func (r *sermonNoteRepository) FindByIDsUnscoped(
 func (r *sermonNoteRepository) FindAll(
 	ctx context.Context,
 	filter entity.SermonNoteFilter,
-) ([]entity.SermonNote, error) {
+) ([]*entity.SermonNote, error) {
 	r.log.Info("find all started", zap.Any("param", filter))
 
 	db := r.conn(ctx)
@@ -410,7 +409,7 @@ func (r *sermonNoteRepository) FindAll(
 			Where("note_tags.tag_id = ?", *filter.TagID)
 	}
 
-	var notes []entity.SermonNote
+	var notes []*entity.SermonNote
 
 	if err := query.Preload("Verses").Preload("Tags").Find(&notes).Error; err != nil {
 		r.log.Error("find all failed", zap.Error(err), zap.Any("param", filter))
@@ -418,8 +417,8 @@ func (r *sermonNoteRepository) FindAll(
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
-	for i := range notes {
-		r.hydrateNoteFile(&notes[i])
+	for _, note := range notes {
+		r.hydrateNoteFile(note)
 	}
 
 	r.log.Info("find all completed", zap.Any("param", filter))
@@ -430,10 +429,10 @@ func (r *sermonNoteRepository) FindAll(
 func (r *sermonNoteRepository) Search(
 	ctx context.Context,
 	query string,
-) ([]entity.SermonNote, error) {
+) ([]*entity.SermonNote, error) {
 	r.log.Info("search started", zap.Any("param", query))
 
-	var notes []entity.SermonNote
+	var notes []*entity.SermonNote
 
 	pattern := "%" + query + "%"
 
@@ -457,7 +456,7 @@ func (r *sermonNoteRepository) Search(
 func (r *sermonNoteRepository) FindByScripture(
 	ctx context.Context,
 	query entity.ScriptureQuery,
-) ([]entity.SermonNote, error) {
+) ([]*entity.SermonNote, error) {
 	r.log.Info("find by scripture started", zap.Any("param", query))
 
 	dbQuery := r.conn(ctx).Table("sermon_notes").
@@ -470,7 +469,7 @@ func (r *sermonNoteRepository) FindByScripture(
 		dbQuery = dbQuery.Where("note_verses.verse_start <= ?", *query.VerseEnd)
 	}
 
-	var notes []entity.SermonNote
+	var notes []*entity.SermonNote
 
 	if err := dbQuery.Distinct("sermon_notes.*").Find(&notes).Error; err != nil {
 		r.log.Error(
@@ -548,8 +547,6 @@ func (r *sermonNoteRepository) FindUpdatedSince(
 	for _, n := range notes {
 		r.hydrateNoteFile(n)
 	}
-
-	notes = util.NonNilSlice(notes)
 
 	r.log.Info("find updated since completed", zap.Int("count", len(notes)))
 
