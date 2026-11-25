@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type SyncPullChangesUsecase struct {
+type PullSyncChangesUsecase struct {
 	sermonNoteRepository   repository.SermonNoteRepository
 	gatheringRepository    repository.GatheringRepository
 	sermonSeriesRepository repository.SermonSeriesRepository
@@ -18,7 +18,7 @@ type SyncPullChangesUsecase struct {
 	log                    *zap.Logger
 }
 
-type SyncPullChangesUsecaseOption struct {
+type PullSyncChangesUsecaseOption struct {
 	SermonNoteRepository   repository.SermonNoteRepository
 	GatheringRepository    repository.GatheringRepository
 	SermonSeriesRepository repository.SermonSeriesRepository
@@ -27,10 +27,10 @@ type SyncPullChangesUsecaseOption struct {
 	Log                    *zap.Logger
 }
 
-func NewSyncPullChangesUsecase(
-	opt *SyncPullChangesUsecaseOption,
-) *SyncPullChangesUsecase {
-	return &SyncPullChangesUsecase{
+func NewPullSyncChangesUsecase(
+	opt *PullSyncChangesUsecaseOption,
+) *PullSyncChangesUsecase {
+	return &PullSyncChangesUsecase{
 		sermonNoteRepository:   opt.SermonNoteRepository,
 		gatheringRepository:    opt.GatheringRepository,
 		sermonSeriesRepository: opt.SermonSeriesRepository,
@@ -40,7 +40,7 @@ func NewSyncPullChangesUsecase(
 	}
 }
 
-func (u *SyncPullChangesUsecase) Call(
+func (u *PullSyncChangesUsecase) Call(
 	ctx context.Context,
 	since time.Time,
 ) (*model.SyncPullChangesResult, error) {

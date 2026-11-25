@@ -7,13 +7,18 @@ import (
 	"strings"
 )
 
-type Manager struct{}
-
-func NewManager() *Manager {
-	return &Manager{}
+type Manager interface {
+	EnsureDir(dirPath string) error
+	WriteFileAtomic(filePath string, data []byte) error
 }
 
-func (m *Manager) EnsureDir(dirPath string) error {
+type manager struct{}
+
+func NewManager() Manager {
+	return &manager{}
+}
+
+func (m *manager) EnsureDir(dirPath string) error {
 	if strings.TrimSpace(dirPath) == "" {
 		return errors.New("directory path is required")
 	}
@@ -21,7 +26,7 @@ func (m *Manager) EnsureDir(dirPath string) error {
 	return os.MkdirAll(dirPath, 0o755)
 }
 
-func (m *Manager) WriteFileAtomic(filePath string, data []byte) error {
+func (m *manager) WriteFileAtomic(filePath string, data []byte) error {
 	if filePath == "" {
 		return errors.New("file path is required")
 	}

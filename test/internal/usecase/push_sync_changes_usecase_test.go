@@ -28,7 +28,7 @@ import (
 
 func setupSyncTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.SyncPushChangesUsecase) {
+) (*gorm.DB, *usecase.PushSyncChangesUsecase) {
 	dbName := fmt.Sprintf(
 		"file:sync_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -64,8 +64,8 @@ func setupSyncTestEnv(
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
 	tagRepository := repository.NewTagRepository(testDB, log)
 
-	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(
-		&usecase.SyncPushChangesUsecaseOption{
+	syncPushChangesUsecase := usecase.NewPushSyncChangesUsecase(
+		&usecase.PushSyncChangesUsecaseOption{
 			TxManager:              txManager,
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
@@ -79,7 +79,7 @@ func setupSyncTestEnv(
 	return testDB, syncPushChangesUsecase
 }
 
-func TestSyncPushChangesUsecase_Push_NilBatch(t *testing.T) {
+func TestPushSyncChangesUsecase_Push_NilBatch(t *testing.T) {
 	_, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -91,7 +91,7 @@ func TestSyncPushChangesUsecase_Push_NilBatch(t *testing.T) {
 	assert.Empty(t, result.MissingContentIDs)
 }
 
-func TestSyncPushChangesUsecase_Push_UpsertMetadata(t *testing.T) {
+func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -285,7 +285,7 @@ func TestSyncPushChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	)
 }
 
-func TestSyncPushChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
+func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 	t *testing.T,
 ) {
 	testDB, u := setupSyncTestEnv(t)
@@ -581,7 +581,7 @@ func (f *failingGatheringRepo) FindByIDs(
 	return f.GatheringRepository.FindByIDs(ctx, ids)
 }
 
-func TestSyncPushChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
+func TestPushSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -675,7 +675,7 @@ func TestSyncPushChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	)
 }
 
-func TestSyncPushChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
+func TestPushSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run(
@@ -685,8 +685,8 @@ func TestSyncPushChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 			log := zap.NewNop()
 			expectedErr := errors.New("note create failed")
 
-			u := usecase.NewSyncPushChangesUsecase(
-				&usecase.SyncPushChangesUsecaseOption{
+			u := usecase.NewPushSyncChangesUsecase(
+				&usecase.PushSyncChangesUsecaseOption{
 					TxManager: db.NewTxManager(testDB),
 					SermonNoteRepository: &failingSermonNoteRepo{
 						SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -739,7 +739,7 @@ func TestSyncPushChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 	)
 }
 
-func TestSyncPushChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
+func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 	t.Run(
 		"detects conflict when two clients push same version with different ContentHash",
 		func(t *testing.T) {
@@ -1094,7 +1094,7 @@ func TestSyncPushChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 
 			log := zap.NewNop()
 			failErr := errors.New("second note failed")
-			failOpt := &usecase.SyncPushChangesUsecaseOption{
+			failOpt := &usecase.PushSyncChangesUsecaseOption{
 				TxManager: db.NewTxManager(testDB),
 				SermonNoteRepository: &failingSermonNoteRepo{
 					SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -1119,7 +1119,7 @@ func TestSyncPushChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				TagRepository: repository.NewTagRepository(testDB, log),
 				Log:           log,
 			}
-			uFail := usecase.NewSyncPushChangesUsecase(failOpt)
+			uFail := usecase.NewPushSyncChangesUsecase(failOpt)
 
 			newContent := `{"ops":[{"insert":"should-not-persist"}]}`
 			newSum := sha256.Sum256([]byte(newContent))

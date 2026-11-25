@@ -63,8 +63,8 @@ func setupSyncControllerTestEnv(
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
 	tagRepository := repository.NewTagRepository(testDB, log)
 
-	syncPullChangesUsecase := usecase.NewSyncPullChangesUsecase(
-		&usecase.SyncPullChangesUsecaseOption{
+	pullSyncChangesUsecase := usecase.NewPullSyncChangesUsecase(
+		&usecase.PullSyncChangesUsecaseOption{
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
@@ -73,8 +73,8 @@ func setupSyncControllerTestEnv(
 			Log:                    log,
 		},
 	)
-	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(
-		&usecase.SyncPushChangesUsecaseOption{
+	pushSyncChangesUsecase := usecase.NewPushSyncChangesUsecase(
+		&usecase.PushSyncChangesUsecaseOption{
 			TxManager:              txManager,
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
@@ -86,8 +86,8 @@ func setupSyncControllerTestEnv(
 	)
 
 	syncController := deliveryhttp.NewSyncController(
-		syncPullChangesUsecase,
-		syncPushChangesUsecase,
+		pullSyncChangesUsecase,
+		pushSyncChangesUsecase,
 		log,
 	)
 

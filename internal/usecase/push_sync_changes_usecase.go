@@ -16,8 +16,8 @@ import (
 
 const maxPushTxRetries = 6
 
-type SyncPushChangesUsecase struct {
-	txManager              *db.TxManager
+type PushSyncChangesUsecase struct {
+	txManager              db.TxManager
 	sermonNoteRepository   repository.SermonNoteRepository
 	gatheringRepository    repository.GatheringRepository
 	sermonSeriesRepository repository.SermonSeriesRepository
@@ -26,8 +26,8 @@ type SyncPushChangesUsecase struct {
 	log                    *zap.Logger
 }
 
-type SyncPushChangesUsecaseOption struct {
-	TxManager              *db.TxManager
+type PushSyncChangesUsecaseOption struct {
+	TxManager              db.TxManager
 	SermonNoteRepository   repository.SermonNoteRepository
 	GatheringRepository    repository.GatheringRepository
 	SermonSeriesRepository repository.SermonSeriesRepository
@@ -36,10 +36,10 @@ type SyncPushChangesUsecaseOption struct {
 	Log                    *zap.Logger
 }
 
-func NewSyncPushChangesUsecase(
-	opt *SyncPushChangesUsecaseOption,
-) *SyncPushChangesUsecase {
-	return &SyncPushChangesUsecase{
+func NewPushSyncChangesUsecase(
+	opt *PushSyncChangesUsecaseOption,
+) *PushSyncChangesUsecase {
+	return &PushSyncChangesUsecase{
 		txManager:              opt.TxManager,
 		sermonNoteRepository:   opt.SermonNoteRepository,
 		gatheringRepository:    opt.GatheringRepository,
@@ -50,7 +50,7 @@ func NewSyncPushChangesUsecase(
 	}
 }
 
-func (u *SyncPushChangesUsecase) Call(
+func (u *PushSyncChangesUsecase) Call(
 	ctx context.Context,
 	batch *model.SyncChangesBatch,
 ) (*model.SyncPushChangesResult, error) {
@@ -132,7 +132,7 @@ func isRetryableSyncError(err error) bool {
 		strings.Contains(msg, "duplicate key")
 }
 
-func (u *SyncPushChangesUsecase) applyPushBatch(
+func (u *PushSyncChangesUsecase) applyPushBatch(
 	ctx context.Context,
 	batch *model.SyncChangesBatch,
 ) ([]string, []string, error) {
@@ -155,7 +155,7 @@ func (u *SyncPushChangesUsecase) applyPushBatch(
 	return u.upsertSermonNotes(ctx, batch.SermonNotes)
 }
 
-func (u *SyncPushChangesUsecase) upsertGatherings(
+func (u *PushSyncChangesUsecase) upsertGatherings(
 	ctx context.Context,
 	gatherings []*entity.Gathering,
 ) error {
@@ -205,7 +205,7 @@ func (u *SyncPushChangesUsecase) upsertGatherings(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertGathering(
+func (u *PushSyncChangesUsecase) upsertGathering(
 	ctx context.Context,
 	gathering *entity.Gathering,
 	existingByID map[string]*entity.Gathering,
@@ -242,7 +242,7 @@ func (u *SyncPushChangesUsecase) upsertGathering(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertSermonSeries(
+func (u *PushSyncChangesUsecase) upsertSermonSeries(
 	ctx context.Context,
 	series []*entity.SermonSeries,
 ) error {
@@ -292,7 +292,7 @@ func (u *SyncPushChangesUsecase) upsertSermonSeries(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertSermonSeriesItem(
+func (u *PushSyncChangesUsecase) upsertSermonSeriesItem(
 	ctx context.Context,
 	series *entity.SermonSeries,
 	existingByID map[string]*entity.SermonSeries,
@@ -329,7 +329,7 @@ func (u *SyncPushChangesUsecase) upsertSermonSeriesItem(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertPreachers(
+func (u *PushSyncChangesUsecase) upsertPreachers(
 	ctx context.Context,
 	preachers []*entity.Preacher,
 ) error {
@@ -379,7 +379,7 @@ func (u *SyncPushChangesUsecase) upsertPreachers(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertPreacher(
+func (u *PushSyncChangesUsecase) upsertPreacher(
 	ctx context.Context,
 	preacher *entity.Preacher,
 	existingByID map[string]*entity.Preacher,
@@ -518,7 +518,7 @@ func collectTagLookupKeys(
 	return ids, names
 }
 
-func (u *SyncPushChangesUsecase) upsertAndResolveTags(
+func (u *PushSyncChangesUsecase) upsertAndResolveTags(
 	ctx context.Context,
 	tags []*entity.Tag,
 	notes []*entity.SermonNote,
@@ -550,7 +550,7 @@ func (u *SyncPushChangesUsecase) upsertAndResolveTags(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertTag(
+func (u *PushSyncChangesUsecase) upsertTag(
 	ctx context.Context,
 	tag *entity.Tag,
 	idx *tagIndex,
@@ -602,7 +602,7 @@ func (u *SyncPushChangesUsecase) upsertTag(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) resolveNoteTags(
+func (u *PushSyncChangesUsecase) resolveNoteTags(
 	ctx context.Context,
 	note *entity.SermonNote,
 	idx *tagIndex,
@@ -646,7 +646,7 @@ func (u *SyncPushChangesUsecase) resolveNoteTags(
 	return nil
 }
 
-func (u *SyncPushChangesUsecase) upsertSermonNotes(
+func (u *PushSyncChangesUsecase) upsertSermonNotes(
 	ctx context.Context,
 	notes []*entity.SermonNote,
 ) ([]string, []string, error) {
@@ -708,7 +708,7 @@ func (u *SyncPushChangesUsecase) upsertSermonNotes(
 	return missingContentIDs, conflicts, nil
 }
 
-func (u *SyncPushChangesUsecase) upsertSermonNote(
+func (u *PushSyncChangesUsecase) upsertSermonNote(
 	ctx context.Context,
 	note *entity.SermonNote,
 	existingByID map[string]*entity.SermonNote,

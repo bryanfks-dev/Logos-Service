@@ -35,7 +35,7 @@ func NewContainer() (*Container, error) {
 	sermonSeriesRepository := repository.NewSermonSeriesRepository(gormDB, logger)
 	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
 	tagRepository := repository.NewTagRepository(gormDB, logger)
-	syncPullChangesUsecaseOption := &usecase.SyncPullChangesUsecaseOption{
+	pullSyncChangesUsecaseOption := &usecase.PullSyncChangesUsecaseOption{
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
 		SermonSeriesRepository: sermonSeriesRepository,
@@ -43,8 +43,8 @@ func NewContainer() (*Container, error) {
 		TagRepository:          tagRepository,
 		Log:                    logger,
 	}
-	syncPullChangesUsecase := usecase.NewSyncPullChangesUsecase(syncPullChangesUsecaseOption)
-	syncPushChangesUsecaseOption := &usecase.SyncPushChangesUsecaseOption{
+	pullSyncChangesUsecase := usecase.NewPullSyncChangesUsecase(pullSyncChangesUsecaseOption)
+	pushSyncChangesUsecaseOption := &usecase.PushSyncChangesUsecaseOption{
 		TxManager:              txManager,
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
@@ -53,8 +53,8 @@ func NewContainer() (*Container, error) {
 		TagRepository:          tagRepository,
 		Log:                    logger,
 	}
-	syncPushChangesUsecase := usecase.NewSyncPushChangesUsecase(syncPushChangesUsecaseOption)
-	syncController := http.NewSyncController(syncPullChangesUsecase, syncPushChangesUsecase, logger)
+	pushSyncChangesUsecase := usecase.NewPushSyncChangesUsecase(pushSyncChangesUsecaseOption)
+	syncController := http.NewSyncController(pullSyncChangesUsecase, pushSyncChangesUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
 		App:             echo,
 		EtcController:   etcController,
@@ -72,8 +72,8 @@ func NewContainer() (*Container, error) {
 		EtcController:          etcController,
 		ErrorController:        errorController,
 		SyncController:         syncController,
-		SyncPullChangesUsecase: syncPullChangesUsecase,
-		SyncPushChangesUsecase: syncPushChangesUsecase,
+		PullSyncChangesUsecase: pullSyncChangesUsecase,
+		PushSyncChangesUsecase: pushSyncChangesUsecase,
 	}
 	return container, nil
 }
@@ -85,9 +85,9 @@ type Container struct {
 	Log    *zap.Logger
 	App    *echo.Echo
 
-	TxManager *db.TxManager
+	TxManager db.TxManager
 
-	FsManager *fs.Manager
+	FsManager fs.Manager
 
 	RouteConfig *route.RouteConfig
 
@@ -95,6 +95,6 @@ type Container struct {
 	ErrorController *http.ErrorController
 	SyncController  *http.SyncController
 
-	SyncPullChangesUsecase *usecase.SyncPullChangesUsecase
-	SyncPushChangesUsecase *usecase.SyncPushChangesUsecase
+	PullSyncChangesUsecase *usecase.PullSyncChangesUsecase
+	PushSyncChangesUsecase *usecase.PushSyncChangesUsecase
 }

@@ -21,7 +21,7 @@ import (
 
 func setupSyncPullTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.SyncPullChangesUsecase) {
+) (*gorm.DB, *usecase.PullSyncChangesUsecase) {
 	dbName := fmt.Sprintf(
 		"file:sync_pull_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -56,8 +56,8 @@ func setupSyncPullTestEnv(
 	preacherRepository := repository.NewPreacherRepository(testDB, log)
 	tagRepository := repository.NewTagRepository(testDB, log)
 
-	syncPullChangesUsecase := usecase.NewSyncPullChangesUsecase(
-		&usecase.SyncPullChangesUsecaseOption{
+	syncPullChangesUsecase := usecase.NewPullSyncChangesUsecase(
+		&usecase.PullSyncChangesUsecaseOption{
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
@@ -70,7 +70,7 @@ func setupSyncPullTestEnv(
 	return testDB, syncPullChangesUsecase
 }
 
-func TestSyncPullChangesUsecase_Call(t *testing.T) {
+func TestPullSyncChangesUsecase_Call(t *testing.T) {
 	testDB, u := setupSyncPullTestEnv(t)
 	ctx := context.Background()
 
@@ -174,7 +174,7 @@ func TestSyncPullChangesUsecase_Call(t *testing.T) {
 	})
 }
 
-func TestSyncPullChangesUsecase_ErrorPropagation(t *testing.T) {
+func TestPullSyncChangesUsecase_ErrorPropagation(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Call returns repository errors", func(t *testing.T) {
@@ -182,7 +182,7 @@ func TestSyncPullChangesUsecase_ErrorPropagation(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("db query failed")
 
-		opt := &usecase.SyncPullChangesUsecaseOption{
+		opt := &usecase.PullSyncChangesUsecaseOption{
 			SermonNoteRepository: &failingSermonNoteRepo{
 				SermonNoteRepository: repository.NewSermonNoteRepository(
 					testDB,
@@ -200,7 +200,7 @@ func TestSyncPullChangesUsecase_ErrorPropagation(t *testing.T) {
 			TagRepository:      repository.NewTagRepository(testDB, log),
 			Log:                log,
 		}
-		u := usecase.NewSyncPullChangesUsecase(opt)
+		u := usecase.NewPullSyncChangesUsecase(opt)
 
 		res, err := u.Call(ctx, time.Time{})
 		assert.Nil(t, res)
@@ -212,7 +212,7 @@ func TestSyncPullChangesUsecase_ErrorPropagation(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("gathering query failed")
 
-		opt := &usecase.SyncPullChangesUsecaseOption{
+		opt := &usecase.PullSyncChangesUsecaseOption{
 			SermonNoteRepository: repository.NewSermonNoteRepository(
 				testDB,
 				fs.NewManager(),
@@ -233,7 +233,7 @@ func TestSyncPullChangesUsecase_ErrorPropagation(t *testing.T) {
 			TagRepository:      repository.NewTagRepository(testDB, log),
 			Log:                log,
 		}
-		u := usecase.NewSyncPullChangesUsecase(opt)
+		u := usecase.NewPullSyncChangesUsecase(opt)
 
 		res, err := u.Call(ctx, time.Time{})
 		assert.Nil(t, res)

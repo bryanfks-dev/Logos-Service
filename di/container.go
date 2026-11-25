@@ -20,9 +20,9 @@ type Container struct {
 	Log    *zap.Logger
 	App    *echo.Echo
 
-	TxManager *db.TxManager
+	TxManager db.TxManager
 
-	FsManager *fs.Manager
+	FsManager fs.Manager
 
 	RouteConfig *route.RouteConfig
 
@@ -30,8 +30,8 @@ type Container struct {
 	ErrorController *deliveryhttp.ErrorController
 	SyncController  *deliveryhttp.SyncController
 
-	SyncPullChangesUsecase *usecase.SyncPullChangesUsecase
-	SyncPushChangesUsecase *usecase.SyncPushChangesUsecase
+	PullSyncChangesUsecase *usecase.PullSyncChangesUsecase
+	PushSyncChangesUsecase *usecase.PushSyncChangesUsecase
 }
 
 func NewContainer() (*Container, error) {

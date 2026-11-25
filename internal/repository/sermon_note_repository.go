@@ -44,13 +44,13 @@ type SermonNoteRepository interface {
 
 type sermonNoteRepository struct {
 	db        *gorm.DB
-	fsManager *fs.Manager
+	fsManager fs.Manager
 	log       *zap.Logger
 }
 
 func NewSermonNoteRepository(
 	db *gorm.DB,
-	fsManager *fs.Manager,
+	fsManager fs.Manager,
 	log *zap.Logger,
 ) SermonNoteRepository {
 	return &sermonNoteRepository{

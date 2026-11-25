@@ -39,17 +39,9 @@ func TestTxManager(t *testing.T) {
 	testDB := setupTxTestDB(t)
 	txManager := db.NewTxManager(testDB)
 
-	t.Run("nil manager or nil db returns error", func(t *testing.T) {
-		var nilMgr *db.TxManager
-		err := nilMgr.Do(
-			context.Background(),
-			func(ctx context.Context) error { return nil },
-		)
-		assert.Error(t, err)
-		assert.Equal(t, "db is nil", err.Error())
-
+	t.Run("nil db returns error", func(t *testing.T) {
 		nilDBMgr := db.NewTxManager(nil)
-		err = nilDBMgr.Do(
+		err := nilDBMgr.Do(
 			context.Background(),
 			func(ctx context.Context) error { return nil },
 		)

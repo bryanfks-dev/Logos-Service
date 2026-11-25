@@ -9,22 +9,31 @@ import (
 	"gorm.io/gorm"
 )
 
-type TxManager struct {
+type TxManager interface {
+	Do(ctx context.Context, fn func(ctx context.Context) error) error
+	DoWithOptions(
+		ctx context.Context,
+		opts *sql.TxOptions,
+		fn func(ctx context.Context) error,
+	) error
+}
+
+type txManager struct {
 	db *gorm.DB
 }
 
-func NewTxManager(db *gorm.DB) *TxManager {
-	return &TxManager{db: db}
+func NewTxManager(db *gorm.DB) TxManager {
+	return &txManager{db: db}
 }
 
-func (m *TxManager) Do(
+func (m *txManager) Do(
 	ctx context.Context,
 	fn func(ctx context.Context) error,
 ) error {
 	return m.DoWithOptions(ctx, nil, fn)
 }
 
-func (m *TxManager) DoWithOptions(
+func (m *txManager) DoWithOptions(
 	ctx context.Context,
 	opts *sql.TxOptions,
 	fn func(ctx context.Context) error,

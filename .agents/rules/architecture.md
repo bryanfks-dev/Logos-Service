@@ -108,6 +108,13 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
      - Never reference domain entities (`pkg/entity/`), response models (`internal/model/response/`), parameter structs (`internal/model/param/`), internal/sync models (`internal/model/`), or any other non-request types inside a request model.
      - Always use converter functions in `internal/model/converter/` to map `*Request` models to domain entities or internal models.
 
+8. **Infrastructure Layer (`infra/`)**:
+   - Provides low-level technical capabilities and cross-cutting infrastructure (e.g., database transaction management, filesystem operations, caching, messaging).
+   - Must contain no business or domain logic and must not depend on `internal/` layers (`delivery`, `usecase`, `repository`, `gateway`).
+   - **Interface Required for DI**:
+     - Infrastructure components injected via dependency injection must define and export an interface implemented by an unexported concrete struct.
+     - Constructors must return the interface type so callers (usecases, repositories, delivery) depend on the abstraction rather than the concrete implementation.
+
 ## Component & File Naming Conventions by Layer
 
 - **Naming After Aggregate Entities**:
@@ -129,7 +136,7 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 
 ## Dependency Injection
 
-- Components must depend on abstractions (interfaces) rather than concrete implementations for persistence and external integrations (e.g., usecases depend on repository and gateway interfaces).
+- Components must depend on abstractions (interfaces) rather than concrete implementations for persistence, external integrations, and infrastructure (e.g., usecases and repositories depend on repository, gateway, and `infra/` interfaces).
 - Usecases do not need to create interfaces; concrete structs are sufficient for construction and dependency injection.
 - Register all constructors in `di/providers.go` and update Wire injection with `make wire` or `make build`.
 - Assume constructor-injected attributes on application-layer structs (controllers, usecases, repositories, gateways) are always non-nil; never add `nil` checks for struct attributes or receivers inside layer methods.
