@@ -22,7 +22,7 @@ func TestRouteConfig(t *testing.T) {
 		App:             app,
 		EtcController:   etcController,
 		ErrorController: errorController,
-		SyncHandler:     nil,
+		SyncController:  nil,
 	})
 	routeConfig.Setup()
 

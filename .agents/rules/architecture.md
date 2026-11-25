@@ -20,6 +20,10 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
    - **Controller Naming Convention**:
      - Controllers must be named strictly after their corresponding aggregate root entity, suffixed with `_controller` (e.g., `<aggregate_entity>_controller.go` and `<AggregateEntity>Controller`).
      - Never shorten or abbreviate the entity name (e.g., use `sermon_note_controller.go` / `SermonNoteController`, never `note_controller.go` or `NoteController`).
+   - **Query & Path Parameter Structs (`*Params`)**:
+     - Group an endpoint's query parameters (`query:"..."`) and path parameters (`param:"..."`) into a single parameter struct rather than splitting them into separate structs.
+     - Suffix query/path parameter structs with `Param` (e.g., `SyncPullChangesParam`, `SermonNoteListParam`), reserving the `Request` suffix for body payloads.
+     - Never add `json` struct tags (`json:"..."`) on query/path parameter struct fields; use only `param:"..."` and/or `query:"..."` tags.
    - **Always Use `APIResponseBuilder`**:
      - All controller endpoints must construct responses using `modelbuilder.NewAPIResponseBuilder[T]()`.
      - Always set the request ID from context: `.SetRequestID(middlewarecorrelation.GetRequestID(ctx))`.
@@ -83,6 +87,18 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
      - **No Generic or Ambiguous Names**:
        - Never use vague names such as `Convert`, `Transform`, `Map`, `ToEntity`, or `ToModel`.
        - Never include redundant `Entity` suffixes in `<Domain>` (e.g., use `SermonNoteToResponse`, never `NoteEntityToResponse` or `SermonNoteEntityToResponse`).
+
+6. **Response Models (`internal/model/response/`)**:
+   - **Strict Reference Isolation**:
+     - Response model structs (`*Response` in `internal/model/response/`) must ONLY reference primitive/standard library types (e.g., `string`, `int`, `bool`, `time.Time`, or slices/pointers of those) and other `*Response` models in `internal/model/response/`.
+     - Never reference domain entities (`pkg/entity/`), request models (`internal/model/request/`), parameter structs (`internal/model/param/`), internal/sync models (`internal/model/`), or any other non-response types inside a response model.
+     - Always use converter functions in `internal/model/converter/` to map domain entities or internal models to `*Response` models.
+
+7. **Request Models (`internal/model/request/`)**:
+   - **Strict Reference Isolation**:
+     - Request model structs (`*Request` in `internal/model/request/`) must ONLY reference primitive/standard library types (e.g., `string`, `int`, `bool`, `time.Time`, or slices/pointers of those) and other `*Request` models in `internal/model/request/`.
+     - Never reference domain entities (`pkg/entity/`), response models (`internal/model/response/`), parameter structs (`internal/model/param/`), internal/sync models (`internal/model/`), or any other non-request types inside a request model.
+     - Always use converter functions in `internal/model/converter/` to map `*Request` models to domain entities or internal models.
 
 ## Component & File Naming Conventions by Layer
 

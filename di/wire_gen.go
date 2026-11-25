@@ -34,7 +34,7 @@ func NewContainer() (*Container, error) {
 	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
 	tagRepository := repository.NewTagRepository(gormDB, logger)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(gormDB, logger)
-	syncUsecaseOption := &usecase.SyncUsecaseOption{
+	syncChangesUsecaseOption := &usecase.SyncChangesUsecaseOption{
 		TxManager:              txManager,
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
@@ -44,25 +44,25 @@ func NewContainer() (*Container, error) {
 		SyncOutboxRepository:   syncOutboxRepository,
 		Log:                    logger,
 	}
-	syncUsecase := usecase.NewSyncUsecase(syncUsecaseOption)
-	syncHandler := http.NewSyncHandler(syncUsecase, logger)
+	syncChangesUsecase := usecase.NewSyncChangesUsecase(syncChangesUsecaseOption)
+	syncController := http.NewSyncController(syncChangesUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
 		App:             echo,
 		EtcController:   etcController,
 		ErrorController: errorController,
-		SyncHandler:     syncHandler,
+		SyncController:  syncController,
 	}
 	routeConfig := route.NewRouteConfig(routeConfigOption)
 	container := &Container{
-		Config:          viper,
-		Log:             logger,
-		App:             echo,
-		TxManager:       txManager,
-		RouteConfig:     routeConfig,
-		EtcController:   etcController,
-		ErrorController: errorController,
-		SyncHandler:     syncHandler,
-		SyncUsecase:     syncUsecase,
+		Config:             viper,
+		Log:                logger,
+		App:                echo,
+		TxManager:          txManager,
+		RouteConfig:        routeConfig,
+		EtcController:      etcController,
+		ErrorController:    errorController,
+		SyncController:     syncController,
+		SyncChangesUsecase: syncChangesUsecase,
 	}
 	return container, nil
 }
@@ -80,7 +80,7 @@ type Container struct {
 
 	EtcController   *http.EtcController
 	ErrorController *http.ErrorController
-	SyncHandler     *http.SyncHandler
+	SyncController  *http.SyncController
 
-	SyncUsecase *usecase.SyncUsecase
+	SyncChangesUsecase *usecase.SyncChangesUsecase
 }

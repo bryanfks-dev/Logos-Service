@@ -14,6 +14,8 @@ import (
 	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware"
 	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/request"
+	"github.com/bryanfks-dev/logos/internal/model/response"
 	"github.com/bryanfks-dev/logos/internal/repository"
 	"github.com/bryanfks-dev/logos/internal/usecase"
 	"github.com/bryanfks-dev/logos/pkg/entity"
@@ -25,9 +27,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupSyncHandlerTestEnv(
+func setupSyncControllerTestEnv(
 	t *testing.T,
-) (*echo.Echo, *deliveryhttp.SyncHandler, *gorm.DB) {
+) (*echo.Echo, *deliveryhttp.SyncController, *gorm.DB) {
 	dbName := fmt.Sprintf(
 		"file:sync_handler_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -57,39 +59,44 @@ func setupSyncHandlerTestEnv(
 	tagRepository := repository.NewTagRepository(testDB, log)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncUsecase := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
-		TxManager:              txManager,
-		SermonNoteRepository:   sermonNoteRepository,
-		GatheringRepository:    gatheringRepository,
-		SermonSeriesRepository: sermonSeriesRepository,
-		PreacherRepository:     preacherRepository,
-		TagRepository:          tagRepository,
-		SyncOutboxRepository:   syncOutboxRepository,
-		Log:                    log,
-	})
+	syncChangesUsecase := usecase.NewSyncChangesUsecase(
+		&usecase.SyncChangesUsecaseOption{
+			TxManager:              txManager,
+			SermonNoteRepository:   sermonNoteRepository,
+			GatheringRepository:    gatheringRepository,
+			SermonSeriesRepository: sermonSeriesRepository,
+			PreacherRepository:     preacherRepository,
+			TagRepository:          tagRepository,
+			SyncOutboxRepository:   syncOutboxRepository,
+			Log:                    log,
+		},
+	)
 
-	syncHandler := deliveryhttp.NewSyncHandler(syncUsecase, log)
+	syncController := deliveryhttp.NewSyncController(
+		syncChangesUsecase,
+		log,
+	)
 
 	app := echo.New()
 	errorController := deliveryhttp.NewErrorController(log)
 	app.HTTPErrorHandler = errorController.HTTPErrorHandler
 	app.Use(middleware.RequestIDMiddleware())
 
-	v1 := app.Group("/api/v1")
-	v1.POST("/sync/push", syncHandler.Push)
-	v1.GET("/sync/pull", syncHandler.Pull)
+	api := app.Group("/api")
+	api.POST("/sync/changes", syncController.Push)
+	api.GET("/sync/changes/:since", syncController.Pull)
 
-	return app, syncHandler, testDB
+	return app, syncController, testDB
 }
 
-func TestSyncHandler_Push(t *testing.T) {
-	app, handler, _ := setupSyncHandlerTestEnv(t)
+func TestSyncController_Push(t *testing.T) {
+	app, controller, _ := setupSyncControllerTestEnv(t)
 
 	t.Run(
 		"returns 200 with standard api response envelope and generated request id",
 		func(t *testing.T) {
-			reqBody := model.SyncPushRequest{
-				Notes: []model.SyncNoteItem{
+			reqBody := request.SyncPushChangesRequest{
+				SermonNotes: []request.SyncNoteChangesItem{
 					{
 						ID:          "push-note-1",
 						Title:       "Push Note Title",
@@ -97,7 +104,7 @@ func TestSyncHandler_Push(t *testing.T) {
 						ContentHash: "hash-p-1",
 					},
 				},
-				Gatherings: []model.SyncGatheringItem{
+				Gatherings: []request.SyncGatheringChangesItem{
 					{
 						ID:       "push-g-1",
 						Name:     "Sunday Service",
@@ -111,7 +118,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/v1/sync/push",
+				"/api/sync/changes",
 				bytes.NewReader(bodyBytes),
 			)
 			req.Header.Set("Content-Type", "application/json")
@@ -121,7 +128,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPushResponse]
+			var res model.APIResponse[response.SyncPushChangesResponse]
 			err = json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 
@@ -138,7 +145,7 @@ func TestSyncHandler_Push(t *testing.T) {
 		customReqID := "custom-trace-req-id-12345"
 		req := httptest.NewRequest(
 			http.MethodPost,
-			"/api/v1/sync/push",
+			"/api/sync/changes",
 			bytes.NewReader([]byte("{}")),
 		)
 		req.Header.Set("Content-Type", "application/json")
@@ -149,7 +156,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 
-		var res model.APIResponse[model.SyncPushResponse]
+		var res model.APIResponse[response.SyncPushChangesResponse]
 		err := json.Unmarshal(rec.Body.Bytes(), &res)
 		require.NoError(t, err)
 
@@ -160,7 +167,7 @@ func TestSyncHandler_Push(t *testing.T) {
 	t.Run("returns 400 for malformed json request body", func(t *testing.T) {
 		req := httptest.NewRequest(
 			http.MethodPost,
-			"/api/v1/sync/push",
+			"/api/sync/changes",
 			bytes.NewReader([]byte("{invalid-json")),
 		)
 		req.Header.Set("Content-Type", "application/json")
@@ -180,13 +187,13 @@ func TestSyncHandler_Push(t *testing.T) {
 	})
 
 	t.Run(
-		"returns 400 with field errors when validation fails",
+		"returns 422 with field errors when validation fails",
 		func(t *testing.T) {
-			reqBody := model.SyncPushRequest{
-				Notes: []model.SyncNoteItem{
+			reqBody := request.SyncPushChangesRequest{
+				SermonNotes: []request.SyncNoteChangesItem{
 					{ID: "push-note-invalid", Title: ""},
 				},
-				Gatherings: []model.SyncGatheringItem{
+				Gatherings: []request.SyncGatheringChangesItem{
 					{ID: "push-g-invalid", Name: "Sunday", ColorHex: "bad"},
 				},
 			}
@@ -196,7 +203,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/v1/sync/push",
+				"/api/sync/changes",
 				bytes.NewReader(bodyBytes),
 			)
 			req.Header.Set("Content-Type", "application/json")
@@ -204,7 +211,7 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			app.ServeHTTP(rec, req)
 
-			assert.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
 			var res model.APIResponse[any]
 			err = json.Unmarshal(rec.Body.Bytes(), &res)
@@ -212,23 +219,23 @@ func TestSyncHandler_Push(t *testing.T) {
 
 			assert.False(t, res.Success)
 			require.NotNil(t, res.Error)
-			assert.Equal(t, "invalid_payload", res.Error.Code)
+			assert.Equal(t, "validation_error", res.Error.Code)
 			assert.NotEmpty(t, res.Error.Errors)
 		},
 	)
 
 	t.Run(
-		"constructors instantiate handler and controller alias",
+		"constructor instantiates controller",
 		func(t *testing.T) {
-			assert.NotNil(t, handler)
+			assert.NotNil(t, controller)
 			ctrl := deliveryhttp.NewSyncController(nil, zap.NewNop())
 			assert.NotNil(t, ctrl)
 		},
 	)
 }
 
-func TestSyncHandler_Pull(t *testing.T) {
-	app, _, testDB := setupSyncHandlerTestEnv(t)
+func TestSyncController_Pull(t *testing.T) {
+	app, _, testDB := setupSyncControllerTestEnv(t)
 
 	now := time.Now()
 	g := &entity.Gathering{
@@ -239,16 +246,20 @@ func TestSyncHandler_Pull(t *testing.T) {
 	require.NoError(t, testDB.Create(g).Error)
 
 	t.Run(
-		"returns 200 with datetime server_time when since is omitted",
+		"returns 200 with datetime server_time and changed records for since path param",
 		func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/sync/pull", nil)
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/api/sync/changes/2020-01-01T00:00:00Z",
+				nil,
+			)
 			rec := httptest.NewRecorder()
 
 			app.ServeHTTP(rec, req)
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPullResponse]
+			var res model.APIResponse[response.SyncPullChangesResponse]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 
@@ -276,34 +287,36 @@ func TestSyncHandler_Pull(t *testing.T) {
 	)
 
 	t.Run(
-		"returns 400 when since query param is unix integer",
+		"returns 422 with field errors when since path param is unix integer",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
-				"/api/v1/sync/pull?since=0",
+				"/api/sync/changes/0",
 				nil,
 			)
 			rec := httptest.NewRecorder()
 
 			app.ServeHTTP(rec, req)
 
-			assert.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
 			var res model.APIResponse[any]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 			assert.False(t, res.Success)
 			require.NotNil(t, res.Error)
-			assert.Equal(t, "invalid_payload", res.Error.Code)
+			assert.Equal(t, "validation_error", res.Error.Code)
+			require.NotEmpty(t, res.Error.Errors)
+			assert.Equal(t, "Since", res.Error.Errors[0].Field)
 		},
 	)
 
 	t.Run(
-		"returns 200 with date-only since query param",
+		"returns 200 with date-only since path param",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
-				"/api/v1/sync/pull?since=2026-01-01",
+				"/api/sync/changes/2026-01-01",
 				nil,
 			)
 			rec := httptest.NewRecorder()
@@ -312,7 +325,7 @@ func TestSyncHandler_Pull(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPullResponse]
+			var res model.APIResponse[response.SyncPullChangesResponse]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 			assert.True(t, res.Success)
@@ -320,11 +333,11 @@ func TestSyncHandler_Pull(t *testing.T) {
 	)
 
 	t.Run(
-		"returns 200 with RFC3339 datetime since query param",
+		"returns 200 with URL-encoded RFC3339 datetime since path param",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
-				"/api/v1/sync/pull?since=2026-01-01T00:00:00Z",
+				"/api/sync/changes/2026-01-01T00%3A00%3A00%2B07%3A00",
 				nil,
 			)
 			rec := httptest.NewRecorder()
@@ -333,7 +346,7 @@ func TestSyncHandler_Pull(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPullResponse]
+			var res model.APIResponse[response.SyncPullChangesResponse]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 			assert.True(t, res.Success)
@@ -341,25 +354,27 @@ func TestSyncHandler_Pull(t *testing.T) {
 	)
 
 	t.Run(
-		"returns 400 when since query param is invalid format",
+		"returns 422 with field errors when since path param is invalid format",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
-				"/api/v1/sync/pull?since=not-a-timestamp",
+				"/api/sync/changes/not-a-timestamp",
 				nil,
 			)
 			rec := httptest.NewRecorder()
 
 			app.ServeHTTP(rec, req)
 
-			assert.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 
 			var res model.APIResponse[any]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 			assert.False(t, res.Success)
 			require.NotNil(t, res.Error)
-			assert.Equal(t, "invalid_payload", res.Error.Code)
+			assert.Equal(t, "validation_error", res.Error.Code)
+			require.NotEmpty(t, res.Error.Errors)
+			assert.Equal(t, "Since", res.Error.Errors[0].Field)
 		},
 	)
 }

@@ -21,7 +21,7 @@
   - When returning two or more values (such as `(result, err)` or `(value, nil)`), always assign any non-nil constructed value (e.g., struct, slice, or map literals) to a local variable before the `return` statement:
     ```go
     // Correct
-    result := &model.SyncPullResult{
+    result := &model.SyncPullChangesResult{
         ServerTime: serverTime,
         Notes:      notes,
     }
@@ -29,7 +29,7 @@
     return result, nil
 
     // Incorrect
-    return &model.SyncPullResult{
+    return &model.SyncPullChangesResult{
         ServerTime: serverTime,
         Notes:      notes,
     }, nil

@@ -12,14 +12,14 @@ type RouteConfig struct {
 	App             *echo.Echo
 	EtcController   *deliveryhttp.EtcController
 	ErrorController *deliveryhttp.ErrorController
-	SyncHandler     *deliveryhttp.SyncHandler
+	SyncController  *deliveryhttp.SyncController
 }
 
 type RouteConfigOption struct {
 	App             *echo.Echo
 	EtcController   *deliveryhttp.EtcController
 	ErrorController *deliveryhttp.ErrorController
-	SyncHandler     *deliveryhttp.SyncHandler
+	SyncController  *deliveryhttp.SyncController
 }
 
 func NewRouteConfig(opt *RouteConfigOption) *RouteConfig {
@@ -31,18 +31,18 @@ func NewRouteConfig(opt *RouteConfigOption) *RouteConfig {
 		App:             opt.App,
 		EtcController:   opt.EtcController,
 		ErrorController: opt.ErrorController,
-		SyncHandler:     opt.SyncHandler,
+		SyncController:  opt.SyncController,
 	}
 }
 
 func (c *RouteConfig) Setup() {
-	c.SetupSwaggerRoute()
-	c.SetupEtcRoute()
-	c.SetupSyncRoute()
-	c.SetupErrorHandler()
+	c.setupSwaggerRoute()
+	c.setupEtcRoute()
+	c.setupSyncRoute()
+	c.setupErrorHandler()
 }
 
-func (c *RouteConfig) SetupSwaggerRoute() {
+func (c *RouteConfig) setupSwaggerRoute() {
 	c.App.GET("/swagger", func(ctx *echo.Context) error {
 		return ctx.Redirect(
 			nethttp.StatusMovedPermanently,
@@ -52,17 +52,17 @@ func (c *RouteConfig) SetupSwaggerRoute() {
 	c.App.GET("/swagger/*", echoSwagger.WrapHandler)
 }
 
-func (c *RouteConfig) SetupEtcRoute() {
+func (c *RouteConfig) setupEtcRoute() {
 	api := c.App.Group("/api")
 	api.GET("/healthz", c.EtcController.HealthCheck)
 }
 
-func (c *RouteConfig) SetupSyncRoute() {
+func (c *RouteConfig) setupSyncRoute() {
 	api := c.App.Group("/api")
-	api.POST("/sync/push", c.SyncHandler.Push)
-	api.GET("/sync/pull", c.SyncHandler.Pull)
+	api.POST("/sync/changes", c.SyncController.Push)
+	api.GET("/sync/changes/:since", c.SyncController.Pull)
 }
 
-func (c *RouteConfig) SetupErrorHandler() {
+func (c *RouteConfig) setupErrorHandler() {
 	c.App.HTTPErrorHandler = c.ErrorController.HTTPErrorHandler
 }

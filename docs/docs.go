@@ -38,9 +38,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/sync/pull": {
-            "get": {
-                "description": "Pull records updated since specified datetime across all entities",
+        "/api/sync/changes": {
+            "post": {
+                "description": "Push batch of entities to synchronize with server",
                 "consumes": [
                     "application/json"
                 ],
@@ -50,20 +50,35 @@ const docTemplate = `{
                 "tags": [
                     "API / Sync"
                 ],
-                "summary": "Sync pull delta",
+                "summary": "Sync by pushing changes",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "RFC3339 or YYYY-MM-DD datetime to query records updated since",
-                        "name": "since",
-                        "in": "query"
+                        "description": "Sync push batch request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncPushChangesRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_response_SyncPushChangesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
                     },
                     "422": {
@@ -81,9 +96,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/sync/push": {
-            "post": {
-                "description": "Push batch of entities to synchronize with server",
+        "/api/sync/changes/{since}": {
+            "get": {
+                "description": "Pull records updated since specified datetime across all entities",
                 "consumes": [
                     "application/json"
                 ],
@@ -93,27 +108,25 @@ const docTemplate = `{
                 "tags": [
                     "API / Sync"
                 ],
-                "summary": "Sync push batch",
+                "summary": "Sync by pulling delta of changes",
                 "parameters": [
                     {
-                        "description": "Sync push batch request payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushRequest"
-                        }
+                        "type": "string",
+                        "description": "RFC3339 or YYYY-MM-DD datetime to query records updated since",
+                        "name": "since",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse"
+                            "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_response_SyncPullChangesResponse"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIResponse-any"
                         }
@@ -175,11 +188,11 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPullResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_response_SyncPullChangesResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPullResponse"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.SyncPullChangesResponse"
                 },
                 "error": {
                     "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError"
@@ -192,11 +205,11 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_SyncPushResponse": {
+        "github_com_bryanfks-dev_logos_internal_model.APIResponse-github_com_bryanfks-dev_logos_internal_model_response_SyncPushChangesResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPushResponse"
+                    "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.SyncPushChangesResponse"
                 },
                 "error": {
                     "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.APIError"
@@ -220,7 +233,207 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.GatheringResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncGatheringChangesItem": {
+            "type": "object",
+            "properties": {
+                "color_hex": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncNoteChangesItem": {
+            "type": "object",
+            "properties": {
+                "content_hash": {
+                    "type": "string"
+                },
+                "content_json": {
+                    "type": "string"
+                },
+                "gathering_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deleted": {
+                    "type": "boolean"
+                },
+                "plain_text": {
+                    "type": "string"
+                },
+                "preacher_id": {
+                    "type": "string"
+                },
+                "series_id": {
+                    "type": "string"
+                },
+                "sermon_date": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "verses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncNoteVerse"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncNoteVerse": {
+            "type": "object",
+            "properties": {
+                "book_id": {
+                    "type": "integer"
+                },
+                "chapter": {
+                    "type": "integer"
+                },
+                "display_ref": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "translation": {
+                    "type": "string"
+                },
+                "verse_end": {
+                    "type": "integer"
+                },
+                "verse_start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncPreacherChangesItem": {
+            "type": "object",
+            "properties": {
+                "church_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncPushChangesRequest": {
+            "type": "object",
+            "properties": {
+                "gatherings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncGatheringChangesItem"
+                    }
+                },
+                "preachers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncPreacherChangesItem"
+                    }
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncSeriesChangesItem"
+                    }
+                },
+                "sermon_notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncNoteChangesItem"
+                    }
+                },
+                "sermon_series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncSeriesChangesItem"
+                    }
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_request.SyncTagChangesItem"
+                    }
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncSeriesChangesItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_request.SyncTagChangesItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_bryanfks-dev_logos_internal_model_response.GatheringResponse": {
             "type": "object",
             "properties": {
                 "color_hex": {
@@ -235,9 +448,6 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "is_deleted": {
-                    "type": "boolean"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -249,7 +459,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.PreacherResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.PreacherResponse": {
             "type": "object",
             "properties": {
                 "church_name": {
@@ -264,9 +474,6 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "is_deleted": {
-                    "type": "boolean"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -275,7 +482,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.SermonNoteResponse": {
             "type": "object",
             "properties": {
                 "content_hash": {
@@ -332,7 +539,7 @@ const docTemplate = `{
                 "verses": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.SermonNoteVerseResponse"
                     }
                 },
                 "version": {
@@ -340,109 +547,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_deleted": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem": {
-            "type": "object",
-            "properties": {
-                "color_hex": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.SyncNoteItem": {
-            "type": "object",
-            "properties": {
-                "content_hash": {
-                    "type": "string"
-                },
-                "content_json": {
-                    "type": "string"
-                },
-                "gathering_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_deleted": {
-                    "type": "boolean"
-                },
-                "plain_text": {
-                    "type": "string"
-                },
-                "preacher_id": {
-                    "type": "string"
-                },
-                "series_id": {
-                    "type": "string"
-                },
-                "sermon_date": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "verses": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse"
-                    }
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.SyncNoteVerse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.SermonNoteVerseResponse": {
             "type": "object",
             "properties": {
                 "book_id": {
@@ -468,13 +573,16 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem": {
+        "github_com_bryanfks-dev_logos_internal_model_response.SermonSeriesResponse": {
             "type": "object",
             "properties": {
-                "church_name": {
+                "created_at": {
                     "type": "string"
                 },
-                "created_at": {
+                "deleted_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "id": {
@@ -488,31 +596,31 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SyncPullResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.SyncPullChangesResponse": {
             "type": "object",
             "properties": {
                 "gatherings": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.GatheringResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.GatheringResponse"
                     }
                 },
                 "notes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonNoteResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.SermonNoteResponse"
                     }
                 },
                 "preachers": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.PreacherResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.PreacherResponse"
                     }
                 },
                 "series": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SermonSeriesResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.SermonSeriesResponse"
                     }
                 },
                 "server_time": {
@@ -521,59 +629,12 @@ const docTemplate = `{
                 "tags": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.TagResponse"
+                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model_response.TagResponse"
                     }
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SyncPushRequest": {
-            "type": "object",
-            "properties": {
-                "gatherings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncGatheringItem"
-                    }
-                },
-                "notes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem"
-                    }
-                },
-                "preachers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncPreacherItem"
-                    }
-                },
-                "series": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem"
-                    }
-                },
-                "sermon_notes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncNoteItem"
-                    }
-                },
-                "sermon_series": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem"
-                    }
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_bryanfks-dev_logos_internal_model.SyncTagItem"
-                    }
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.SyncPushResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.SyncPushChangesResponse": {
             "type": "object",
             "properties": {
                 "conflicts": {
@@ -593,44 +654,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_bryanfks-dev_logos_internal_model.SyncSeriesItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.SyncTagItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_bryanfks-dev_logos_internal_model.TagResponse": {
+        "github_com_bryanfks-dev_logos_internal_model_response.TagResponse": {
             "type": "object",
             "properties": {
                 "created_at": {

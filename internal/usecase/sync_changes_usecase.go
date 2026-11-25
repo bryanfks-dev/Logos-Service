@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type SyncUsecase struct {
+type SyncChangesUsecase struct {
 	txManager              *db.TxManager
 	sermonNoteRepository   repository.SermonNoteRepository
 	gatheringRepository    repository.GatheringRepository
@@ -26,7 +26,7 @@ type SyncUsecase struct {
 	log                    *zap.Logger
 }
 
-type SyncUsecaseOption struct {
+type SyncChangesUsecaseOption struct {
 	TxManager              *db.TxManager
 	SermonNoteRepository   repository.SermonNoteRepository
 	GatheringRepository    repository.GatheringRepository
@@ -37,8 +37,8 @@ type SyncUsecaseOption struct {
 	Log                    *zap.Logger
 }
 
-func NewSyncUsecase(opt *SyncUsecaseOption) *SyncUsecase {
-	return &SyncUsecase{
+func NewSyncChangesUsecase(opt *SyncChangesUsecaseOption) *SyncChangesUsecase {
+	return &SyncChangesUsecase{
 		txManager:              opt.TxManager,
 		sermonNoteRepository:   opt.SermonNoteRepository,
 		gatheringRepository:    opt.GatheringRepository,
@@ -50,10 +50,10 @@ func NewSyncUsecase(opt *SyncUsecaseOption) *SyncUsecase {
 	}
 }
 
-func (u *SyncUsecase) Pull(
+func (u *SyncChangesUsecase) Pull(
 	ctx context.Context,
 	since time.Time,
-) (*model.SyncPullResult, error) {
+) (*model.SyncPullChangesResult, error) {
 	serverTime := time.Now().UTC()
 
 	notes, err := u.sermonNoteRepository.FindUpdatedSince(ctx, since)
@@ -92,7 +92,7 @@ func (u *SyncUsecase) Pull(
 	preachers = util.NonNilSlice(preachers)
 	tags = util.NonNilSlice(tags)
 
-	result := &model.SyncPullResult{
+	result := &model.SyncPullChangesResult{
 		ServerTime:   serverTime,
 		Notes:        notes,
 		SermonNotes:  notes,
@@ -106,12 +106,12 @@ func (u *SyncUsecase) Pull(
 	return result, nil
 }
 
-func (u *SyncUsecase) Push(
+func (u *SyncChangesUsecase) Push(
 	ctx context.Context,
-	batch *model.SyncBatch,
-) (*model.SyncPushResult, error) {
+	batch *model.SyncChangesBatch,
+) (*model.SyncPushChangesResult, error) {
 	if batch == nil {
-		batch = &model.SyncBatch{}
+		batch = &model.SyncChangesBatch{}
 	}
 
 	syncedAt := time.Now().UTC()
@@ -132,7 +132,7 @@ func (u *SyncUsecase) Push(
 		return nil, err
 	}
 
-	result := &model.SyncPushResult{
+	result := &model.SyncPushChangesResult{
 		SyncedAt:          syncedAt,
 		MissingContentIDs: missingContentIDs,
 		Conflicts:         conflicts,
@@ -141,9 +141,9 @@ func (u *SyncUsecase) Push(
 	return result, nil
 }
 
-func (u *SyncUsecase) applyPushBatch(
+func (u *SyncChangesUsecase) applyPushBatch(
 	ctx context.Context,
-	batch *model.SyncBatch,
+	batch *model.SyncChangesBatch,
 ) ([]string, []string, error) {
 	if err := u.upsertGatherings(ctx, batch.Gatherings); err != nil {
 		return nil, nil, err
@@ -167,7 +167,7 @@ func (u *SyncUsecase) applyPushBatch(
 	return u.upsertSermonNotes(ctx, notes)
 }
 
-func (u *SyncUsecase) upsertGatherings(
+func (u *SyncChangesUsecase) upsertGatherings(
 	ctx context.Context,
 	gatherings []*entity.Gathering,
 ) error {
@@ -183,7 +183,7 @@ func (u *SyncUsecase) upsertGatherings(
 	return upsertLastWriteWins(ctx, gatherings, opt)
 }
 
-func (u *SyncUsecase) upsertSermonSeries(
+func (u *SyncChangesUsecase) upsertSermonSeries(
 	ctx context.Context,
 	series []*entity.SermonSeries,
 ) error {
@@ -199,7 +199,7 @@ func (u *SyncUsecase) upsertSermonSeries(
 	return upsertLastWriteWins(ctx, series, opt)
 }
 
-func (u *SyncUsecase) upsertPreachers(
+func (u *SyncChangesUsecase) upsertPreachers(
 	ctx context.Context,
 	preachers []*entity.Preacher,
 ) error {
@@ -215,7 +215,7 @@ func (u *SyncUsecase) upsertPreachers(
 	return upsertLastWriteWins(ctx, preachers, opt)
 }
 
-func (u *SyncUsecase) upsertTags(
+func (u *SyncChangesUsecase) upsertTags(
 	ctx context.Context,
 	tags []*entity.Tag,
 ) error {
@@ -231,7 +231,7 @@ func (u *SyncUsecase) upsertTags(
 	return upsertLastWriteWins(ctx, tags, opt)
 }
 
-func (u *SyncUsecase) upsertSermonNotes(
+func (u *SyncChangesUsecase) upsertSermonNotes(
 	ctx context.Context,
 	notes []*entity.SermonNote,
 ) ([]string, []string, error) {
@@ -257,7 +257,7 @@ func (u *SyncUsecase) upsertSermonNotes(
 	return missingContentIDs, conflicts, nil
 }
 
-func (u *SyncUsecase) upsertSermonNote(
+func (u *SyncChangesUsecase) upsertSermonNote(
 	ctx context.Context,
 	note *entity.SermonNote,
 ) (bool, bool, error) {

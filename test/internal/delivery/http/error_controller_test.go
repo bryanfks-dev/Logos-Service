@@ -108,13 +108,13 @@ func TestErrorController(t *testing.T) {
 
 		controller.HTTPErrorHandler(ctx, verr)
 
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 		var apiRes model.APIResponse[any]
 		err := json.Unmarshal(rec.Body.Bytes(), &apiRes)
 		require.NoError(t, err)
 		assert.False(t, apiRes.Success)
 		require.NotNil(t, apiRes.Error)
-		assert.Equal(t, "invalid_payload", apiRes.Error.Code)
+		assert.Equal(t, "validation_error", apiRes.Error.Code)
 		require.Len(t, apiRes.Error.Errors, 1)
 		assert.Equal(t, "notes.0.title", apiRes.Error.Errors[0].Field)
 		assert.Equal(t, "cannot be blank", apiRes.Error.Errors[0].Message)

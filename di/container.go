@@ -25,9 +25,9 @@ type Container struct {
 
 	EtcController   *deliveryhttp.EtcController
 	ErrorController *deliveryhttp.ErrorController
-	SyncHandler     *deliveryhttp.SyncHandler
+	SyncController  *deliveryhttp.SyncController
 
-	SyncUsecase *usecase.SyncUsecase
+	SyncChangesUsecase *usecase.SyncChangesUsecase
 }
 
 func NewContainer() (*Container, error) {

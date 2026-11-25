@@ -15,6 +15,7 @@ import (
 	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
 	"github.com/bryanfks-dev/logos/internal/model"
+	"github.com/bryanfks-dev/logos/internal/model/response"
 	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +37,7 @@ func setupIntegrationServer(t *testing.T) *echo.Echo {
 		App:             server,
 		EtcController:   etcController,
 		ErrorController: errorController,
-		SyncHandler:     nil,
+		SyncController:  nil,
 	})
 	routeConfig.Setup()
 
@@ -394,11 +395,11 @@ func TestDIContainerEndpoints_Integration(t *testing.T) {
 	)
 
 	t.Run(
-		"POST /api/v1/sync/push returns 200 through full DI container",
+		"POST /api/sync/changes returns 200 through full DI container",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/v1/sync/push",
+				"/api/sync/changes",
 				strings.NewReader("{}"),
 			)
 			req.Header.Set("Content-Type", "application/json")
@@ -408,7 +409,7 @@ func TestDIContainerEndpoints_Integration(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPushResponse]
+			var res model.APIResponse[response.SyncPushChangesResponse]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 
@@ -420,11 +421,11 @@ func TestDIContainerEndpoints_Integration(t *testing.T) {
 	)
 
 	t.Run(
-		"GET /api/v1/sync/pull returns 200 through full DI container",
+		"GET /api/sync/changes/:since returns 200 through full DI container",
 		func(t *testing.T) {
 			req := httptest.NewRequest(
 				http.MethodGet,
-				"/api/v1/sync/pull",
+				"/api/sync/changes/2026-01-01T00:00:00Z",
 				nil,
 			)
 			rec := httptest.NewRecorder()
@@ -433,7 +434,7 @@ func TestDIContainerEndpoints_Integration(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rec.Code)
 
-			var res model.APIResponse[model.SyncPullResponse]
+			var res model.APIResponse[response.SyncPullChangesResponse]
 			err := json.Unmarshal(rec.Body.Bytes(), &res)
 			require.NoError(t, err)
 

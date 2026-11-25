@@ -6,6 +6,7 @@ import (
 
 	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/converter"
+	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,14 +68,14 @@ func TestSyncItemToSermonNote(t *testing.T) {
 	})
 
 	t.Run("converts sync item to note entity", func(t *testing.T) {
-		item := &model.SyncNoteItem{
+		noteItem := &request.SyncNoteChangesItem{
 			ID:          "item-123",
 			Title:       "Faith",
 			PlainText:   "Faith content",
 			ContentJSON: `{"root": true}`,
 			Version:     0, // should default to 1
 			Tags:        []string{"Hope", "Love"},
-			Verses: []model.SyncNoteVerse{
+			Verses: []request.SyncNoteVerse{
 				{
 					ID:          "v-1",
 					Translation: "NIV",
@@ -86,7 +87,7 @@ func TestSyncItemToSermonNote(t *testing.T) {
 			},
 		}
 
-		note := converter.SyncItemToSermonNote(item)
+		note := converter.SyncItemToSermonNote(noteItem)
 
 		assert.Equal(t, "item-123", note.ID)
 		assert.Equal(t, "Faith", note.Title)
@@ -101,7 +102,7 @@ func TestSyncItemToSermonNote(t *testing.T) {
 
 func TestSyncPushRequestToBatch(t *testing.T) {
 	t.Run("nil request returns empty batch", func(t *testing.T) {
-		batch := converter.SyncPushRequestToBatch(nil)
+		batch := converter.SyncPushChangesRequestToBatch(nil)
 		assert.NotNil(t, batch)
 		assert.Empty(t, batch.Notes)
 		assert.Empty(t, batch.Gatherings)
@@ -112,8 +113,8 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 
 	t.Run("converts full sync push request to batch", func(t *testing.T) {
 		now := time.Now()
-		req := &model.SyncPushRequest{
-			Notes: []model.SyncNoteItem{
+		req := &request.SyncPushChangesRequest{
+			SermonNotes: []request.SyncNoteChangesItem{
 				{
 					ID:          "note-1",
 					Title:       "Test Note",
@@ -122,7 +123,7 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 					UpdatedAt:   &now,
 				},
 			},
-			Gatherings: []model.SyncGatheringItem{
+			Gatherings: []request.SyncGatheringChangesItem{
 				{
 					ID:        "g-1",
 					Name:      "Sunday Morning",
@@ -131,7 +132,7 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 					UpdatedAt: &now,
 				},
 			},
-			Series: []model.SyncSeriesItem{
+			Series: []request.SyncSeriesChangesItem{
 				{
 					ID:          "s-1",
 					Name:        "Romans",
@@ -139,7 +140,7 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 					UpdatedAt:   &now,
 				},
 			},
-			Preachers: []model.SyncPreacherItem{
+			Preachers: []request.SyncPreacherChangesItem{
 				{
 					ID:         "p-1",
 					Name:       "Pastor John",
@@ -147,7 +148,7 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 					UpdatedAt:  &now,
 				},
 			},
-			Tags: []model.SyncTagItem{
+			Tags: []request.SyncTagChangesItem{
 				{
 					ID:        "t-1",
 					Name:      "Theology",
@@ -156,7 +157,7 @@ func TestSyncPushRequestToBatch(t *testing.T) {
 			},
 		}
 
-		batch := converter.SyncPushRequestToBatch(req)
+		batch := converter.SyncPushChangesRequestToBatch(req)
 		assert.NotNil(t, batch)
 
 		require.Len(t, batch.Notes, 1)
@@ -199,7 +200,7 @@ func TestSyncPushResultToResponse(t *testing.T) {
 
 	t.Run("converts result to response", func(t *testing.T) {
 		syncedAt := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
-		result := &model.SyncPushResult{
+		result := &model.SyncPushChangesResult{
 			SyncedAt:          syncedAt,
 			MissingContentIDs: []string{"n1", "n2"},
 			Conflicts:         []string{"n3"},
@@ -286,7 +287,7 @@ func TestHelperConverters(t *testing.T) {
 		assert.Equal(t, "Sunday", res.Name)
 		assert.Equal(t, "#111111", res.ColorHex)
 		assert.Equal(t, 2, res.SortOrder)
-		assert.False(t, res.IsDeleted)
+		assert.Nil(t, res.DeletedAt)
 	})
 
 	t.Run("SermonSeriesToResponse converts series", func(t *testing.T) {
@@ -302,7 +303,6 @@ func TestHelperConverters(t *testing.T) {
 		require.NotNil(t, res)
 		assert.Equal(t, "s-1", res.ID)
 		assert.Equal(t, "Genesis", res.Name)
-		assert.True(t, res.IsDeleted)
 		assert.NotNil(t, res.DeletedAt)
 	})
 
@@ -318,7 +318,7 @@ func TestHelperConverters(t *testing.T) {
 		require.NotNil(t, res)
 		assert.Equal(t, "p-1", res.ID)
 		assert.Equal(t, "John", res.Name)
-		assert.False(t, res.IsDeleted)
+		assert.Nil(t, res.DeletedAt)
 	})
 
 	t.Run("TagToResponse converts tag", func(t *testing.T) {
@@ -337,13 +337,13 @@ func TestHelperConverters(t *testing.T) {
 	})
 }
 
-func TestSyncPullResultToResponse(t *testing.T) {
+func TestSyncPullChangesResultToResponse(t *testing.T) {
 	now := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
 
 	t.Run(
 		"nil result returns empty response with non-nil slices",
 		func(t *testing.T) {
-			res := converter.SyncPullResultToResponse(nil)
+			res := converter.SyncPullChangesResultToResponse(nil)
 			require.NotNil(t, res)
 			assert.True(t, res.ServerTime.IsZero())
 			assert.Empty(t, res.Notes)
@@ -357,7 +357,7 @@ func TestSyncPullResultToResponse(t *testing.T) {
 	t.Run(
 		"converts full pull result with datetime server time",
 		func(t *testing.T) {
-			result := &model.SyncPullResult{
+			result := &model.SyncPullChangesResult{
 				ServerTime: now,
 				Notes: []*entity.SermonNote{
 					{
@@ -401,7 +401,7 @@ func TestSyncPullResultToResponse(t *testing.T) {
 				},
 			}
 
-			res := converter.SyncPullResultToResponse(result)
+			res := converter.SyncPullChangesResultToResponse(result)
 			require.NotNil(t, res)
 			assert.Equal(t, now, res.ServerTime)
 			require.Len(t, res.Notes, 1)

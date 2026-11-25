@@ -32,14 +32,14 @@ var RepositorySet = wire.NewSet(
 )
 
 var UsecaseSet = wire.NewSet(
-	wire.Struct(new(usecase.SyncUsecaseOption), "*"),
-	usecase.NewSyncUsecase,
+	wire.Struct(new(usecase.SyncChangesUsecaseOption), "*"),
+	usecase.NewSyncChangesUsecase,
 )
 
 var DeliverySet = wire.NewSet(
 	http.NewEtcController,
 	http.NewErrorController,
-	http.NewSyncHandler,
+	http.NewSyncController,
 )
 
 var RouteSet = wire.NewSet(

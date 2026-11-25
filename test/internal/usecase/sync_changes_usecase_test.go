@@ -26,7 +26,7 @@ import (
 
 func setupSyncTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.SyncUsecase) {
+) (*gorm.DB, *usecase.SyncChangesUsecase) {
 	dbName := fmt.Sprintf(
 		"file:sync_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -59,21 +59,23 @@ func setupSyncTestEnv(
 	tagRepository := repository.NewTagRepository(testDB, log)
 	syncOutboxRepository := repository.NewSyncOutboxRepository(testDB, log)
 
-	syncUsecase := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
-		TxManager:              txManager,
-		SermonNoteRepository:   sermonNoteRepository,
-		GatheringRepository:    gatheringRepository,
-		SermonSeriesRepository: sermonSeriesRepository,
-		PreacherRepository:     preacherRepository,
-		TagRepository:          tagRepository,
-		SyncOutboxRepository:   syncOutboxRepository,
-		Log:                    log,
-	})
+	syncChangesUsecase := usecase.NewSyncChangesUsecase(
+		&usecase.SyncChangesUsecaseOption{
+			TxManager:              txManager,
+			SermonNoteRepository:   sermonNoteRepository,
+			GatheringRepository:    gatheringRepository,
+			SermonSeriesRepository: sermonSeriesRepository,
+			PreacherRepository:     preacherRepository,
+			TagRepository:          tagRepository,
+			SyncOutboxRepository:   syncOutboxRepository,
+			Log:                    log,
+		},
+	)
 
-	return testDB, syncUsecase
+	return testDB, syncChangesUsecase
 }
 
-func TestSyncUsecase_Push_NilBatch(t *testing.T) {
+func TestSyncChangesUsecase_Push_NilBatch(t *testing.T) {
 	_, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -85,7 +87,7 @@ func TestSyncUsecase_Push_NilBatch(t *testing.T) {
 	assert.Empty(t, result.MissingContentIDs)
 }
 
-func TestSyncUsecase_Push_UpsertMetadata(t *testing.T) {
+func TestSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -129,7 +131,7 @@ func TestSyncUsecase_Push_UpsertMetadata(t *testing.T) {
 	t.Run(
 		"creates new metadata and updates existing when newer",
 		func(t *testing.T) {
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Gatherings: []*entity.Gathering{
 					{
 						ID:        "g-new",
@@ -225,7 +227,7 @@ func TestSyncUsecase_Push_UpsertMetadata(t *testing.T) {
 	t.Run(
 		"skips updating metadata when incoming UpdatedAt is older",
 		func(t *testing.T) {
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Gatherings: []*entity.Gathering{
 					{
 						ID:        "g-1",
@@ -279,7 +281,9 @@ func TestSyncUsecase_Push_UpsertMetadata(t *testing.T) {
 	)
 }
 
-func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
+func TestSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
+	t *testing.T,
+) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -295,7 +299,7 @@ func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-conflict-1",
@@ -328,7 +332,7 @@ func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
 		"appends to MissingContentIDs when note is new and saves note with children",
 		func(t *testing.T) {
 			verseEnd := 4
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-new-1",
@@ -399,7 +403,7 @@ func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-update-diff-hash",
@@ -443,7 +447,7 @@ func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-same-hash",
@@ -471,7 +475,7 @@ func TestSyncUsecase_Push_SermonNoteConflictsAndMissingContent(t *testing.T) {
 	)
 }
 
-func TestSyncUsecase_Pull(t *testing.T) {
+func TestSyncChangesUsecase_Pull(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -655,7 +659,7 @@ func (f *failingGatheringRepo) FindByID(
 	return f.GatheringRepository.FindByID(ctx, id)
 }
 
-func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
+func TestSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	testDB, u := setupSyncTestEnv(t)
 	ctx := context.Background()
 
@@ -672,7 +676,7 @@ func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 				ContentHash: "hash-auto-id",
 			}
 
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Gatherings:   []*entity.Gathering{nil, g},
 				SermonSeries: []*entity.SermonSeries{nil, s},
 				Preachers:    []*entity.Preacher{nil, p},
@@ -714,7 +718,7 @@ func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 			require.NoError(t, testDB.Create(existing).Error)
 
 			// Matching file hash -> not missing content
-			res, err := u.Push(ctx, &model.SyncBatch{
+			res, err := u.Push(ctx, &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
@@ -730,7 +734,7 @@ func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 			assert.NotContains(t, res.MissingContentIDs, "note-hydrated-file")
 
 			// Differing hash -> reported as missing content
-			res, err = u.Push(ctx, &model.SyncBatch{
+			res, err = u.Push(ctx, &model.SyncChangesBatch{
 				Notes: []*entity.SermonNote{
 					{
 						ID:          "note-hydrated-file",
@@ -747,7 +751,7 @@ func TestSyncUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	)
 }
 
-func TestSyncUsecase_ErrorPropagationAndRollback(t *testing.T) {
+func TestSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Pull returns repository errors", func(t *testing.T) {
@@ -755,7 +759,7 @@ func TestSyncUsecase_ErrorPropagationAndRollback(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("db query failed")
 
-		u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+		u := usecase.NewSyncChangesUsecase(&usecase.SyncChangesUsecaseOption{
 			TxManager: db.NewTxManager(testDB),
 			SermonNoteRepository: &failingSermonNoteRepo{
 				SermonNoteRepository: repository.NewSermonNoteRepository(
@@ -788,7 +792,7 @@ func TestSyncUsecase_ErrorPropagationAndRollback(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("gathering query failed")
 
-		u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
+		u := usecase.NewSyncChangesUsecase(&usecase.SyncChangesUsecaseOption{
 			TxManager: db.NewTxManager(testDB),
 			SermonNoteRepository: repository.NewSermonNoteRepository(
 				testDB,
@@ -826,36 +830,38 @@ func TestSyncUsecase_ErrorPropagationAndRollback(t *testing.T) {
 			log := zap.NewNop()
 			expectedErr := errors.New("note create failed")
 
-			u := usecase.NewSyncUsecase(&usecase.SyncUsecaseOption{
-				TxManager: db.NewTxManager(testDB),
-				SermonNoteRepository: &failingSermonNoteRepo{
-					SermonNoteRepository: repository.NewSermonNoteRepository(
+			u := usecase.NewSyncChangesUsecase(
+				&usecase.SyncChangesUsecaseOption{
+					TxManager: db.NewTxManager(testDB),
+					SermonNoteRepository: &failingSermonNoteRepo{
+						SermonNoteRepository: repository.NewSermonNoteRepository(
+							testDB,
+							log,
+						),
+						createErr: expectedErr,
+					},
+					GatheringRepository: repository.NewGatheringRepository(
 						testDB,
 						log,
 					),
-					createErr: expectedErr,
+					SermonSeriesRepository: repository.NewSermonSeriesRepository(
+						testDB,
+						log,
+					),
+					PreacherRepository: repository.NewPreacherRepository(
+						testDB,
+						log,
+					),
+					TagRepository: repository.NewTagRepository(testDB, log),
+					SyncOutboxRepository: repository.NewSyncOutboxRepository(
+						testDB,
+						log,
+					),
+					Log: log,
 				},
-				GatheringRepository: repository.NewGatheringRepository(
-					testDB,
-					log,
-				),
-				SermonSeriesRepository: repository.NewSermonSeriesRepository(
-					testDB,
-					log,
-				),
-				PreacherRepository: repository.NewPreacherRepository(
-					testDB,
-					log,
-				),
-				TagRepository: repository.NewTagRepository(testDB, log),
-				SyncOutboxRepository: repository.NewSyncOutboxRepository(
-					testDB,
-					log,
-				),
-				Log: log,
-			})
+			)
 
-			batch := &model.SyncBatch{
+			batch := &model.SyncChangesBatch{
 				Gatherings: []*entity.Gathering{
 					{ID: "g-rollback", Name: "Should Roll Back"},
 				},
