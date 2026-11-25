@@ -1,13 +1,14 @@
 .PHONY: wire swagger generate dev build create-migration apply-migration rollback-migration fmt format fmt-check test test-coverage
 
+CONFIG_FILE_PATH = config.yaml
 DB_MIGRATION_PATH = resources/db/migrations
 
-DB_DRIVER = postgres
-DB_USERNAME = selah_dev
-DB_PASSWORD = vcVBncknc5FBmxrJ
-DB_HOST = postgres-db.pve.lab
-DB_PORT = 5432
-DB_NAME = selah_dev
+DB_DRIVER := postgres
+DB_USERNAME := $(shell yq '.database.username' $(CONFIG_FILE_PATH))
+DB_PASSWORD := $(shell yq '.database.password' $(CONFIG_FILE_PATH))
+DB_HOST := $(shell yq '.database.host' $(CONFIG_FILE_PATH))
+DB_PORT := $(shell yq '.database.port' $(CONFIG_FILE_PATH))
+DB_NAME := $(shell yq '.database.name' $(CONFIG_FILE_PATH))
 MIGRATION_MSG ?= change_with_actual_message
 
 MIGRATE = go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
