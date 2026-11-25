@@ -226,7 +226,7 @@ func TestSwaggerEndpoints_Integration(t *testing.T) {
 			err := json.Unmarshal(rec.Body.Bytes(), &swaggerDoc)
 			require.NoError(t, err)
 
-			assert.Equal(t, "2.0", swaggerDoc["swagger"])
+			assert.Equal(t, "3.1.0", swaggerDoc["openapi"])
 			info, ok := swaggerDoc["info"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, "Logos Service API", info["title"])

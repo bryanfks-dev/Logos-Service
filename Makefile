@@ -26,7 +26,7 @@ wire:
 	go tool wire ./di
 
 swagger:
-	go tool swag init -d ./cmd/web,./internal/delivery/http -g main.go -o ./docs --parseInternal --parseDependency --packagePrefix github.com/bryanfks-dev/logos
+	go tool swag init -d ./cmd/web,./internal/delivery/http -g main.go -o ./docs --parseInternal --parseDependency --packagePrefix github.com/bryanfks-dev/logos --v3.1
 
 generate: wire swagger
 

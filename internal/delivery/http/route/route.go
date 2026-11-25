@@ -42,20 +42,20 @@ func (c *RouteConfig) Setup() {
 	c.setupSwaggerRoute()
 	c.setupEtcRoute()
 	c.setupSyncRoute()
-	c.setupAttachmentRoute()
+	c.setupSermonNoteRoute()
 	c.setupErrorHandler()
 }
 
 func (c *RouteConfig) setupSwaggerRoute() {
-	swaggerRedirect := func(ctx *echo.Context) error {
+	swaggerRedirectFn := func(ctx *echo.Context) error {
 		return ctx.Redirect(
 			nethttp.StatusMovedPermanently,
 			"/swagger/index.html",
 		)
 	}
 
-	c.App.GET("/swagger", swaggerRedirect)
-	c.App.GET("/swagger/*", echoSwagger.WrapHandler)
+	c.App.GET("/swagger", swaggerRedirectFn)
+	c.App.GET("/swagger/*", echoSwagger.WrapHandlerV3)
 }
 
 func (c *RouteConfig) setupEtcRoute() {
@@ -69,7 +69,7 @@ func (c *RouteConfig) setupSyncRoute() {
 	api.GET("/sync/changes/:since", c.SyncController.Pull)
 }
 
-func (c *RouteConfig) setupAttachmentRoute() {
+func (c *RouteConfig) setupSermonNoteRoute() {
 	api := c.App.Group("/api")
 	api.PUT(
 		"/attachments/:id/file",

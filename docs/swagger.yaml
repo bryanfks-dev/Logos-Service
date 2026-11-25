@@ -1,374 +1,393 @@
-definitions:
-  model.APIError:
-    properties:
-      code:
-        type: string
-      errors:
-        items:
-          $ref: '#/definitions/model.FieldError'
-        type: array
-    type: object
-  model.APIMeta:
-    properties:
-      request_id:
-        type: string
-      timestamp:
-        type: string
-    type: object
-  model.APIResponse-any:
-    properties:
-      data: {}
-      error:
-        $ref: '#/definitions/model.APIError'
-      meta:
-        $ref: '#/definitions/model.APIMeta'
-      success:
-        type: boolean
-    type: object
-  model.APIResponse-response_SyncPullChangesResponse:
-    properties:
-      data:
-        $ref: '#/definitions/response.SyncPullChangesResponse'
-      error:
-        $ref: '#/definitions/model.APIError'
-      meta:
-        $ref: '#/definitions/model.APIMeta'
-      success:
-        type: boolean
-    type: object
-  model.APIResponse-response_SyncPushChangesResponse:
-    properties:
-      data:
-        $ref: '#/definitions/response.SyncPushChangesResponse'
-      error:
-        $ref: '#/definitions/model.APIError'
-      meta:
-        $ref: '#/definitions/model.APIMeta'
-      success:
-        type: boolean
-    type: object
-  model.APIResponse-response_UploadSermonNoteAttachmentFileResponse:
-    properties:
-      data:
-        $ref: '#/definitions/response.UploadSermonNoteAttachmentFileResponse'
-      error:
-        $ref: '#/definitions/model.APIError'
-      meta:
-        $ref: '#/definitions/model.APIMeta'
-      success:
-        type: boolean
-    type: object
-  model.FieldError:
-    properties:
-      field:
-        type: string
-      message:
-        type: string
-    type: object
-  request.SyncGatheringChangesItem:
-    properties:
-      color_hex:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  request.SyncNoteChangesItem:
-    properties:
-      content_hash:
-        type: string
-      content_json:
-        type: string
-      created_at:
-        type: string
-      gathering_id:
-        type: string
-      id:
-        type: string
-      is_deleted:
-        type: boolean
-      plain_text:
-        type: string
-      preacher_id:
-        type: string
-      series_id:
-        type: string
-      sermon_date:
-        type: string
-      tags:
-        items:
+components:
+  schemas:
+    model.APIError:
+      properties:
+        code:
           type: string
-        type: array
-      title:
-        type: string
-      updated_at:
-        type: string
-      verses:
-        items:
-          $ref: '#/definitions/request.SyncNoteVerseChangesItem'
-        type: array
-      version:
-        type: integer
-    type: object
-  request.SyncNoteVerseChangesItem:
-    properties:
-      book_id:
-        type: integer
-      chapter:
-        type: integer
-      display_ref:
-        type: string
-      id:
-        type: string
-      translation:
-        type: string
-      verse_end:
-        type: integer
-      verse_start:
-        type: integer
-    type: object
-  request.SyncPreacherChangesItem:
-    properties:
-      church_name:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  request.SyncPushChangesRequest:
-    properties:
-      gatherings:
-        items:
-          $ref: '#/definitions/request.SyncGatheringChangesItem'
-        type: array
-      preachers:
-        items:
-          $ref: '#/definitions/request.SyncPreacherChangesItem'
-        type: array
-      sermon_notes:
-        items:
-          $ref: '#/definitions/request.SyncNoteChangesItem'
-        type: array
-      sermon_series:
-        items:
-          $ref: '#/definitions/request.SyncSeriesChangesItem'
-        type: array
-      tags:
-        items:
-          $ref: '#/definitions/request.SyncTagChangesItem'
-        type: array
-    type: object
-  request.SyncSeriesChangesItem:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  request.SyncTagChangesItem:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  response.GatheringResponse:
-    properties:
-      color_hex:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  response.PreacherResponse:
-    properties:
-      church_name:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  response.SermonNoteResponse:
-    properties:
-      content_hash:
-        type: string
-      content_json:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      file_path:
-        type: string
-      gathering_id:
-        type: string
-      id:
-        type: string
-      plain_text:
-        type: string
-      preacher_id:
-        type: string
-      series_id:
-        type: string
-      sermon_date:
-        type: string
-      sync_status:
-        type: string
-      tags:
-        items:
+        errors:
+          items:
+            $ref: '#/components/schemas/model.FieldError'
+          type: array
+          uniqueItems: false
+      type: object
+    model.APIMeta:
+      properties:
+        request_id:
           type: string
-        type: array
-      title:
-        type: string
-      updated_at:
-        type: string
-      verses:
-        items:
-          $ref: '#/definitions/response.SermonNoteVerseResponse'
-        type: array
-      version:
-        type: integer
-    type: object
-  response.SermonNoteVerseResponse:
-    properties:
-      book_id:
-        type: integer
-      chapter:
-        type: integer
-      display_ref:
-        type: string
-      id:
-        type: string
-      translation:
-        type: string
-      verse_end:
-        type: integer
-      verse_start:
-        type: integer
-    type: object
-  response.SermonSeriesResponse:
-    properties:
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  response.SyncPullChangesResponse:
-    properties:
-      gatherings:
-        items:
-          $ref: '#/definitions/response.GatheringResponse'
-        type: array
-      notes:
-        items:
-          $ref: '#/definitions/response.SermonNoteResponse'
-        type: array
-      preachers:
-        items:
-          $ref: '#/definitions/response.PreacherResponse'
-        type: array
-      series:
-        items:
-          $ref: '#/definitions/response.SermonSeriesResponse'
-        type: array
-      server_time:
-        type: string
-      tags:
-        items:
-          $ref: '#/definitions/response.TagResponse'
-        type: array
-    type: object
-  response.SyncPushChangesResponse:
-    properties:
-      conflicts:
-        items:
+        timestamp:
           type: string
-        type: array
-      missing_content_ids:
-        items:
+      type: object
+    model.APIResponse-any:
+      properties:
+        data: {}
+        error:
+          $ref: '#/components/schemas/model.APIError'
+        meta:
+          $ref: '#/components/schemas/model.APIMeta'
+        success:
+          type: boolean
+      type: object
+    model.APIResponse-response_SyncPullChangesResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/response.SyncPullChangesResponse'
+        error:
+          $ref: '#/components/schemas/model.APIError'
+        meta:
+          $ref: '#/components/schemas/model.APIMeta'
+        success:
+          type: boolean
+      type: object
+    model.APIResponse-response_SyncPushChangesResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/response.SyncPushChangesResponse'
+        error:
+          $ref: '#/components/schemas/model.APIError'
+        meta:
+          $ref: '#/components/schemas/model.APIMeta'
+        success:
+          type: boolean
+      type: object
+    model.APIResponse-response_UploadSermonNoteAttachmentFileResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/response.UploadSermonNoteAttachmentFileResponse'
+        error:
+          $ref: '#/components/schemas/model.APIError'
+        meta:
+          $ref: '#/components/schemas/model.APIMeta'
+        success:
+          type: boolean
+      type: object
+    model.FieldError:
+      properties:
+        field:
           type: string
-        type: array
-      synced_at:
-        type: string
-    type: object
-  response.TagResponse:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-      usage_count:
-        type: integer
-    type: object
-  response.UploadSermonNoteAttachmentFileResponse:
-    properties:
-      checksum_sha256:
-        type: string
-      id:
-        type: string
-      status:
-        type: string
-    type: object
+        message:
+          type: string
+      type: object
+    request.SyncGatheringChangesItem:
+      properties:
+        color_hex:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        sort_order:
+          type: integer
+        updated_at:
+          type: string
+      type: object
+    request.SyncNoteChangesItem:
+      properties:
+        content_hash:
+          type: string
+        content_json:
+          type: string
+        created_at:
+          type: string
+        gathering_id:
+          type: string
+        id:
+          type: string
+        is_deleted:
+          type: boolean
+        plain_text:
+          type: string
+        preacher_id:
+          type: string
+        series_id:
+          type: string
+        sermon_date:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        updated_at:
+          type: string
+        verses:
+          items:
+            $ref: '#/components/schemas/request.SyncNoteVerseChangesItem'
+          type: array
+          uniqueItems: false
+        version:
+          type: integer
+      type: object
+    request.SyncNoteVerseChangesItem:
+      properties:
+        book_id:
+          type: integer
+        chapter:
+          type: integer
+        display_ref:
+          type: string
+        id:
+          type: string
+        translation:
+          type: string
+        verse_end:
+          type: integer
+        verse_start:
+          type: integer
+      type: object
+    request.SyncPreacherChangesItem:
+      properties:
+        church_name:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    request.SyncPushChangesRequest:
+      properties:
+        gatherings:
+          items:
+            $ref: '#/components/schemas/request.SyncGatheringChangesItem'
+          type: array
+          uniqueItems: false
+        preachers:
+          items:
+            $ref: '#/components/schemas/request.SyncPreacherChangesItem'
+          type: array
+          uniqueItems: false
+        sermon_notes:
+          items:
+            $ref: '#/components/schemas/request.SyncNoteChangesItem'
+          type: array
+          uniqueItems: false
+        sermon_series:
+          items:
+            $ref: '#/components/schemas/request.SyncSeriesChangesItem'
+          type: array
+          uniqueItems: false
+        tags:
+          items:
+            $ref: '#/components/schemas/request.SyncTagChangesItem'
+          type: array
+          uniqueItems: false
+      type: object
+    request.SyncSeriesChangesItem:
+      properties:
+        created_at:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    request.SyncTagChangesItem:
+      properties:
+        created_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    response.GatheringResponse:
+      properties:
+        color_hex:
+          type: string
+        created_at:
+          type: string
+        deleted_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        sort_order:
+          type: integer
+        updated_at:
+          type: string
+      type: object
+    response.PreacherResponse:
+      properties:
+        church_name:
+          type: string
+        created_at:
+          type: string
+        deleted_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    response.SermonNoteResponse:
+      properties:
+        content_hash:
+          type: string
+        content_json:
+          type: string
+        created_at:
+          type: string
+        deleted_at:
+          type: string
+        file_path:
+          type: string
+        gathering_id:
+          type: string
+        id:
+          type: string
+        plain_text:
+          type: string
+        preacher_id:
+          type: string
+        series_id:
+          type: string
+        sermon_date:
+          type: string
+        sync_status:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        updated_at:
+          type: string
+        verses:
+          items:
+            $ref: '#/components/schemas/response.SermonNoteVerseResponse'
+          type: array
+          uniqueItems: false
+        version:
+          type: integer
+      type: object
+    response.SermonNoteVerseResponse:
+      properties:
+        book_id:
+          type: integer
+        chapter:
+          type: integer
+        display_ref:
+          type: string
+        id:
+          type: string
+        translation:
+          type: string
+        verse_end:
+          type: integer
+        verse_start:
+          type: integer
+      type: object
+    response.SermonSeriesResponse:
+      properties:
+        created_at:
+          type: string
+        deleted_at:
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    response.SyncPullChangesResponse:
+      properties:
+        gatherings:
+          items:
+            $ref: '#/components/schemas/response.GatheringResponse'
+          type: array
+          uniqueItems: false
+        notes:
+          items:
+            $ref: '#/components/schemas/response.SermonNoteResponse'
+          type: array
+          uniqueItems: false
+        preachers:
+          items:
+            $ref: '#/components/schemas/response.PreacherResponse'
+          type: array
+          uniqueItems: false
+        series:
+          items:
+            $ref: '#/components/schemas/response.SermonSeriesResponse'
+          type: array
+          uniqueItems: false
+        server_time:
+          type: string
+        tags:
+          items:
+            $ref: '#/components/schemas/response.TagResponse'
+          type: array
+          uniqueItems: false
+      type: object
+    response.SyncPushChangesResponse:
+      properties:
+        conflicts:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        missing_content_ids:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        synced_at:
+          type: string
+      type: object
+    response.TagResponse:
+      properties:
+        created_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+        usage_count:
+          type: integer
+      type: object
+    response.UploadSermonNoteAttachmentFileResponse:
+      properties:
+        checksum_sha256:
+          type: string
+        id:
+          type: string
+        status:
+          type: string
+      type: object
+externalDocs:
+  description: ""
+  url: ""
 info:
-  contact: {}
   description: API documentation for Logos Service
   title: Logos Service API
   version: "1.0"
+openapi: 3.1.0
 paths:
   /api/attachments/{id}/file:
     put:
-      consumes:
-      - application/octet-stream
       description: Stream raw binary attachment file, verify SHA-256 hash, store atomically,
         and mark uploaded
       parameters:
@@ -376,129 +395,158 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       - description: Expected SHA-256 hex digest
         in: header
         name: X-Content-Hash
         required: true
-        type: string
-      - description: Raw binary attachment file stream
-        format: binary
-        in: body
-        name: body
-        required: true
         schema:
           type: string
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              format: binary
+              type: string
+        description: Raw binary attachment file stream
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-response_UploadSermonNoteAttachmentFileResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/model.APIResponse-response_UploadSermonNoteAttachmentFileResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Not Found
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
       summary: Upload attachment binary file
       tags:
       - API / Sermon Note / Attachments
   /api/healthz:
     get:
-      consumes:
-      - application/json
       description: Check service health status
-      produces:
-      - application/json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: OK
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
       summary: Health check
       tags:
       - API / Etc
   /api/sync/changes:
     post:
-      consumes:
-      - application/json
       description: Push batch of entities to synchronize with server
-      parameters:
-      - description: Sync push batch request payload
-        in: body
-        name: request
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/request.SyncPushChangesRequest'
+        description: Sync push batch request payload
         required: true
-        schema:
-          $ref: '#/definitions/request.SyncPushChangesRequest'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-response_SyncPushChangesResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/model.APIResponse-response_SyncPushChangesResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Conflict
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
       summary: Sync by pushing changes
       tags:
       - API / Sync
   /api/sync/changes/{since}:
     get:
-      consumes:
-      - application/json
       description: Pull records updated since specified datetime across all entities
       parameters:
       - description: RFC3339 or YYYY-MM-DD datetime to query records updated since
         in: path
         name: since
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-response_SyncPullChangesResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/model.APIResponse-response_SyncPullChangesResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.APIResponse-any'
       summary: Sync by pulling delta of changes
       tags:
       - API / Sync
-swagger: "2.0"

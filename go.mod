@@ -9,7 +9,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	github.com/swaggo/echo-swagger/v2 v2.0.1
-	github.com/swaggo/swag v1.16.6
+	github.com/swaggo/swag/v2 v2.0.0-rc4
 	go.uber.org/zap v1.28.0
 	gorm.io/driver/postgres v1.6.3
 	gorm.io/driver/sqlite v1.6.0
@@ -134,6 +134,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/k0kubun/pp v2.3.0+incompatible // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
@@ -151,6 +152,8 @@ require (
 	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.0 // indirect
@@ -179,8 +182,8 @@ require (
 	github.com/spiffe/go-spiffe/v2 v2.8.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/sv-tools/openapi v0.2.1 // indirect
-	github.com/swaggo/files/v2 v2.0.0 // indirect
-	github.com/swaggo/swag/v2 v2.0.0-rc4 // indirect
+	github.com/swaggo/files/v2 v2.0.2 // indirect
+	github.com/swaggo/swag v1.16.6 // indirect
 	github.com/tdewolff/parse/v2 v2.8.12 // indirect
 	github.com/urfave/cli/v2 v2.25.1 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
@@ -256,5 +259,5 @@ tool (
 	github.com/golang-migrate/migrate/v4/cmd/migrate
 	github.com/google/wire/cmd/wire
 	github.com/segmentio/golines
-	github.com/swaggo/swag/cmd/swag
+	github.com/swaggo/swag/v2/cmd/swag
 )
