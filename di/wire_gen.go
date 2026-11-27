@@ -16,6 +16,7 @@ import (
 	"github.com/bryanfks-dev/logos/internal/repository/sermon_note"
 	"github.com/bryanfks-dev/logos/internal/repository/sermon_series"
 	"github.com/bryanfks-dev/logos/internal/repository/tag"
+	"github.com/bryanfks-dev/logos/internal/usecase/download_sermon_note_attachment_file"
 	"github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
 	"github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	"github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
@@ -68,7 +69,8 @@ func NewContainer() (*Container, error) {
 		Log:                  logger,
 	}
 	uploadSermonNoteAttachmentFileUsecase := uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase(uploadSermonNoteAttachmentFileUsecaseOption)
-	sermonNoteController := http.NewSermonNoteController(uploadSermonNoteAttachmentFileUsecase, logger)
+	downloadSermonNoteAttachmentFileUsecase := downloadsermonnoteattachmentfile.NewDownloadSermonNoteAttachmentFileUsecase(sermonNoteRepository, manager, logger)
+	sermonNoteController := http.NewSermonNoteController(uploadSermonNoteAttachmentFileUsecase, downloadSermonNoteAttachmentFileUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
 		App:                  echo,
 		EtcController:        etcController,
@@ -78,19 +80,20 @@ func NewContainer() (*Container, error) {
 	}
 	routeConfig := route.NewRouteConfig(routeConfigOption)
 	container := &Container{
-		Config:                                viper,
-		Log:                                   logger,
-		App:                                   echo,
-		TxManager:                             txManager,
-		FsManager:                             manager,
-		RouteConfig:                           routeConfig,
-		EtcController:                         etcController,
-		ErrorController:                       errorController,
-		SyncController:                        syncController,
-		SermonNoteController:                  sermonNoteController,
-		PullSyncChangesUsecase:                pullSyncChangesUsecase,
-		PushSyncChangesUsecase:                pushSyncChangesUsecase,
-		UploadSermonNoteAttachmentFileUsecase: uploadSermonNoteAttachmentFileUsecase,
+		Config:                                  viper,
+		Log:                                     logger,
+		App:                                     echo,
+		TxManager:                               txManager,
+		FsManager:                               manager,
+		RouteConfig:                             routeConfig,
+		EtcController:                           etcController,
+		ErrorController:                         errorController,
+		SyncController:                          syncController,
+		SermonNoteController:                    sermonNoteController,
+		PullSyncChangesUsecase:                  pullSyncChangesUsecase,
+		PushSyncChangesUsecase:                  pushSyncChangesUsecase,
+		UploadSermonNoteAttachmentFileUsecase:   uploadSermonNoteAttachmentFileUsecase,
+		DownloadSermonNoteAttachmentFileUsecase: downloadSermonNoteAttachmentFileUsecase,
 	}
 	return container, nil
 }
@@ -113,7 +116,8 @@ type Container struct {
 	SyncController       *http.SyncController
 	SermonNoteController *http.SermonNoteController
 
-	PullSyncChangesUsecase                *pullsyncchanges.PullSyncChangesUsecase
-	PushSyncChangesUsecase                *pushsyncchanges.PushSyncChangesUsecase
-	UploadSermonNoteAttachmentFileUsecase *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
+	PullSyncChangesUsecase                  *pullsyncchanges.PullSyncChangesUsecase
+	PushSyncChangesUsecase                  *pushsyncchanges.PushSyncChangesUsecase
+	UploadSermonNoteAttachmentFileUsecase   *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
+	DownloadSermonNoteAttachmentFileUsecase *downloadsermonnoteattachmentfile.DownloadSermonNoteAttachmentFileUsecase
 }

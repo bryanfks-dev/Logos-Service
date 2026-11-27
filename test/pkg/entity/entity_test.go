@@ -132,9 +132,6 @@ func TestBeforeCreateHooks(t *testing.T) {
 				attachmentExisting.Status,
 			)
 
-			var nilAttachment *entity.SermonNoteAttachment
-			assert.False(t, nilAttachment.IsUploadedWithValidHash("abc123"))
-
 			assert.True(t, (&entity.SermonNoteAttachment{
 				Status:         constant.UploadStatusUploaded,
 				ChecksumSHA256: "abc123",
@@ -143,6 +140,19 @@ func TestBeforeCreateHooks(t *testing.T) {
 				Status:         constant.UploadStatusProcessing,
 				ChecksumSHA256: "abc123",
 			}).IsUploadedWithValidHash("abc123"))
+
+			assert.False(t, (&entity.SermonNoteAttachment{
+				Status:      constant.UploadStatusStored,
+				StoragePath: "/tmp/file.pdf",
+			}).IsFileUploaded())
+			assert.False(t, (&entity.SermonNoteAttachment{
+				Status:      constant.UploadStatusUploaded,
+				StoragePath: "   ",
+			}).IsFileUploaded())
+			assert.True(t, (&entity.SermonNoteAttachment{
+				Status:      constant.UploadStatusUploaded,
+				StoragePath: "/tmp/file.pdf",
+			}).IsFileUploaded())
 		},
 	)
 
@@ -196,10 +206,7 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 	t.Run(
 		"HasConflictWith handles nil and version/hash checks",
 		func(t *testing.T) {
-			var nilNote *entity.SermonNote
 			incoming := &entity.SermonNote{Version: 2, ContentHash: "hash-a"}
-			assert.False(t, nilNote.HasConflictWith(incoming))
-
 			existing := &entity.SermonNote{Version: 3, ContentHash: "hash-b"}
 			assert.False(t, existing.HasConflictWith(nil))
 			assert.True(t, existing.HasConflictWith(incoming))
@@ -237,10 +244,7 @@ func TestSermonNote_ComparisonMethods(t *testing.T) {
 	t.Run(
 		"IsContentMissingFor compares ContentHash and hydrated ContentJSON",
 		func(t *testing.T) {
-			var nilNote *entity.SermonNote
 			incoming := &entity.SermonNote{ContentHash: "hash-a"}
-			assert.False(t, nilNote.IsContentMissingFor(incoming))
-
 			existing := &entity.SermonNote{ContentHash: "hash-a"}
 			assert.False(t, existing.IsContentMissingFor(nil))
 			assert.False(t, existing.IsContentMissingFor(incoming))

@@ -5,26 +5,25 @@ import (
 
 	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/internal/model/response"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 )
 
-func SyncNoteChangesItemToEntity(
+func SyncNoteChangesItemToPushSermonNoteInput(
 	noteItem *request.SyncNoteChangesItem,
-) entity.SermonNote {
+) *pushsyncchanges.PushSermonNoteInput {
 	if noteItem == nil {
-		return entity.SermonNote{}
+		return nil
 	}
 
-	version := noteItem.Version
-	if version < 1 {
-		version = 1
-	}
-
-	verses := make([]entity.NoteVerse, 0, len(noteItem.Verses))
+	verses := make(
+		[]pushsyncchanges.PushNoteVerseInput,
+		0,
+		len(noteItem.Verses),
+	)
 	for _, v := range noteItem.Verses {
-		verse := entity.NoteVerse{
+		verse := pushsyncchanges.PushNoteVerseInput{
 			ID:          v.ID,
-			NoteID:      noteItem.ID,
 			Translation: v.Translation,
 			BookID:      v.BookID,
 			Chapter:     v.Chapter,
@@ -35,20 +34,30 @@ func SyncNoteChangesItemToEntity(
 		verses = append(verses, verse)
 	}
 
-	tags := make([]entity.Tag, 0, len(noteItem.Tags))
+	tags := make([]pushsyncchanges.PushNoteTagInput, 0, len(noteItem.Tags))
 	for _, tagName := range noteItem.Tags {
-		tag := entity.Tag{
+		tag := pushsyncchanges.PushNoteTagInput{
 			Name: tagName,
 		}
 		tags = append(tags, tag)
 	}
 
-	sermonDate := time.Now().UTC()
+	var sermonDate time.Time
 	if noteItem.SermonDate != nil {
 		sermonDate = *noteItem.SermonDate
 	}
 
-	return entity.SermonNote{
+	var createdAt time.Time
+	if noteItem.CreateadAt != nil {
+		createdAt = *noteItem.CreateadAt
+	}
+
+	var updatedAt time.Time
+	if noteItem.UpdatedAt != nil {
+		updatedAt = *noteItem.UpdatedAt
+	}
+
+	return &pushsyncchanges.PushSermonNoteInput{
 		ID:          noteItem.ID,
 		GatheringID: noteItem.GatheringID,
 		SeriesID:    noteItem.SeriesID,
@@ -58,9 +67,12 @@ func SyncNoteChangesItemToEntity(
 		ContentHash: noteItem.ContentHash,
 		PlainText:   noteItem.PlainText,
 		ContentJSON: noteItem.ContentJSON,
-		Version:     version,
-		Verses:      verses,
+		Version:     noteItem.Version,
 		Tags:        tags,
+		Verses:      verses,
+		IsDeleted:   noteItem.IsDeleted,
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 	}
 }
 

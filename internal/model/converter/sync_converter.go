@@ -7,36 +7,40 @@ import (
 	"github.com/bryanfks-dev/logos/internal/model/response"
 	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
 	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
-	"github.com/bryanfks-dev/logos/pkg/entity"
 )
 
-func SyncPushChangesRequestToSyncChangesBatch(
+func SyncPushChangesRequestToPushSyncChangesInput(
 	req *request.SyncPushChangesRequest,
-) *pushsyncchanges.SyncChangesBatch {
+) *pushsyncchanges.PushSyncChangesInput {
 	if req == nil {
-		return &pushsyncchanges.SyncChangesBatch{
-			SermonNotes:  make([]*entity.SermonNote, 0),
-			Gatherings:   make([]*entity.Gathering, 0),
-			SermonSeries: make([]*entity.SermonSeries, 0),
-			Preachers:    make([]*entity.Preacher, 0),
-			Tags:         make([]*entity.Tag, 0),
+		return &pushsyncchanges.PushSyncChangesInput{
+			SermonNotes:  make([]*pushsyncchanges.PushSermonNoteInput, 0),
+			Gatherings:   make([]*pushsyncchanges.PushGatheringInput, 0),
+			SermonSeries: make([]*pushsyncchanges.PushSermonSeriesInput, 0),
+			Preachers:    make([]*pushsyncchanges.PushPreacherInput, 0),
+			Tags:         make([]*pushsyncchanges.PushTagInput, 0),
 		}
 	}
 
-	notes := make([]*entity.SermonNote, 0, len(req.SermonNotes))
+	notes := make(
+		[]*pushsyncchanges.PushSermonNoteInput,
+		0,
+		len(req.SermonNotes),
+	)
 	for i := range req.SermonNotes {
 		noteItem := &req.SermonNotes[i]
-		n := SyncNoteChangesItemToEntity(noteItem)
-		if noteItem.UpdatedAt != nil {
-			n.UpdatedAt = *noteItem.UpdatedAt
-		}
-		notes = append(notes, &n)
+		n := SyncNoteChangesItemToPushSermonNoteInput(noteItem)
+		notes = append(notes, n)
 	}
 
-	gatherings := make([]*entity.Gathering, 0, len(req.Gatherings))
+	gatherings := make(
+		[]*pushsyncchanges.PushGatheringInput,
+		0,
+		len(req.Gatherings),
+	)
 	for i := range req.Gatherings {
 		gatheringItem := &req.Gatherings[i]
-		g := &entity.Gathering{
+		g := &pushsyncchanges.PushGatheringInput{
 			ID:        gatheringItem.ID,
 			Name:      gatheringItem.Name,
 			ColorHex:  gatheringItem.ColorHex,
@@ -51,10 +55,14 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		gatherings = append(gatherings, g)
 	}
 
-	seriesList := make([]*entity.SermonSeries, 0, len(req.SermonSeries))
+	seriesList := make(
+		[]*pushsyncchanges.PushSermonSeriesInput,
+		0,
+		len(req.SermonSeries),
+	)
 	for i := range req.SermonSeries {
 		seriesItem := &req.SermonSeries[i]
-		s := &entity.SermonSeries{
+		s := &pushsyncchanges.PushSermonSeriesInput{
 			ID:          seriesItem.ID,
 			Name:        seriesItem.Name,
 			Description: seriesItem.Description,
@@ -68,10 +76,14 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		seriesList = append(seriesList, s)
 	}
 
-	preachers := make([]*entity.Preacher, 0, len(req.Preachers))
+	preachers := make(
+		[]*pushsyncchanges.PushPreacherInput,
+		0,
+		len(req.Preachers),
+	)
 	for i := range req.Preachers {
 		preacherItem := &req.Preachers[i]
-		p := &entity.Preacher{
+		p := &pushsyncchanges.PushPreacherInput{
 			ID:         preacherItem.ID,
 			Name:       preacherItem.Name,
 			ChurchName: preacherItem.ChurchName,
@@ -85,10 +97,10 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		preachers = append(preachers, p)
 	}
 
-	tags := make([]*entity.Tag, 0, len(req.Tags))
+	tags := make([]*pushsyncchanges.PushTagInput, 0, len(req.Tags))
 	for i := range req.Tags {
 		tagItem := &req.Tags[i]
-		t := &entity.Tag{
+		t := &pushsyncchanges.PushTagInput{
 			ID:   tagItem.ID,
 			Name: tagItem.Name,
 		}
@@ -101,7 +113,7 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		tags = append(tags, t)
 	}
 
-	return &pushsyncchanges.SyncChangesBatch{
+	return &pushsyncchanges.PushSyncChangesInput{
 		SermonNotes:  notes,
 		Gatherings:   gatherings,
 		SermonSeries: seriesList,
@@ -110,8 +122,8 @@ func SyncPushChangesRequestToSyncChangesBatch(
 	}
 }
 
-func SyncPushChangesResultToResponse(
-	result *pushsyncchanges.SyncPushChangesResult,
+func PushSyncChangesResultToResponse(
+	result *pushsyncchanges.PushSyncChangesResult,
 ) *response.SyncPushChangesResponse {
 	if result == nil {
 		return &response.SyncPushChangesResponse{

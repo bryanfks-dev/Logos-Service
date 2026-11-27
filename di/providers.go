@@ -12,6 +12,7 @@ import (
 	sermonseries "github.com/bryanfks-dev/logos/internal/repository/sermon_series"
 	syncoutbox "github.com/bryanfks-dev/logos/internal/repository/sync_outbox"
 	"github.com/bryanfks-dev/logos/internal/repository/tag"
+	downloadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/download_sermon_note_attachment_file"
 	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
 	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
@@ -53,6 +54,7 @@ var UsecaseSet = wire.NewSet(
 		"*",
 	),
 	uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase,
+	downloadsermonnoteattachmentfile.NewDownloadSermonNoteAttachmentFileUsecase,
 )
 
 var DeliverySet = wire.NewSet(

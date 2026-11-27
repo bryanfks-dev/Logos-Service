@@ -2,9 +2,11 @@ package pullsyncchanges
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/bryanfks-dev/logos/pkg/entity"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	"go.uber.org/zap"
 )
 
@@ -27,31 +29,61 @@ func (u *PullSyncChangesUsecase) Call(
 
 	notes, err := u.sermonNoteRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to pull sermon notes", zap.Error(err))
+
 		return nil, err
 	}
 
 	gatherings, err := u.gatheringRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to pull gatherings", zap.Error(err))
+
 		return nil, err
 	}
 
 	series, err := u.sermonSeriesRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to pull sermon series", zap.Error(err))
+
 		return nil, err
 	}
 
 	preachers, err := u.preacherRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to pull preachers", zap.Error(err))
+
 		return nil, err
 	}
 
 	tags, err := u.tagRepository.FindUpdatedSince(ctx, since)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to pull tags", zap.Error(err))
+
 		return nil, err
 	}
 

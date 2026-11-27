@@ -81,7 +81,7 @@ func (e *SermonNote) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (e *SermonNote) HasConflictWith(incoming *SermonNote) bool {
-	if e == nil || incoming == nil {
+	if incoming == nil {
 		return false
 	}
 
@@ -90,7 +90,7 @@ func (e *SermonNote) HasConflictWith(incoming *SermonNote) bool {
 }
 
 func (e *SermonNote) IsContentMissingFor(incoming *SermonNote) bool {
-	if e == nil || incoming == nil {
+	if incoming == nil {
 		return false
 	}
 

@@ -3,7 +3,9 @@ package util
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"time"
+	"uuid"
 )
 
 func ParseDatetimeParam(param string) (time.Time, error) {
@@ -26,4 +28,22 @@ func ParseDatetimeParam(param string) (time.Time, error) {
 	}
 
 	return time.Time{}, errors.New("invalid datetime param format")
+}
+
+func ParseUUIDParam(param string) (uuid.UUID, error) {
+	trimmed := strings.TrimSpace(param)
+	if trimmed == "" {
+		return uuid.Nil(), errors.New("uuid param is required")
+	}
+
+	parsed, err := uuid.Parse(trimmed)
+	if err != nil {
+		return uuid.Nil(), errors.New("invalid uuid param format")
+	}
+
+	if parsed == uuid.Nil() {
+		return uuid.Nil(), errors.New("uuid param must not be nil")
+	}
+
+	return parsed, nil
 }

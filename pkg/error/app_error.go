@@ -1,7 +1,6 @@
 package apperror
 
 import (
-	"errors"
 	"slices"
 )
 
@@ -58,9 +57,10 @@ func (e *AppError) WithCause(cause error) *AppError {
 	}
 }
 
-func KindOf(err error) (ErrKind, bool) {
-	if ae, ok := errors.AsType[*AppError](err); ok {
-		return ae.Kind, true
+func (e *AppError) IsDomain() bool {
+	if e == nil {
+		return false
 	}
-	return 0, false
+
+	return e.Kind.IsDomain()
 }

@@ -454,11 +454,6 @@ paths:
   /api/healthz:
     get:
       description: Check service health status
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
       responses:
         "200":
           content:
@@ -469,6 +464,50 @@ paths:
       summary: Health check
       tags:
       - API / Etc
+  /api/notes/{id}/file:
+    get:
+      description: Stream stored binary attachment file with content headers
+      parameters:
+      - description: Attachment UUID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: file
+          description: Raw binary attachment file stream
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/model.APIResponse-any'
+          description: Internal Server Error
+      summary: Download attachment binary file
+      tags:
+      - API / Sermon Note / Attachments
   /api/sync/changes:
     post:
       description: Push batch of entities to synchronize with server
@@ -523,11 +562,6 @@ paths:
         required: true
         schema:
           type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
       responses:
         "200":
           content:

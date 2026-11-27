@@ -13,18 +13,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
-	t.Run("nil request returns empty batch", func(t *testing.T) {
-		batch := converter.SyncPushChangesRequestToSyncChangesBatch(nil)
-		assert.NotNil(t, batch)
-		assert.Empty(t, batch.SermonNotes)
-		assert.Empty(t, batch.Gatherings)
-		assert.Empty(t, batch.SermonSeries)
-		assert.Empty(t, batch.Preachers)
-		assert.Empty(t, batch.Tags)
+func TestSyncPushChangesRequestToPushSyncChangesInput(t *testing.T) {
+	t.Run("nil request returns empty input", func(t *testing.T) {
+		input := converter.SyncPushChangesRequestToPushSyncChangesInput(nil)
+		assert.NotNil(t, input)
+		assert.Empty(t, input.SermonNotes)
+		assert.Empty(t, input.Gatherings)
+		assert.Empty(t, input.SermonSeries)
+		assert.Empty(t, input.Preachers)
+		assert.Empty(t, input.Tags)
 	})
 
-	t.Run("converts full sync push request to batch", func(t *testing.T) {
+	t.Run("converts full sync push request to input", func(t *testing.T) {
 		now := time.Now().UTC()
 		req := &request.SyncPushChangesRequest{
 			SermonNotes: []request.SyncNoteChangesItem{
@@ -70,38 +70,38 @@ func TestSyncPushChangesRequestToSyncChangesBatch(t *testing.T) {
 			},
 		}
 
-		batch := converter.SyncPushChangesRequestToSyncChangesBatch(req)
-		assert.NotNil(t, batch)
+		input := converter.SyncPushChangesRequestToPushSyncChangesInput(req)
+		assert.NotNil(t, input)
 
-		require.Len(t, batch.SermonNotes, 1)
-		assert.Equal(t, "note-1", batch.SermonNotes[0].ID)
-		assert.Equal(t, "Test Note", batch.SermonNotes[0].Title)
-		assert.Equal(t, "hash-abc", batch.SermonNotes[0].ContentHash)
+		require.Len(t, input.SermonNotes, 1)
+		assert.Equal(t, "note-1", input.SermonNotes[0].ID)
+		assert.Equal(t, "Test Note", input.SermonNotes[0].Title)
+		assert.Equal(t, "hash-abc", input.SermonNotes[0].ContentHash)
 
-		require.Len(t, batch.Gatherings, 1)
-		assert.Equal(t, "g-1", batch.Gatherings[0].ID)
-		assert.Equal(t, "Sunday Morning", batch.Gatherings[0].Name)
-		assert.Equal(t, "#FFFFFF", batch.Gatherings[0].ColorHex)
+		require.Len(t, input.Gatherings, 1)
+		assert.Equal(t, "g-1", input.Gatherings[0].ID)
+		assert.Equal(t, "Sunday Morning", input.Gatherings[0].Name)
+		assert.Equal(t, "#FFFFFF", input.Gatherings[0].ColorHex)
 
-		require.Len(t, batch.SermonSeries, 1)
-		assert.Equal(t, "s-1", batch.SermonSeries[0].ID)
-		assert.Equal(t, "Romans", batch.SermonSeries[0].Name)
+		require.Len(t, input.SermonSeries, 1)
+		assert.Equal(t, "s-1", input.SermonSeries[0].ID)
+		assert.Equal(t, "Romans", input.SermonSeries[0].Name)
 
-		require.Len(t, batch.Preachers, 1)
-		assert.Equal(t, "p-1", batch.Preachers[0].ID)
-		assert.Equal(t, "Pastor John", batch.Preachers[0].Name)
+		require.Len(t, input.Preachers, 1)
+		assert.Equal(t, "p-1", input.Preachers[0].ID)
+		assert.Equal(t, "Pastor John", input.Preachers[0].Name)
 
-		require.Len(t, batch.Tags, 1)
-		assert.Equal(t, "t-1", batch.Tags[0].ID)
-		assert.Equal(t, "Theology", batch.Tags[0].Name)
+		require.Len(t, input.Tags, 1)
+		assert.Equal(t, "t-1", input.Tags[0].ID)
+		assert.Equal(t, "Theology", input.Tags[0].Name)
 	})
 }
 
-func TestSyncPushChangesResultToResponse(t *testing.T) {
+func TestPushSyncChangesResultToResponse(t *testing.T) {
 	t.Run(
 		"nil result returns empty response with non-nil slices",
 		func(t *testing.T) {
-			res := converter.SyncPushChangesResultToResponse(nil)
+			res := converter.PushSyncChangesResultToResponse(nil)
 			assert.NotNil(t, res)
 			assert.True(t, res.SyncedAt.IsZero())
 			assert.NotNil(t, res.MissingContentIDs)
@@ -113,13 +113,13 @@ func TestSyncPushChangesResultToResponse(t *testing.T) {
 
 	t.Run("converts result to response", func(t *testing.T) {
 		syncedAt := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
-		result := &pushsyncchanges.SyncPushChangesResult{
+		result := &pushsyncchanges.PushSyncChangesResult{
 			SyncedAt:          syncedAt,
 			MissingContentIDs: []string{"n1", "n2"},
 			Conflicts:         []string{"n3"},
 		}
 
-		res := converter.SyncPushChangesResultToResponse(result)
+		res := converter.PushSyncChangesResultToResponse(result)
 		assert.NotNil(t, res)
 		assert.Equal(t, syncedAt, res.SyncedAt)
 		assert.Equal(t, []string{"n1", "n2"}, res.MissingContentIDs)

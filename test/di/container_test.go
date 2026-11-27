@@ -42,6 +42,7 @@ func TestNewContainer(t *testing.T) {
 	assert.NotNil(t, container.PullSyncChangesUsecase)
 	assert.NotNil(t, container.PushSyncChangesUsecase)
 	assert.NotNil(t, container.UploadSermonNoteAttachmentFileUsecase)
+	assert.NotNil(t, container.DownloadSermonNoteAttachmentFileUsecase)
 
 	// Verify route setup completes without panic
 	assert.NotPanics(t, func() {

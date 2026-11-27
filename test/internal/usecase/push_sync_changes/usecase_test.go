@@ -257,8 +257,8 @@ func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	t.Run(
 		"creates new metadata and updates existing when newer",
 		func(t *testing.T) {
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{
 						ID:        "g-new",
 						Name:      "New Gathering",
@@ -272,7 +272,7 @@ func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 						UpdatedAt: newerTime,
 					},
 				},
-				SermonSeries: []*entity.SermonSeries{
+				SermonSeries: []*pushsyncchanges.PushSermonSeriesInput{
 					{
 						ID:        "s-new",
 						Name:      "New Series",
@@ -284,7 +284,7 @@ func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 						UpdatedAt: newerTime,
 					},
 				},
-				Preachers: []*entity.Preacher{
+				Preachers: []*pushsyncchanges.PushPreacherInput{
 					{
 						ID:        "p-new",
 						Name:      "New Preacher",
@@ -296,7 +296,7 @@ func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 						UpdatedAt: newerTime,
 					},
 				},
-				Tags: []*entity.Tag{
+				Tags: []*pushsyncchanges.PushTagInput{
 					{
 						ID:        "t-new",
 						Name:      "new-tag",
@@ -351,29 +351,29 @@ func TestPushSyncChangesUsecase_Push_UpsertMetadata(t *testing.T) {
 	t.Run(
 		"skips updating metadata when incoming UpdatedAt is older",
 		func(t *testing.T) {
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{
 						ID:        "g-1",
 						Name:      "Should Not Overwrite Gathering",
 						UpdatedAt: olderTime,
 					},
 				},
-				SermonSeries: []*entity.SermonSeries{
+				SermonSeries: []*pushsyncchanges.PushSermonSeriesInput{
 					{
 						ID:        "s-1",
 						Name:      "Should Not Overwrite Series",
 						UpdatedAt: olderTime,
 					},
 				},
-				Preachers: []*entity.Preacher{
+				Preachers: []*pushsyncchanges.PushPreacherInput{
 					{
 						ID:        "p-1",
 						Name:      "Should Not Overwrite Preacher",
 						UpdatedAt: olderTime,
 					},
 				},
-				Tags: []*entity.Tag{
+				Tags: []*pushsyncchanges.PushTagInput{
 					{
 						ID:        "t-1",
 						Name:      "should-not-overwrite-tag",
@@ -423,8 +423,8 @@ func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-conflict-1",
 						Title:       "Client Overwrite Attempt",
@@ -455,15 +455,15 @@ func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 		"appends to MissingContentIDs when note is new and saves note with children",
 		func(t *testing.T) {
 			verseEnd := 4
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-new-1",
 						Title:       "Brand New Note",
 						Version:     1,
 						ContentHash: "hash-new-1",
 						PlainText:   "New note text",
-						Verses: []entity.NoteVerse{
+						Verses: []pushsyncchanges.PushNoteVerseInput{
 							{
 								Translation: "ESV",
 								BookID:      1,
@@ -473,7 +473,7 @@ func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 								DisplayRef:  "Gen 1:1-4",
 							},
 						},
-						Tags: []entity.Tag{
+						Tags: []pushsyncchanges.PushNoteTagInput{
 							{
 								ID:   "tag-new-1",
 								Name: "Creation",
@@ -525,8 +525,8 @@ func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-update-diff-hash",
 						Title:       "Updated Title",
@@ -569,8 +569,8 @@ func TestPushSyncChangesUsecase_Push_SermonNoteConflictsAndMissingContent(
 			}
 			require.NoError(t, testDB.Create(note).Error)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-same-hash",
 						Title:       "Metadata Only Change",
@@ -604,35 +604,67 @@ func TestPushSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 	t.Run(
 		"skips nil items, generates UUIDv7 IDs, and supports alias slices",
 		func(t *testing.T) {
-			g := &entity.Gathering{Name: "Auto ID Gathering"}
-			s := &entity.SermonSeries{Name: "Auto ID Series"}
-			p := &entity.Preacher{Name: "Auto ID Preacher"}
-			tag := &entity.Tag{Name: "auto-id-tag"}
-			note := &entity.SermonNote{
+			g := &pushsyncchanges.PushGatheringInput{Name: "Auto ID Gathering"}
+			s := &pushsyncchanges.PushSermonSeriesInput{Name: "Auto ID Series"}
+			p := &pushsyncchanges.PushPreacherInput{Name: "Auto ID Preacher"}
+			tag := &pushsyncchanges.PushTagInput{Name: "auto-id-tag"}
+			note := &pushsyncchanges.PushSermonNoteInput{
 				Title:       "Auto ID Note",
 				Version:     1,
 				ContentHash: "hash-auto-id",
 			}
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings:   []*entity.Gathering{nil, g},
-				SermonSeries: []*entity.SermonSeries{nil, s},
-				Preachers:    []*entity.Preacher{nil, p},
-				Tags:         []*entity.Tag{nil, tag},
-				SermonNotes:  []*entity.SermonNote{nil, note},
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings:   []*pushsyncchanges.PushGatheringInput{nil, g},
+				SermonSeries: []*pushsyncchanges.PushSermonSeriesInput{nil, s},
+				Preachers:    []*pushsyncchanges.PushPreacherInput{nil, p},
+				Tags:         []*pushsyncchanges.PushTagInput{nil, tag},
+				SermonNotes:  []*pushsyncchanges.PushSermonNoteInput{nil, note},
 			}
 
 			res, err := u.Call(ctx, batch)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 
-			for _, id := range []string{g.ID, s.ID, p.ID, tag.ID, note.ID} {
+			var storedG entity.Gathering
+			require.NoError(
+				t,
+				testDB.First(&storedG, "name = ?", "Auto ID Gathering").Error,
+			)
+			var storedS entity.SermonSeries
+			require.NoError(
+				t,
+				testDB.First(&storedS, "name = ?", "Auto ID Series").Error,
+			)
+			var storedP entity.Preacher
+			require.NoError(
+				t,
+				testDB.First(&storedP, "name = ?", "Auto ID Preacher").Error,
+			)
+			var storedTag entity.Tag
+			require.NoError(
+				t,
+				testDB.First(&storedTag, "name = ?", "auto-id-tag").Error,
+			)
+			var storedNote entity.SermonNote
+			require.NoError(
+				t,
+				testDB.First(&storedNote, "title = ?", "Auto ID Note").Error,
+			)
+
+			for _, id := range []string{
+				storedG.ID,
+				storedS.ID,
+				storedP.ID,
+				storedTag.ID,
+				storedNote.ID,
+			} {
 				parsed, parseErr := uuid.Parse(id)
 				require.NoError(t, parseErr)
 				assert.Equal(t, byte(7), parsed[6]>>4)
 			}
 
-			assert.Contains(t, res.MissingContentIDs, note.ID)
+			assert.Contains(t, res.MissingContentIDs, storedNote.ID)
 		},
 	)
 
@@ -655,8 +687,8 @@ func TestPushSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(existing).Error)
 
-			matchingBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			matchingBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-hydrated-file",
 						Title:       "Hydrated Updated",
@@ -671,8 +703,8 @@ func TestPushSyncChangesUsecase_Push_EdgeCasesAndFileHash(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, res.MissingContentIDs, "note-hydrated-file")
 
-			diffBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			diffBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-hydrated-file",
 						Title:       "Hydrated Updated Again",
@@ -727,11 +759,11 @@ func TestPushSyncChangesUsecase_ErrorPropagationAndRollback(t *testing.T) {
 				},
 			)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{ID: "g-rollback", Name: "Should Roll Back"},
 				},
-				SermonNotes: []*entity.SermonNote{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{ID: "n-fail", Title: "Fail"},
 				},
 			}
@@ -760,8 +792,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			testDB, u := setupSyncTestEnv(t)
 			ctx := context.Background()
 
-			clientABatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			clientABatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-same-ver",
 						Title:       "Client A Title",
@@ -775,8 +807,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, err)
 			assert.Empty(t, resA.Conflicts)
 
-			clientBBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			clientBBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-same-ver",
 						Title:       "Client B Title",
@@ -806,8 +838,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			_, u := setupSyncTestEnv(t)
 			ctx := context.Background()
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-idempotent",
 						Title:       "Initial Title",
@@ -844,8 +876,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, testDB.Create(note).Error)
 			require.NoError(t, testDB.Delete(note).Error)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-soft-deleted",
 						Title:       "Restored By Client B",
@@ -880,15 +912,15 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				wg   sync.WaitGroup
 				errA error
 				errB error
-				resA *pushsyncchanges.SyncPushChangesResult
-				resB *pushsyncchanges.SyncPushChangesResult
+				resA *pushsyncchanges.PushSyncChangesResult
+				resB *pushsyncchanges.PushSyncChangesResult
 			)
 
 			wg.Add(2)
 			go func() {
 				defer wg.Done()
-				batchA := &pushsyncchanges.SyncChangesBatch{
-					SermonNotes: []*entity.SermonNote{
+				batchA := &pushsyncchanges.PushSyncChangesInput{
+					SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 						{
 							ID:          "note-concurrent-1",
 							Title:       "Client A Concurrent",
@@ -903,8 +935,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 
 			go func() {
 				defer wg.Done()
-				batchB := &pushsyncchanges.SyncChangesBatch{
-					SermonNotes: []*entity.SermonNote{
+				batchB := &pushsyncchanges.PushSyncChangesInput{
+					SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 						{
 							ID:          "note-concurrent-1",
 							Title:       "Client B Concurrent",
@@ -948,12 +980,12 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 			t2 := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
 
-			dupBatch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			dupBatch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{ID: "g-dup", Name: "First", UpdatedAt: t1},
 					{ID: "g-dup", Name: "Second", UpdatedAt: t2},
 				},
-				SermonNotes: []*entity.SermonNote{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "n-dup",
 						Title:       "First Note",
@@ -993,12 +1025,12 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			older := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 			newer := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{ID: "g-order", Name: "Newer", UpdatedAt: newer},
 					{ID: "g-order", Name: "Older", UpdatedAt: older},
 				},
-				Preachers: []*entity.Preacher{
+				Preachers: []*pushsyncchanges.PushPreacherInput{
 					{ID: "p-order", Name: "Newer Preacher", UpdatedAt: newer},
 					{ID: "p-order", Name: "Older Preacher", UpdatedAt: older},
 				},
@@ -1027,17 +1059,17 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			t1 := time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC)
 			t2 := time.Date(2026, 2, 1, 11, 0, 0, 0, time.UTC)
 
-			batchA := &pushsyncchanges.SyncChangesBatch{
-				Tags: []*entity.Tag{
+			batchA := &pushsyncchanges.PushSyncChangesInput{
+				Tags: []*pushsyncchanges.PushTagInput{
 					{ID: "tag-client-a", Name: "Grace", UpdatedAt: t1},
 				},
-				SermonNotes: []*entity.SermonNote{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-tag-a",
 						Title:       "Note A",
 						Version:     1,
 						ContentHash: "hash-a",
-						Tags: []entity.Tag{
+						Tags: []pushsyncchanges.PushNoteTagInput{
 							{ID: "tag-client-a", Name: "Grace"},
 						},
 					},
@@ -1047,17 +1079,17 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, err)
 			assert.Empty(t, resA.Conflicts)
 
-			batchB := &pushsyncchanges.SyncChangesBatch{
-				Tags: []*entity.Tag{
+			batchB := &pushsyncchanges.PushSyncChangesInput{
+				Tags: []*pushsyncchanges.PushTagInput{
 					{ID: "tag-client-b", Name: "Grace", UpdatedAt: t2},
 				},
-				SermonNotes: []*entity.SermonNote{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-tag-b",
 						Title:       "Note B",
 						Version:     1,
 						ContentHash: "hash-b",
-						Tags: []entity.Tag{
+						Tags: []pushsyncchanges.PushNoteTagInput{
 							{ID: "tag-client-b", Name: "Grace"},
 						},
 					},
@@ -1095,8 +1127,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, testDB.Create(g).Error)
 			require.NoError(t, testDB.Delete(g).Error)
 
-			restoreBatch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			restoreBatch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{
 						ID:        "g-soft-del",
 						Name:      "Restored Gathering",
@@ -1127,8 +1159,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			origSum := sha256.Sum256([]byte(originalContent))
 			origHash := hex.EncodeToString(origSum[:])
 
-			initialBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			initialBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-file-rb-1",
 						Title:       "Original",
@@ -1175,8 +1207,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			newSum := sha256.Sum256([]byte(newContent))
 			newHash := hex.EncodeToString(newSum[:])
 
-			rollbackBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			rollbackBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-file-rb-1",
 						Title:       "Updated",
@@ -1213,8 +1245,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			sum := sha256.Sum256([]byte(content))
 			hash := hex.EncodeToString(sum[:])
 
-			createBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			createBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-meta-preserve",
 						Title:       "Before",
@@ -1234,8 +1266,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 				testDB.First(&created, "id = ?", "note-meta-preserve").Error,
 			)
 
-			updateBatch := &pushsyncchanges.SyncChangesBatch{
-				SermonNotes: []*entity.SermonNote{
+			updateBatch := &pushsyncchanges.PushSyncChangesInput{
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{
 					{
 						ID:          "note-meta-preserve",
 						Title:       "After",
@@ -1291,20 +1323,20 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			require.NoError(t, testDB.Create(&tagA).Error)
 			require.NoError(t, testDB.Create(&tagB).Error)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{
 						ID:        "g-keep-created",
 						Name:      "Updated",
 						UpdatedAt: t2,
 					},
 				},
-				Tags: []*entity.Tag{
+				Tags: []*pushsyncchanges.PushTagInput{
 					nil,
 					{ID: "tag-a", Name: "", UpdatedAt: t2},
 					{ID: "tag-b", Name: "Alpha", UpdatedAt: t2},
 				},
-				SermonNotes: []*entity.SermonNote{nil},
+				SermonNotes: []*pushsyncchanges.PushSermonNoteInput{nil},
 			}
 
 			_, err := u.Call(ctx, batch)
@@ -1336,8 +1368,8 @@ func TestPushSyncChangesUsecase_Push_MultiClientScenarios(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{ID: "g-canceled", Name: "Canceled"},
 				},
 			}
@@ -1427,8 +1459,8 @@ func TestPushSyncChangesUsecase_PostgresRetries(t *testing.T) {
 			}
 			u := newRetryTestUsecase(txMgr, testDB)
 
-			batch := &pushsyncchanges.SyncChangesBatch{
-				Gatherings: []*entity.Gathering{
+			batch := &pushsyncchanges.PushSyncChangesInput{
+				Gatherings: []*pushsyncchanges.PushGatheringInput{
 					{ID: "g-retry-ok", Name: "Retried Gathering"},
 				},
 			}
@@ -1452,7 +1484,7 @@ func TestPushSyncChangesUsecase_PostgresRetries(t *testing.T) {
 		}
 		u := newRetryTestUsecase(txMgr, testDB)
 
-		res, err := u.Call(ctx, &pushsyncchanges.SyncChangesBatch{})
+		res, err := u.Call(ctx, &pushsyncchanges.PushSyncChangesInput{})
 		assert.Nil(t, res)
 		assert.ErrorIs(t, err, nonRetryErr)
 		assert.Equal(t, 1, txMgr.attempts)
@@ -1502,59 +1534,68 @@ func TestPushSyncChangesUsecase_NoNPlusOneQueries(t *testing.T) {
 		return count
 	}
 
-	buildBatch := func(n int, prefix string, ver int) *pushsyncchanges.SyncChangesBatch {
-		batch := &pushsyncchanges.SyncChangesBatch{
-			Gatherings:   make([]*entity.Gathering, 0, n),
-			SermonSeries: make([]*entity.SermonSeries, 0, n),
-			Preachers:    make([]*entity.Preacher, 0, n),
-			Tags:         make([]*entity.Tag, 0, n),
-			SermonNotes:  make([]*entity.SermonNote, 0, n),
+	buildBatch := func(n int, prefix string, ver int) *pushsyncchanges.PushSyncChangesInput {
+		batch := &pushsyncchanges.PushSyncChangesInput{
+			Gatherings:   make([]*pushsyncchanges.PushGatheringInput, 0, n),
+			SermonSeries: make([]*pushsyncchanges.PushSermonSeriesInput, 0, n),
+			Preachers:    make([]*pushsyncchanges.PushPreacherInput, 0, n),
+			Tags:         make([]*pushsyncchanges.PushTagInput, 0, n),
+			SermonNotes:  make([]*pushsyncchanges.PushSermonNoteInput, 0, n),
 		}
 		now := time.Now().UTC()
 		for i := range n {
 			suffix := fmt.Sprintf("%s-%d", prefix, i)
-			batch.Gatherings = append(batch.Gatherings, &entity.Gathering{
-				ID:        "g-" + suffix,
-				Name:      "G-" + suffix,
-				UpdatedAt: now,
-			})
+			batch.Gatherings = append(
+				batch.Gatherings,
+				&pushsyncchanges.PushGatheringInput{
+					ID:        "g-" + suffix,
+					Name:      "G-" + suffix,
+					UpdatedAt: now,
+				},
+			)
 			batch.SermonSeries = append(
 				batch.SermonSeries,
-				&entity.SermonSeries{
+				&pushsyncchanges.PushSermonSeriesInput{
 					ID:        "s-" + suffix,
 					Name:      "S-" + suffix,
 					UpdatedAt: now,
 				},
 			)
-			batch.Preachers = append(batch.Preachers, &entity.Preacher{
-				ID:        "p-" + suffix,
-				Name:      "P-" + suffix,
-				UpdatedAt: now,
-			})
-			batch.Tags = append(batch.Tags, &entity.Tag{
+			batch.Preachers = append(
+				batch.Preachers,
+				&pushsyncchanges.PushPreacherInput{
+					ID:        "p-" + suffix,
+					Name:      "P-" + suffix,
+					UpdatedAt: now,
+				},
+			)
+			batch.Tags = append(batch.Tags, &pushsyncchanges.PushTagInput{
 				ID:        "t-" + suffix,
 				Name:      "T-" + suffix,
 				UpdatedAt: now,
 			})
-			batch.SermonNotes = append(batch.SermonNotes, &entity.SermonNote{
-				ID:          "n-" + suffix,
-				Title:       "Note-" + suffix,
-				Version:     ver,
-				ContentHash: "hash-" + suffix,
-				PlainText:   "Text-" + suffix,
-				Tags: []entity.Tag{
-					{ID: "t-" + suffix, Name: "T-" + suffix},
-				},
-				Verses: []entity.NoteVerse{
-					{
-						Translation: "ESV",
-						BookID:      1,
-						Chapter:     1,
-						VerseStart:  i + 1,
-						DisplayRef:  fmt.Sprintf("Gen 1:%d", i+1),
+			batch.SermonNotes = append(
+				batch.SermonNotes,
+				&pushsyncchanges.PushSermonNoteInput{
+					ID:          "n-" + suffix,
+					Title:       "Note-" + suffix,
+					Version:     ver,
+					ContentHash: "hash-" + suffix,
+					PlainText:   "Text-" + suffix,
+					Tags: []pushsyncchanges.PushNoteTagInput{
+						{ID: "t-" + suffix, Name: "T-" + suffix},
+					},
+					Verses: []pushsyncchanges.PushNoteVerseInput{
+						{
+							Translation: "ESV",
+							BookID:      1,
+							Chapter:     1,
+							VerseStart:  i + 1,
+							DisplayRef:  fmt.Sprintf("Gen 1:%d", i+1),
+						},
 					},
 				},
-			})
+			)
 		}
 
 		return batch

@@ -8,6 +8,7 @@ import (
 	"github.com/bryanfks-dev/logos/infra/fs"
 	deliveryhttp "github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
+	downloadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/download_sermon_note_attachment_file"
 	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
 	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
@@ -33,9 +34,10 @@ type Container struct {
 	SyncController       *deliveryhttp.SyncController
 	SermonNoteController *deliveryhttp.SermonNoteController
 
-	PullSyncChangesUsecase                *pullsyncchanges.PullSyncChangesUsecase
-	PushSyncChangesUsecase                *pushsyncchanges.PushSyncChangesUsecase
-	UploadSermonNoteAttachmentFileUsecase *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
+	PullSyncChangesUsecase                  *pullsyncchanges.PullSyncChangesUsecase
+	PushSyncChangesUsecase                  *pushsyncchanges.PushSyncChangesUsecase
+	UploadSermonNoteAttachmentFileUsecase   *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
+	DownloadSermonNoteAttachmentFileUsecase *downloadsermonnoteattachmentfile.DownloadSermonNoteAttachmentFileUsecase
 }
 
 func NewContainer() (*Container, error) {

@@ -16,6 +16,7 @@ type Manager interface {
 	WriteTempAndHashTempFile(tmpPath string, r io.Reader) (string, int64, error)
 	MoveAtomic(srcPath string, dstPath string) error
 	RemoveFile(filePath string) error
+	OpenFile(filePath string) (io.ReadSeekCloser, os.FileInfo, error)
 }
 
 type manager struct{}
@@ -151,4 +152,32 @@ func (m *manager) RemoveFile(filePath string) error {
 	}
 
 	return err
+}
+
+func (m *manager) OpenFile(
+	filePath string,
+) (io.ReadSeekCloser, os.FileInfo, error) {
+	if strings.TrimSpace(filePath) == "" {
+		return nil, nil, errors.New("file path is required")
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+
+		return nil, nil, err
+	}
+
+	if info.IsDir() {
+		_ = file.Close()
+
+		return nil, nil, errors.New("file path is a directory")
+	}
+
+	return file, info, nil
 }

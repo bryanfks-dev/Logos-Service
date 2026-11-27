@@ -43,10 +43,11 @@ func (e *SermonNoteAttachment) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (e *SermonNoteAttachment) IsUploadedWithValidHash(hash string) bool {
-	if e == nil {
-		return false
-	}
-
 	return e.Status == constant.UploadStatusUploaded &&
 		strings.EqualFold(e.ChecksumSHA256, hash)
+}
+
+func (e *SermonNoteAttachment) IsFileUploaded() bool {
+	return e.Status == constant.UploadStatusUploaded &&
+		strings.TrimSpace(e.StoragePath) != ""
 }

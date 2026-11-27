@@ -3,23 +3,91 @@ package pushsyncchanges
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"math/rand/v2"
 	"strings"
 	"time"
 
 	"github.com/bryanfks-dev/logos/pkg/entity"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	"go.uber.org/zap"
 )
 
-type SyncChangesBatch struct {
-	SermonNotes  []*entity.SermonNote
-	Gatherings   []*entity.Gathering
-	SermonSeries []*entity.SermonSeries
-	Preachers    []*entity.Preacher
-	Tags         []*entity.Tag
+type PushSyncChangesInput struct {
+	SermonNotes  []*PushSermonNoteInput
+	Gatherings   []*PushGatheringInput
+	SermonSeries []*PushSermonSeriesInput
+	Preachers    []*PushPreacherInput
+	Tags         []*PushTagInput
 }
 
-type SyncPushChangesResult struct {
+type PushSermonNoteInput struct {
+	ID          string
+	GatheringID *string
+	SeriesID    *string
+	PreacherID  *string
+	Title       string
+	SermonDate  time.Time
+	FilePath    string
+	ContentHash string
+	PlainText   string
+	ContentJSON string
+	Version     int
+	Tags        []PushNoteTagInput
+	Verses      []PushNoteVerseInput
+	IsDeleted   bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PushNoteTagInput struct {
+	ID   string
+	Name string
+}
+
+type PushNoteVerseInput struct {
+	ID          string
+	Translation string
+	BookID      int
+	Chapter     int
+	VerseStart  int
+	VerseEnd    *int
+	DisplayRef  string
+}
+
+type PushGatheringInput struct {
+	ID        string
+	Name      string
+	ColorHex  string
+	SortOrder int
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type PushSermonSeriesInput struct {
+	ID          string
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PushPreacherInput struct {
+	ID         string
+	Name       string
+	ChurchName string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type PushTagInput struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type PushSyncChangesResult struct {
 	SyncedAt          time.Time
 	MissingContentIDs []string
 	Conflicts         []string
@@ -42,13 +110,13 @@ var retryableSyncErrorMarkers = []string{
 
 func (u *PushSyncChangesUsecase) Call(
 	ctx context.Context,
-	batch *SyncChangesBatch,
-) (*SyncPushChangesResult, error) {
+	input *PushSyncChangesInput,
+) (*PushSyncChangesResult, error) {
 	u.log.Info("push sync changes started")
 
-	if batch == nil {
-		u.log.Debug("push sync changes received nil batch")
-		batch = &SyncChangesBatch{}
+	if input == nil {
+		u.log.Debug("push sync changes received nil input")
+		input = &PushSyncChangesInput{}
 	}
 
 	serverTime := time.Now().UTC()
@@ -65,7 +133,7 @@ func (u *PushSyncChangesUsecase) Call(
 
 	txFn := func(txCtx context.Context) error {
 		var txErr error
-		missingContentIDs, conflicts, txErr = u.applyPushBatch(txCtx, batch)
+		missingContentIDs, conflicts, txErr = u.applyPushBatch(txCtx, input)
 
 		return txErr
 	}
@@ -100,12 +168,17 @@ func (u *PushSyncChangesUsecase) Call(
 	}
 
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, err
+		}
+
 		u.log.Error("failed to push sync batch", zap.Error(err))
 
 		return nil, err
 	}
 
-	result := &SyncPushChangesResult{
+	result := &PushSyncChangesResult{
 		SyncedAt:          serverTime,
 		MissingContentIDs: missingContentIDs,
 		Conflicts:         conflicts,
@@ -122,29 +195,185 @@ func (u *PushSyncChangesUsecase) Call(
 
 func (u *PushSyncChangesUsecase) applyPushBatch(
 	ctx context.Context,
-	batch *SyncChangesBatch,
+	input *PushSyncChangesInput,
 ) ([]string, []string, error) {
-	if err := u.upsertGatherings(ctx, batch.Gatherings); err != nil {
+	gatherings := u.toGatheringEntities(input.Gatherings)
+	if err := u.upsertGatherings(ctx, gatherings); err != nil {
 		return nil, nil, err
 	}
 
-	if err := u.upsertSermonSeries(ctx, batch.SermonSeries); err != nil {
+	series := u.toSermonSeriesEntities(input.SermonSeries)
+	if err := u.upsertSermonSeries(ctx, series); err != nil {
 		return nil, nil, err
 	}
 
-	if err := u.upsertPreachers(ctx, batch.Preachers); err != nil {
+	preachers := u.toPreacherEntities(input.Preachers)
+	if err := u.upsertPreachers(ctx, preachers); err != nil {
 		return nil, nil, err
 	}
 
-	if err := u.upsertAndResolveTags(
-		ctx,
-		batch.Tags,
-		batch.SermonNotes,
-	); err != nil {
+	tags := u.toTagEntities(input.Tags)
+	notes := u.toSermonNoteEntities(input.SermonNotes)
+
+	if err := u.upsertAndResolveTags(ctx, tags, notes); err != nil {
 		return nil, nil, err
 	}
 
-	return u.upsertSermonNotes(ctx, batch.SermonNotes)
+	return u.upsertSermonNotes(ctx, notes)
+}
+
+func (u *PushSyncChangesUsecase) toGatheringEntities(
+	items []*PushGatheringInput,
+) []*entity.Gathering {
+	res := make([]*entity.Gathering, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+
+		g := &entity.Gathering{
+			ID:        item.ID,
+			Name:      item.Name,
+			ColorHex:  item.ColorHex,
+			SortOrder: item.SortOrder,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		res = append(res, g)
+	}
+
+	return res
+}
+
+func (u *PushSyncChangesUsecase) toSermonSeriesEntities(
+	items []*PushSermonSeriesInput,
+) []*entity.SermonSeries {
+	res := make([]*entity.SermonSeries, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+
+		s := &entity.SermonSeries{
+			ID:          item.ID,
+			Name:        item.Name,
+			Description: item.Description,
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
+		}
+		res = append(res, s)
+	}
+
+	return res
+}
+
+func (u *PushSyncChangesUsecase) toPreacherEntities(
+	items []*PushPreacherInput,
+) []*entity.Preacher {
+	res := make([]*entity.Preacher, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+
+		p := &entity.Preacher{
+			ID:         item.ID,
+			Name:       item.Name,
+			ChurchName: item.ChurchName,
+			CreatedAt:  item.CreatedAt,
+			UpdatedAt:  item.UpdatedAt,
+		}
+		res = append(res, p)
+	}
+
+	return res
+}
+
+func (u *PushSyncChangesUsecase) toTagEntities(
+	items []*PushTagInput,
+) []*entity.Tag {
+	res := make([]*entity.Tag, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+
+		t := &entity.Tag{
+			ID:        item.ID,
+			Name:      item.Name,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		res = append(res, t)
+	}
+
+	return res
+}
+
+func (u *PushSyncChangesUsecase) toSermonNoteEntities(
+	items []*PushSermonNoteInput,
+) []*entity.SermonNote {
+	res := make([]*entity.SermonNote, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+
+		version := item.Version
+		if version < 1 {
+			version = 1
+		}
+
+		sermonDate := item.SermonDate
+		if sermonDate.IsZero() {
+			sermonDate = time.Now().UTC()
+		}
+
+		verses := make([]entity.NoteVerse, 0, len(item.Verses))
+		for _, v := range item.Verses {
+			verse := entity.NoteVerse{
+				ID:          v.ID,
+				NoteID:      item.ID,
+				Translation: v.Translation,
+				BookID:      v.BookID,
+				Chapter:     v.Chapter,
+				VerseStart:  v.VerseStart,
+				VerseEnd:    v.VerseEnd,
+				DisplayRef:  v.DisplayRef,
+			}
+			verses = append(verses, verse)
+		}
+
+		tags := make([]entity.Tag, 0, len(item.Tags))
+		for _, t := range item.Tags {
+			tag := entity.Tag{
+				ID:   t.ID,
+				Name: t.Name,
+			}
+			tags = append(tags, tag)
+		}
+
+		n := &entity.SermonNote{
+			ID:          item.ID,
+			GatheringID: item.GatheringID,
+			SeriesID:    item.SeriesID,
+			PreacherID:  item.PreacherID,
+			Title:       item.Title,
+			SermonDate:  sermonDate,
+			FilePath:    item.FilePath,
+			ContentHash: item.ContentHash,
+			PlainText:   item.PlainText,
+			ContentJSON: item.ContentJSON,
+			Version:     version,
+			Verses:      verses,
+			Tags:        tags,
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
+		}
+		res = append(res, n)
+	}
+
+	return res
 }
 
 func (u *PushSyncChangesUsecase) isRetryableSyncError(err error) bool {

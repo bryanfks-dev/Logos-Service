@@ -65,16 +65,15 @@ func TestAppError(t *testing.T) {
 		assert.Equal(t, base.Message, withCause.Message)
 	})
 
-	t.Run("KindOf", func(t *testing.T) {
-		err := apperror.NewErrConflict("conflict_code", "already exists")
-		kind, ok := apperror.KindOf(err)
-		assert.True(t, ok)
-		assert.Equal(t, apperror.ErrKindConflict, kind)
+	t.Run("IsDomain on AppError", func(t *testing.T) {
+		var nilAppErr *apperror.AppError
+		assert.False(t, nilAppErr.IsDomain())
 
-		standardErr := errors.New("regular error")
-		kind, ok = apperror.KindOf(standardErr)
-		assert.False(t, ok)
-		assert.Equal(t, apperror.ErrKind(0), kind)
+		notFound := apperror.NewErrNotFound("not_found", "missing")
+		assert.True(t, notFound.IsDomain())
+
+		internal := apperror.NewErrInternal("internal", "boom", nil)
+		assert.False(t, internal.IsDomain())
 	})
 
 	t.Run("Constructors create expected kinds", func(t *testing.T) {

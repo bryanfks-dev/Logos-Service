@@ -32,12 +32,15 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
      - All controller endpoints must construct responses using `modelbuilder.NewAPIResponseBuilder[T]()`.
      - Always set the request ID from context: `.SetRequestID(middlewarecorrelation.GetRequestID(ctx))`.
      - Never return raw maps or unstandardized response envelopes.
+   - **No Direct Entities Passed to Usecases**:
+     - Never construct or pass domain entities (`pkg/entity/`) directly from `delivery` into `usecase`, even if the fields look identical; always map request/param payloads into a dedicated usecase input struct (or parsed value types such as `uuid.UUID`, `time.Time`).
    - **Swagger Documentation (Mandatory)**:
      - Every controller endpoint method must include complete Swagger (Swag) annotations:
        - `@Summary <short summary>`
        - `@Description <detailed description>`
        - `@Tags <tag name>`
-       - `@Accept json` and `@Produce json`
+       - `@Accept <mime>` only on endpoints that accept a request body (e.g., `@Accept json` or `@Accept octet-stream`; omit `@Accept` on bodyless `GET` endpoints so OpenAPI 3.1 does not emit an empty `requestBody`)
+       - `@Produce <mime>` (e.g., `@Produce json` or `@Produce octet-stream`)
        - `@Param` for all path, query, header, or body inputs
        - `@Success <code status> {object} model.APIResponse[<Type>]`
        - `@Failure <code status> {object} model.APIResponse[any]`
@@ -64,6 +67,7 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
        - `usecase.go`: `Call(...)` (the entrypoint method), its input/result/`*Option` structs (if any), and pure unexported helper methods (including helper method `*Option` structs) on the primary usecase struct.
      - **Usecase Input & Result Types**:
        - Define entrypoint input and result structs directly inside the usecase's `usecase.go` (above `Call(...)`) rather than creating separate model structs in `internal/model/`.
+       - Never accept `pkg/entity/` domain entities directly as `Call(...)` inputs from `delivery`, even when fields match; always use a dedicated input struct (defined in `usecase.go`) or explicit value types (e.g., `uuid.UUID`, `time.Time`).
      - **Keep `usecase.go` Thin (Separate Helper Struct Files)**:
        - Do NOT define dedicated helper/state structs (collaborator structs with their own associated methods, other than the usecase struct, `*Option` parameter structs, or input/result structs) inside `usecase.go`.
        - Move code outside `usecase.go` into dedicated file(s) inside the same usecase directory (e.g., `upserter.go`, `tag_planner.go`) ONLY when there is a dedicated helper/state struct and its associated methods.
@@ -172,6 +176,7 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 - Always log using the injected `*zap.Logger` in both `internal/usecase/` and `internal/repository/`:
   - **Entry (`Info`)**: Log at `Info` level when entering a usecase (`Call`) or repository operation (e.g., `"... started"`).
   - **Completion (`Info`)**: Log at `Info` level when the usecase or repository operation finishes successfully (e.g., `"... completed"`).
-  - **Errors (`Error` — Usecase Only)**: Log at `Error` level in `internal/usecase/` whenever an error occurs (include `zap.Error(err)`). Do NOT log errors at `Error` level in `internal/repository/`; return the wrapped error to the usecase instead.
-  - **Unfulfilled Business Requirements (`Debug`)**: Log at `Debug` level when a business requirement, domain rule, or precondition is not fulfilled (e.g., skipped stale update, conflict detected, missing/empty input condition, or already-completed idempotent check).
-- **Level Discipline**: Use `Debug` solely for unfulfilled business requirements/preconditions; use `Info` (entry/completion) or `Error` (usecase errors only) for everything else.
+  - **Domain Errors from Repository (`Skip Log`)**: When a repository (or gateway) returns a domain error (`var appErr *apperror.AppError; errors.As(err, &appErr) && appErr.IsDomain()`, such as `NotFound`, `BadRequest`, or `Conflict`), return early in `internal/usecase/` **without** logging at `Error` (or `Debug`) level.
+  - **Errors (`Error` — Usecase Only, Non-Domain Failures)**: Log at `Error` level in `internal/usecase/` only for unexpected or technical failures (non-domain errors such as database, filesystem I/O, or external service errors, including `zap.Error(err)`). Do NOT log errors at `Error` level in `internal/repository/`; return the wrapped error to the usecase instead.
+  - **Unfulfilled Business Requirements (`Debug`)**: Log at `Debug` level in `internal/usecase/` when the usecase itself detects an unfulfilled business requirement, domain rule, precondition, or maps an infrastructure/storage signal (e.g., `os.ErrNotExist`) into a domain error (e.g., missing file on storage, skipped stale update, conflict detected, missing/empty input condition, or already-completed idempotent check).
+- **Level Discipline**: Use `Debug` solely for unfulfilled business requirements/preconditions detected by the usecase; skip logging when propagating domain errors returned from repositories; use `Info` (entry/completion) or `Error` (usecase non-domain errors only) for everything else.

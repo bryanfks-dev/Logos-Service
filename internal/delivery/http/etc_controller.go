@@ -19,7 +19,6 @@ func NewEtcController() *EtcController {
 // @Summary      Health check
 // @Description  Check service health status
 // @Tags         API / Etc
-// @Accept       json
 // @Produce      json
 // @Success      200 {object} model.APIResponse[any]
 // @Router       /api/healthz [get]

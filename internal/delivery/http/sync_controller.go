@@ -72,14 +72,14 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 		return err
 	}
 
-	batch := converter.SyncPushChangesRequestToSyncChangesBatch(req)
+	input := converter.SyncPushChangesRequestToPushSyncChangesInput(req)
 
-	result, err := h.pushSyncChangesUsecase.Call(ctx.Request().Context(), batch)
+	result, err := h.pushSyncChangesUsecase.Call(ctx.Request().Context(), input)
 	if err != nil {
 		return err
 	}
 
-	resData := converter.SyncPushChangesResultToResponse(result)
+	resData := converter.PushSyncChangesResultToResponse(result)
 	res := builder.NewAPIResponseBuilder[response.SyncPushChangesResponse]().
 		SetRequestID(reqID).
 		SetData(resData).
@@ -92,7 +92,6 @@ func (h *SyncController) Push(ctx *echo.Context) error {
 // @Summary      Sync by pulling delta of changes
 // @Description  Pull records updated since specified datetime across all entities
 // @Tags         API / Sync
-// @Accept       json
 // @Produce      json
 // @Param        since path string true "RFC3339 or YYYY-MM-DD datetime to query records updated since"
 // @Success      200 {object} model.APIResponse[response.SyncPullChangesResponse]

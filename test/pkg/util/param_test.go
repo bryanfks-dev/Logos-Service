@@ -3,6 +3,7 @@ package util_test
 import (
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/bryanfks-dev/logos/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -58,6 +59,30 @@ func TestParseDatetimeParam(t *testing.T) {
 		for _, tc := range cases {
 			_, err := util.ParseDatetimeParam(tc)
 			require.Error(t, err, "expected error for %q", tc)
+		}
+	})
+}
+
+func TestParseUUIDParam(t *testing.T) {
+	t.Run("parses valid UUID", func(t *testing.T) {
+		expected := uuid.NewV7()
+		parsed, err := util.ParseUUIDParam(expected.String())
+		require.NoError(t, err)
+		assert.Equal(t, expected, parsed)
+	})
+
+	t.Run("rejects empty, nil, or invalid UUID params", func(t *testing.T) {
+		cases := []string{
+			"",
+			"   ",
+			"not-a-uuid",
+			uuid.Nil().String(),
+		}
+
+		for _, tc := range cases {
+			parsed, err := util.ParseUUIDParam(tc)
+			require.Error(t, err, "expected error for %q", tc)
+			assert.Equal(t, uuid.Nil(), parsed)
 		}
 	})
 }

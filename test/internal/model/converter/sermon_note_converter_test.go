@@ -12,19 +12,19 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSyncItemToSermonNote(t *testing.T) {
-	t.Run("nil item returns empty entity", func(t *testing.T) {
-		note := converter.SyncNoteChangesItemToEntity(nil)
-		assert.Empty(t, note.ID)
+func TestSyncNoteChangesItemToPushSermonNoteInput(t *testing.T) {
+	t.Run("nil item returns nil", func(t *testing.T) {
+		note := converter.SyncNoteChangesItemToPushSermonNoteInput(nil)
+		assert.Nil(t, note)
 	})
 
-	t.Run("converts sync item to note entity", func(t *testing.T) {
+	t.Run("converts sync item to push sermon note input", func(t *testing.T) {
 		noteItem := &request.SyncNoteChangesItem{
 			ID:          "item-123",
 			Title:       "Faith",
 			PlainText:   "Faith content",
 			ContentJSON: `{"root": true}`,
-			Version:     0, // should default to 1
+			Version:     0,
 			Tags:        []string{"Hope", "Love"},
 			Verses: []request.SyncNoteVerseChangesItem{
 				{
@@ -38,15 +38,16 @@ func TestSyncItemToSermonNote(t *testing.T) {
 			},
 		}
 
-		note := converter.SyncNoteChangesItemToEntity(noteItem)
+		note := converter.SyncNoteChangesItemToPushSermonNoteInput(noteItem)
+		require.NotNil(t, note)
 
 		assert.Equal(t, "item-123", note.ID)
 		assert.Equal(t, "Faith", note.Title)
-		assert.Equal(t, 1, note.Version)
+		assert.Equal(t, 0, note.Version)
 		assert.Len(t, note.Tags, 2)
 		assert.Equal(t, "Hope", note.Tags[0].Name)
 		assert.Len(t, note.Verses, 1)
-		assert.Equal(t, "item-123", note.Verses[0].NoteID)
+		assert.Equal(t, "v-1", note.Verses[0].ID)
 		assert.Equal(t, "NIV", note.Verses[0].Translation)
 	})
 }

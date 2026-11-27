@@ -75,6 +75,10 @@ func (c *RouteConfig) setupSermonNoteRoute() {
 		"/attachments/:id/file",
 		c.SermonNoteController.UploadAttachmentFile,
 	)
+	api.GET(
+		"/notes/:id/file",
+		c.SermonNoteController.DownloadAttachmentFile,
+	)
 }
 
 func (c *RouteConfig) setupErrorHandler() {

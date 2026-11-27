@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -92,18 +93,11 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 				err,
 				entityerror.ErrSermonNoteAttachmentInvalidFile(),
 			)
-		},
-	)
 
-	t.Run(
-		"returns 404 when attachment does not exist or is soft deleted",
-		func(t *testing.T) {
-			testDB, u, _ := setupAttachmentUploadTestEnv(t)
-
-			res, err := u.Call(
+			res, err = u.Call(
 				ctx,
 				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
-					AttachmentID:   "missing-att",
+					AttachmentID:   uuid.Nil(),
 					AttachmentHash: "abc",
 					File:           bytes.NewReader([]byte("data")),
 				},
@@ -112,14 +106,41 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			assert.ErrorIs(
 				t,
 				err,
-				entityerror.ErrSermonNoteAttachmentNotFound("missing-att"),
+				entityerror.ErrSermonNoteAttachmentInvalidFile(),
+			)
+		},
+	)
+
+	t.Run(
+		"returns 404 when attachment does not exist or is soft deleted",
+		func(t *testing.T) {
+			testDB, u, _ := setupAttachmentUploadTestEnv(t)
+
+			missingID := uuid.NewV7()
+			res, err := u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   missingID,
+					AttachmentHash: "abc",
+					File:           bytes.NewReader([]byte("data")),
+				},
+			)
+			assert.Nil(t, res)
+			assert.ErrorIs(
+				t,
+				err,
+				entityerror.ErrSermonNoteAttachmentNotFound(missingID.String()),
 			)
 
-			note := &entity.SermonNote{ID: "note-del-att", Title: "Note"}
+			note := &entity.SermonNote{
+				ID:    uuid.NewV7().String(),
+				Title: "Note",
+			}
 			require.NoError(t, testDB.Create(note).Error)
 
+			deletedID := uuid.NewV7()
 			deletedAtt := &entity.SermonNoteAttachment{
-				ID:             "att-deleted",
+				ID:             deletedID.String(),
 				NoteID:         note.ID,
 				FileName:       "bulletin.pdf",
 				MimeType:       "application/pdf",
@@ -133,7 +154,7 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			res, err = u.Call(
 				ctx,
 				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
-					AttachmentID:   deletedAtt.ID,
+					AttachmentID:   deletedID,
 					AttachmentHash: "hash",
 					File:           bytes.NewReader([]byte("data")),
 				},
@@ -148,20 +169,89 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 	)
 
 	t.Run(
+		"skips error log when attachment is not found, logs error on retrieval failure",
+		func(t *testing.T) {
+			core, recorded := observer.New(zap.ErrorLevel)
+			obsLog := zap.New(core)
+
+			dbName := fmt.Sprintf(
+				"file:attachment_upload_obs_%s?mode=memory&cache=shared",
+				uuid.NewV7().String(),
+			)
+			obsDB, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+			require.NoError(t, err)
+			require.NoError(
+				t,
+				obsDB.AutoMigrate(&entity.SermonNoteAttachment{}),
+			)
+
+			fsManager := fs.NewManager()
+			repo := sermonnote.NewSermonNoteRepository(obsDB, fsManager, obsLog)
+			v := viper.New()
+			v.Set("app.path", t.TempDir())
+
+			uc := uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase(
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecaseOption{
+					SermonNoteRepository: repo,
+					FsManager:            fsManager,
+					Config:               v,
+					Log:                  obsLog,
+				},
+			)
+
+			missingID := uuid.NewV7()
+			input := &uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+				AttachmentID:   missingID,
+				AttachmentHash: "abc",
+				File:           bytes.NewReader([]byte("data")),
+			}
+			res, err := uc.Call(ctx, input)
+			assert.Nil(t, res)
+			assert.ErrorIs(
+				t,
+				err,
+				entityerror.ErrSermonNoteAttachmentNotFound(missingID.String()),
+			)
+			assert.Empty(t, recorded.All())
+
+			sqlDB, err := obsDB.DB()
+			require.NoError(t, err)
+			require.NoError(t, sqlDB.Close())
+
+			res, err = uc.Call(ctx, input)
+			assert.Nil(t, res)
+			assert.ErrorIs(
+				t,
+				err,
+				entityerror.ErrSermonNoteAttachmentRetrievalFailed(nil),
+			)
+			assert.Len(t, recorded.All(), 1)
+		},
+	)
+
+	t.Run(
 		"returns 200 immediately when already uploaded with matching hash",
 		func(t *testing.T) {
 			testDB, u, appPath := setupAttachmentUploadTestEnv(t)
 
-			note := &entity.SermonNote{ID: "note-idem", Title: "Note"}
+			note := &entity.SermonNote{
+				ID:    uuid.NewV7().String(),
+				Title: "Note",
+			}
 			require.NoError(t, testDB.Create(note).Error)
 
+			attID := uuid.NewV7()
 			att := &entity.SermonNoteAttachment{
-				ID:             "att-idem",
-				NoteID:         note.ID,
-				FileName:       "bulletin.pdf",
-				MimeType:       "application/pdf",
-				FileSize:       10,
-				StoragePath:    filepath.Join(appPath, "2026", "att-idem.pdf"),
+				ID:       attID.String(),
+				NoteID:   note.ID,
+				FileName: "bulletin.pdf",
+				MimeType: "application/pdf",
+				FileSize: 10,
+				StoragePath: filepath.Join(
+					appPath,
+					"2026",
+					attID.String()+".pdf",
+				),
 				ChecksumSHA256: "deadbeef",
 				Status:         constant.UploadStatusUploaded,
 			}
@@ -170,7 +260,7 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			res, err := u.Call(
 				ctx,
 				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
-					AttachmentID:   att.ID,
+					AttachmentID:   attID,
 					AttachmentHash: "DEADBEEF",
 					File:           bytes.NewReader([]byte("ignored")),
 				},
@@ -192,11 +282,15 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 		func(t *testing.T) {
 			testDB, u, appPath := setupAttachmentUploadTestEnv(t)
 
-			note := &entity.SermonNote{ID: "note-badhash", Title: "Note"}
+			note := &entity.SermonNote{
+				ID:    uuid.NewV7().String(),
+				Title: "Note",
+			}
 			require.NoError(t, testDB.Create(note).Error)
 
+			attID := uuid.NewV7()
 			att := &entity.SermonNoteAttachment{
-				ID:             "att-badhash",
+				ID:             attID.String(),
 				NoteID:         note.ID,
 				FileName:       "audio.m4a",
 				MimeType:       "audio/m4a",
@@ -210,7 +304,7 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			res, err := u.Call(
 				ctx,
 				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
-					AttachmentID:   att.ID,
+					AttachmentID:   attID,
 					AttachmentHash: "wrong-hash",
 					File:           bytes.NewReader([]byte("corrupt bytes")),
 				},
@@ -242,7 +336,10 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 		func(t *testing.T) {
 			testDB, u, appPath := setupAttachmentUploadTestEnv(t)
 
-			note := &entity.SermonNote{ID: "note-ok", Title: "Note"}
+			note := &entity.SermonNote{
+				ID:    uuid.NewV7().String(),
+				Title: "Note",
+			}
 			require.NoError(t, testDB.Create(note).Error)
 
 			payload := []byte("PDF binary stream payload")
@@ -250,8 +347,9 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			hashHex := hex.EncodeToString(sum[:])
 
 			createdAt := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+			attID := uuid.NewV7()
 			att := &entity.SermonNoteAttachment{
-				ID:             "att-ok",
+				ID:             attID.String(),
 				NoteID:         note.ID,
 				FileName:       "Sunday_Bulletin.pdf",
 				MimeType:       "application/pdf",
@@ -266,7 +364,7 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			res, err := u.Call(
 				ctx,
 				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
-					AttachmentID:   att.ID,
+					AttachmentID:   attID,
 					AttachmentHash: hashHex,
 					File:           bytes.NewReader(payload),
 				},

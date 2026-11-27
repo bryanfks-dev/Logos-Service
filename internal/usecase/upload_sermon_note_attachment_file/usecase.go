@@ -2,20 +2,23 @@ package uploadsermonnoteattachmentfile
 
 import (
 	"context"
+	"errors"
 	"io"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/bryanfks-dev/logos/pkg/constant"
 	"github.com/bryanfks-dev/logos/pkg/entity"
+	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
 )
 
 type UploadSermonNoteAttachmentFileInput struct {
-	AttachmentID   string
+	AttachmentID   uuid.UUID
 	AttachmentHash string
 	File           io.Reader
 }
@@ -125,22 +128,25 @@ func (u *UploadSermonNoteAttachmentFileUsecase) validateAndLoadAttachment(
 	ctx context.Context,
 	input *UploadSermonNoteAttachmentFileInput,
 ) (*entity.SermonNoteAttachment, string, error) {
-	if input == nil || strings.TrimSpace(input.AttachmentID) == "" ||
-		input.File == nil {
+	if input == nil || input.AttachmentID == uuid.Nil() || input.File == nil {
 		u.log.Debug("attachment upload rejected due to invalid file input")
 
 		return nil, "", entityerror.ErrSermonNoteAttachmentInvalidFile()
 	}
 
-	attachment, err := u.sermonNoteRepository.FindAttachmentByID(
-		ctx,
-		input.AttachmentID,
-	)
+	id := input.AttachmentID.String()
+
+	attachment, err := u.sermonNoteRepository.FindAttachmentByID(ctx, id)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.IsDomain() {
+			return nil, "", err
+		}
+
 		u.log.Error(
 			"failed to load sermon note attachment",
 			zap.Error(err),
-			zap.String("attachment_id", input.AttachmentID),
+			zap.String("attachment_id", id),
 		)
 
 		return nil, "", err

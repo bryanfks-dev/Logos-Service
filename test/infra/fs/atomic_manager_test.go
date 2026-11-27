@@ -3,6 +3,7 @@ package fs_test
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -183,6 +184,56 @@ func TestManager_WriteTempAndHashTempFile_MoveAtomic_RemoveFile(t *testing.T) {
 
 			require.NoError(t, manager.RemoveFile(finalPath))
 			require.NoError(t, manager.RemoveFile(finalPath))
+		},
+	)
+}
+
+func TestManager_OpenFile(t *testing.T) {
+	manager := fs.NewManager()
+	require.NotNil(t, manager)
+
+	t.Run(
+		"returns error when filePath is empty or whitespace",
+		func(t *testing.T) {
+			_, _, err := manager.OpenFile("")
+			assert.EqualError(t, err, "file path is required")
+
+			_, _, err = manager.OpenFile("   ")
+			assert.EqualError(t, err, "file path is required")
+		},
+	)
+
+	t.Run(
+		"returns os.ErrNotExist when file does not exist",
+		func(t *testing.T) {
+			missingPath := filepath.Join(t.TempDir(), "missing.bin")
+			_, _, err := manager.OpenFile(missingPath)
+			assert.ErrorIs(t, err, os.ErrNotExist)
+		},
+	)
+
+	t.Run("returns error when path is a directory", func(t *testing.T) {
+		dirPath := t.TempDir()
+		_, _, err := manager.OpenFile(dirPath)
+		assert.EqualError(t, err, "file path is a directory")
+	})
+
+	t.Run(
+		"opens file and returns readable seeker and FileInfo",
+		func(t *testing.T) {
+			target := filepath.Join(t.TempDir(), "attachment.pdf")
+			payload := []byte("pdf binary payload")
+			require.NoError(t, os.WriteFile(target, payload, 0o644))
+
+			file, info, err := manager.OpenFile(target)
+			require.NoError(t, err)
+			defer file.Close()
+
+			assert.Equal(t, int64(len(payload)), info.Size())
+
+			got, err := io.ReadAll(file)
+			require.NoError(t, err)
+			assert.Equal(t, payload, got)
 		},
 	)
 }
