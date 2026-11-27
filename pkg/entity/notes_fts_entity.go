@@ -13,5 +13,3 @@ type NotesFTS struct {
 func (NotesFTS) TableName() string {
 	return "notes_fts"
 }
-
-type NotesFts = NotesFTS

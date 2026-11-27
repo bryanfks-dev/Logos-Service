@@ -22,6 +22,14 @@ type BibleVerse struct {
 	BibleFTS *BibleFTS `gorm:"foreignKey:VerseID;references:ID"`
 }
 
+type VerseQuery struct {
+	Translation string
+	BookID      int
+	Chapter     int
+	VerseStart  int
+	VerseEnd    *int
+}
+
 func (BibleVerse) TableName() string {
 	return "bible_verses"
 }
@@ -32,12 +40,4 @@ func (e *BibleVerse) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	return nil
-}
-
-type VerseQuery struct {
-	Translation string
-	BookID      int
-	Chapter     int
-	VerseStart  int
-	VerseEnd    *int
 }

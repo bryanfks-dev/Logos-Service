@@ -36,13 +36,13 @@ func (e *SermonNoteAttachment) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	if e.Status == "" {
-		e.Status = constant.UploadStatusNotUploaded
+		e.Status = constant.UploadStatusStored
 	}
 
 	return nil
 }
 
-func (e *SermonNoteAttachment) IsUploadedWithHash(hash string) bool {
+func (e *SermonNoteAttachment) IsUploadedWithValidHash(hash string) bool {
 	if e == nil {
 		return false
 	}

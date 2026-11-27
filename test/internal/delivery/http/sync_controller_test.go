@@ -17,8 +17,13 @@ import (
 	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/internal/model/response"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	"github.com/bryanfks-dev/logos/internal/repository/gathering"
+	"github.com/bryanfks-dev/logos/internal/repository/preacher"
+	sermonnote "github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	sermonseries "github.com/bryanfks-dev/logos/internal/repository/sermon_series"
+	tagrepo "github.com/bryanfks-dev/logos/internal/repository/tag"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
@@ -47,24 +52,27 @@ func setupSyncControllerTestEnv(
 		&entity.NoteVerse{},
 		&entity.NoteTag{},
 		&entity.NotesFTS{},
-		&entity.SyncOutboxEntry{},
+		&entity.SyncOutbox{},
 	)
 	require.NoError(t, err)
 
 	log := zap.NewNop()
 	txManager := db.NewTxManager(testDB)
-	sermonNoteRepository := repository.NewSermonNoteRepository(
+	sermonNoteRepository := sermonnote.NewSermonNoteRepository(
 		testDB,
 		fs.NewManager(),
 		log,
 	)
-	gatheringRepository := repository.NewGatheringRepository(testDB, log)
-	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
-	preacherRepository := repository.NewPreacherRepository(testDB, log)
-	tagRepository := repository.NewTagRepository(testDB, log)
+	gatheringRepository := gathering.NewGatheringRepository(testDB, log)
+	sermonSeriesRepository := sermonseries.NewSermonSeriesRepository(
+		testDB,
+		log,
+	)
+	preacherRepository := preacher.NewPreacherRepository(testDB, log)
+	tagRepository := tagrepo.NewTagRepository(testDB, log)
 
-	pullSyncChangesUsecase := usecase.NewPullSyncChangesUsecase(
-		&usecase.PullSyncChangesUsecaseOption{
+	pullSyncChangesUsecase := pullsyncchanges.NewPullSyncChangesUsecase(
+		&pullsyncchanges.PullSyncChangesUsecaseOption{
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
@@ -73,8 +81,8 @@ func setupSyncControllerTestEnv(
 			Log:                    log,
 		},
 	)
-	pushSyncChangesUsecase := usecase.NewPushSyncChangesUsecase(
-		&usecase.PushSyncChangesUsecaseOption{
+	pushSyncChangesUsecase := pushsyncchanges.NewPushSyncChangesUsecase(
+		&pushsyncchanges.PushSyncChangesUsecaseOption{
 			TxManager:              txManager,
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,

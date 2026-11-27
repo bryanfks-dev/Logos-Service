@@ -22,15 +22,15 @@ var domainErrKind = []ErrKind{
 	ErrKindConflict,
 }
 
-func (k ErrKind) IsDomain() bool {
-	return slices.Contains(domainErrKind, k)
-}
-
 type AppError struct {
 	Kind    ErrKind
 	Code    string
 	Message string
 	Err     error
+}
+
+func (k ErrKind) IsDomain() bool {
+	return slices.Contains(domainErrKind, k)
 }
 
 func (e *AppError) Error() string {

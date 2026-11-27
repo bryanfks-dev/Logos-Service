@@ -13,6 +13,14 @@ import (
 	"go.uber.org/zap"
 )
 
+type ErrorController struct {
+	log *zap.Logger
+}
+
+func NewErrorController(log *zap.Logger) *ErrorController {
+	return &ErrorController{log: log}
+}
+
 var errKindStatus = map[apperror.ErrKind]int{
 	apperror.ErrKindNotFound:        http.StatusNotFound,
 	apperror.ErrKindBadRequest:      http.StatusBadRequest,
@@ -20,14 +28,6 @@ var errKindStatus = map[apperror.ErrKind]int{
 	apperror.ErrKindUnavailable:     http.StatusServiceUnavailable,
 	apperror.ErrKindExternalService: http.StatusBadGateway,
 	apperror.ErrKindInternal:        http.StatusInternalServerError,
-}
-
-type ErrorController struct {
-	log *zap.Logger
-}
-
-func NewErrorController(log *zap.Logger) *ErrorController {
-	return &ErrorController{log: log}
 }
 
 func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
@@ -60,7 +60,7 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 	case errors.As(err, &validationErrs):
 		stat = http.StatusUnprocessableEntity
 		code = "validation_error"
-		fieldErrors = toFieldErrors(validationErrs)
+		fieldErrors = c.toFieldErrors(validationErrs)
 	case errors.As(err, &appErr):
 		if s, ok := errKindStatus[appErr.Kind]; ok {
 			stat = s
@@ -99,7 +99,9 @@ func (c *ErrorController) HTTPErrorHandler(ctx *echo.Context, err error) {
 	_ = ctx.JSON(stat, res)
 }
 
-func toFieldErrors(errs validation.Errors) []model.FieldError {
+func (c *ErrorController) toFieldErrors(
+	errs validation.Errors,
+) []model.FieldError {
 	flat := errs.Flatten()
 	fieldErrors := make([]model.FieldError, 0, len(flat))
 

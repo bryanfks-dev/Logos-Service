@@ -4,24 +4,24 @@ import (
 	nethttp "net/http"
 
 	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware/correlation"
-	"github.com/bryanfks-dev/logos/internal/model"
+	_ "github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/builder"
 	"github.com/bryanfks-dev/logos/internal/model/converter"
 	params "github.com/bryanfks-dev/logos/internal/model/param"
 	"github.com/bryanfks-dev/logos/internal/model/response"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
 	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 )
 
 type SermonNoteController struct {
-	uploadAttachmentFileUsecase *usecase.UploadSermonNoteAttachmentFileUsecase
+	uploadAttachmentFileUsecase *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
 	log                         *zap.Logger
 }
 
 func NewSermonNoteController(
-	uploadAttachmentFileUsecase *usecase.UploadSermonNoteAttachmentFileUsecase,
+	uploadAttachmentFileUsecase *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase,
 	log *zap.Logger,
 ) *SermonNoteController {
 	return &SermonNoteController{
@@ -49,9 +49,9 @@ func (c *SermonNoteController) UploadAttachmentFile(ctx *echo.Context) error {
 	reqID := correlation.GetRequestID(ctx)
 
 	params := new(params.UploadSermonNoteAttachmentFileParam)
-	if err := ctx.Bind(params); err != nil {
+	if err := echo.BindPathValues(ctx, params); err != nil {
 		c.log.Warn(
-			"failed to bind sync pull params",
+			"failed to bind attachment upload params",
 			zap.Error(err),
 			zap.String("request_id", reqID),
 		)
@@ -70,10 +70,10 @@ func (c *SermonNoteController) UploadAttachmentFile(ctx *echo.Context) error {
 		return err
 	}
 
-	input := &model.UploadSermonNoteAttachmentFileInput{
-		ID:          params.AttachmentID,
-		ContentHash: ctx.Request().Header.Get("X-Content-Hash"),
-		File:        ctx.Request().Body,
+	input := &uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+		AttachmentID:   params.AttachmentID,
+		AttachmentHash: ctx.Request().Header.Get("X-Content-Hash"),
+		File:           ctx.Request().Body,
 	}
 
 	result, err := c.uploadAttachmentFileUsecase.Call(

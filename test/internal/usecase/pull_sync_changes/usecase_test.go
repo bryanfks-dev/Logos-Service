@@ -1,4 +1,4 @@
-package usecase_test
+package pullsyncchanges_test
 
 import (
 	"context"
@@ -9,8 +9,12 @@ import (
 	"uuid"
 
 	"github.com/bryanfks-dev/logos/infra/fs"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	"github.com/bryanfks-dev/logos/internal/repository/gathering"
+	"github.com/bryanfks-dev/logos/internal/repository/preacher"
+	sermonnote "github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	sermonseries "github.com/bryanfks-dev/logos/internal/repository/sermon_series"
+	tagrepo "github.com/bryanfks-dev/logos/internal/repository/tag"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,9 +23,41 @@ import (
 	"gorm.io/gorm"
 )
 
+type failingSermonNoteRepo struct {
+	sermonnote.SermonNoteRepository
+	findUpdatedSinceErr error
+}
+
+type failingGatheringRepo struct {
+	gathering.GatheringRepository
+	findUpdatedSinceErr error
+}
+
+func (f *failingSermonNoteRepo) FindUpdatedSince(
+	ctx context.Context,
+	since time.Time,
+) ([]*entity.SermonNote, error) {
+	if f.findUpdatedSinceErr != nil {
+		return nil, f.findUpdatedSinceErr
+	}
+
+	return f.SermonNoteRepository.FindUpdatedSince(ctx, since)
+}
+
+func (f *failingGatheringRepo) FindUpdatedSince(
+	ctx context.Context,
+	since time.Time,
+) ([]*entity.Gathering, error) {
+	if f.findUpdatedSinceErr != nil {
+		return nil, f.findUpdatedSinceErr
+	}
+
+	return f.GatheringRepository.FindUpdatedSince(ctx, since)
+}
+
 func setupSyncPullTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.PullSyncChangesUsecase) {
+) (*gorm.DB, *pullsyncchanges.PullSyncChangesUsecase) {
 	dbName := fmt.Sprintf(
 		"file:sync_pull_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -41,23 +77,26 @@ func setupSyncPullTestEnv(
 		&entity.NoteVerse{},
 		&entity.NoteTag{},
 		&entity.NotesFTS{},
-		&entity.SyncOutboxEntry{},
+		&entity.SyncOutbox{},
 	)
 	require.NoError(t, err)
 
 	log := zap.NewNop()
-	sermonNoteRepository := repository.NewSermonNoteRepository(
+	sermonNoteRepository := sermonnote.NewSermonNoteRepository(
 		testDB,
 		fs.NewManager(),
 		log,
 	)
-	gatheringRepository := repository.NewGatheringRepository(testDB, log)
-	sermonSeriesRepository := repository.NewSermonSeriesRepository(testDB, log)
-	preacherRepository := repository.NewPreacherRepository(testDB, log)
-	tagRepository := repository.NewTagRepository(testDB, log)
+	gatheringRepository := gathering.NewGatheringRepository(testDB, log)
+	sermonSeriesRepository := sermonseries.NewSermonSeriesRepository(
+		testDB,
+		log,
+	)
+	preacherRepository := preacher.NewPreacherRepository(testDB, log)
+	tagRepository := tagrepo.NewTagRepository(testDB, log)
 
-	syncPullChangesUsecase := usecase.NewPullSyncChangesUsecase(
-		&usecase.PullSyncChangesUsecaseOption{
+	syncPullChangesUsecase := pullsyncchanges.NewPullSyncChangesUsecase(
+		&pullsyncchanges.PullSyncChangesUsecaseOption{
 			SermonNoteRepository:   sermonNoteRepository,
 			GatheringRepository:    gatheringRepository,
 			SermonSeriesRepository: sermonSeriesRepository,
@@ -78,7 +117,6 @@ func TestPullSyncChangesUsecase_Call(t *testing.T) {
 	past := now.Add(-2 * time.Hour)
 	future := now.Add(2 * time.Hour)
 
-	// Create records with different updated_at
 	gActive := &entity.Gathering{
 		ID:        "g-pull-act",
 		Name:      "Active",
@@ -182,25 +220,25 @@ func TestPullSyncChangesUsecase_ErrorPropagation(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("db query failed")
 
-		opt := &usecase.PullSyncChangesUsecaseOption{
+		opt := &pullsyncchanges.PullSyncChangesUsecaseOption{
 			SermonNoteRepository: &failingSermonNoteRepo{
-				SermonNoteRepository: repository.NewSermonNoteRepository(
+				SermonNoteRepository: sermonnote.NewSermonNoteRepository(
 					testDB,
 					fs.NewManager(),
 					log,
 				),
 				findUpdatedSinceErr: expectedErr,
 			},
-			GatheringRepository: repository.NewGatheringRepository(testDB, log),
-			SermonSeriesRepository: repository.NewSermonSeriesRepository(
+			GatheringRepository: gathering.NewGatheringRepository(testDB, log),
+			SermonSeriesRepository: sermonseries.NewSermonSeriesRepository(
 				testDB,
 				log,
 			),
-			PreacherRepository: repository.NewPreacherRepository(testDB, log),
-			TagRepository:      repository.NewTagRepository(testDB, log),
+			PreacherRepository: preacher.NewPreacherRepository(testDB, log),
+			TagRepository:      tagrepo.NewTagRepository(testDB, log),
 			Log:                log,
 		}
-		u := usecase.NewPullSyncChangesUsecase(opt)
+		u := pullsyncchanges.NewPullSyncChangesUsecase(opt)
 
 		res, err := u.Call(ctx, time.Time{})
 		assert.Nil(t, res)
@@ -212,28 +250,28 @@ func TestPullSyncChangesUsecase_ErrorPropagation(t *testing.T) {
 		log := zap.NewNop()
 		expectedErr := errors.New("gathering query failed")
 
-		opt := &usecase.PullSyncChangesUsecaseOption{
-			SermonNoteRepository: repository.NewSermonNoteRepository(
+		opt := &pullsyncchanges.PullSyncChangesUsecaseOption{
+			SermonNoteRepository: sermonnote.NewSermonNoteRepository(
 				testDB,
 				fs.NewManager(),
 				log,
 			),
 			GatheringRepository: &failingGatheringRepo{
-				GatheringRepository: repository.NewGatheringRepository(
+				GatheringRepository: gathering.NewGatheringRepository(
 					testDB,
 					log,
 				),
 				findUpdatedSinceErr: expectedErr,
 			},
-			SermonSeriesRepository: repository.NewSermonSeriesRepository(
+			SermonSeriesRepository: sermonseries.NewSermonSeriesRepository(
 				testDB,
 				log,
 			),
-			PreacherRepository: repository.NewPreacherRepository(testDB, log),
-			TagRepository:      repository.NewTagRepository(testDB, log),
+			PreacherRepository: preacher.NewPreacherRepository(testDB, log),
+			TagRepository:      tagrepo.NewTagRepository(testDB, log),
 			Log:                log,
 		}
-		u := usecase.NewPullSyncChangesUsecase(opt)
+		u := pullsyncchanges.NewPullSyncChangesUsecase(opt)
 
 		res, err := u.Call(ctx, time.Time{})
 		assert.Nil(t, res)

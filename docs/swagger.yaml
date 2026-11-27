@@ -1,5 +1,11 @@
 components:
   schemas:
+    constant.UploadStatus:
+      type: string
+      x-enum-varnames:
+      - UploadStatusStored
+      - UploadStatusProcessing
+      - UploadStatusUploaded
     model.APIError:
       properties:
         code:
@@ -375,7 +381,7 @@ components:
         id:
           type: string
         status:
-          type: string
+          $ref: '#/components/schemas/constant.UploadStatus'
       type: object
 externalDocs:
   description: ""

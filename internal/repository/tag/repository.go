@@ -1,4 +1,4 @@
-package repository
+package tag
 
 import (
 	"context"
@@ -13,35 +13,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
-
-type TagRepository interface {
-	Create(ctx context.Context, tag *entity.Tag) error
-	Update(ctx context.Context, tag *entity.Tag) error
-	FindByID(ctx context.Context, id string) (*entity.Tag, error)
-	FindByIDsOrNames(
-		ctx context.Context,
-		ids []string,
-		names []string,
-	) ([]*entity.Tag, error)
-	FindAll(ctx context.Context) ([]*entity.Tag, error)
-	FindUpdatedSince(
-		ctx context.Context,
-		since time.Time,
-	) ([]*entity.Tag, error)
-	Delete(ctx context.Context, id string) error
-}
-
-type tagRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
-}
-
-func NewTagRepository(db *gorm.DB, log *zap.Logger) TagRepository {
-	return &tagRepository{
-		db:  db,
-		log: log,
-	}
-}
 
 func (r *tagRepository) conn(ctx context.Context) *gorm.DB {
 	if tx := correlation.GetTx(ctx); tx != nil {
@@ -61,10 +32,7 @@ func (r *tagRepository) Create(ctx context.Context, tag *entity.Tag) error {
 	}
 
 	err := r.conn(ctx).Clauses(onConflict).Create(tag).Error
-
 	if err != nil {
-		r.log.Error("create failed", zap.Error(err), zap.Any("param", tag))
-
 		return entityerror.ErrTagCreationFailed(err)
 	}
 
@@ -73,16 +41,69 @@ func (r *tagRepository) Create(ctx context.Context, tag *entity.Tag) error {
 	return nil
 }
 
+func (r *tagRepository) CreateBatch(
+	ctx context.Context,
+	tags []*entity.Tag,
+) error {
+	r.log.Info("create batch started", zap.Int("count", len(tags)))
+
+	if len(tags) == 0 {
+		r.log.Debug("create batch skipped due to empty slice")
+
+		return nil
+	}
+
+	updateCols := []string{"updated_at"}
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoUpdates: clause.AssignmentColumns(updateCols),
+	}
+
+	err := r.conn(ctx).Clauses(onConflict).CreateInBatches(tags, 500).Error
+	if err != nil {
+		return entityerror.ErrTagCreationFailed(err)
+	}
+
+	r.log.Info("create batch completed", zap.Int("count", len(tags)))
+
+	return nil
+}
+
 func (r *tagRepository) Update(ctx context.Context, tag *entity.Tag) error {
 	r.log.Info("update started", zap.Any("param", tag))
 
 	if err := r.conn(ctx).Save(tag).Error; err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", tag))
-
 		return entityerror.ErrTagUpdateFailed(err)
 	}
 
 	r.log.Info("update completed", zap.Any("param", tag))
+
+	return nil
+}
+
+func (r *tagRepository) UpdateBatch(
+	ctx context.Context,
+	tags []*entity.Tag,
+) error {
+	r.log.Info("update batch started", zap.Int("count", len(tags)))
+
+	if len(tags) == 0 {
+		r.log.Debug("update batch skipped due to empty slice")
+
+		return nil
+	}
+
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}
+
+	err := r.conn(ctx).Clauses(onConflict).CreateInBatches(tags, 500).Error
+	if err != nil {
+		return entityerror.ErrTagUpdateFailed(err)
+	}
+
+	r.log.Info("update batch completed", zap.Int("count", len(tags)))
 
 	return nil
 }
@@ -96,8 +117,6 @@ func (r *tagRepository) FindByID(
 	var item entity.Tag
 
 	if err := r.conn(ctx).Where("id = ?", id).First(&item).Error; err != nil {
-		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
-
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrTagNotFound(id)
 		}
@@ -115,7 +134,15 @@ func (r *tagRepository) FindByIDsOrNames(
 	ids []string,
 	names []string,
 ) ([]*entity.Tag, error) {
+	r.log.Info(
+		"find by ids or names started",
+		zap.Strings("ids", ids),
+		zap.Strings("names", names),
+	)
+
 	if len(ids) == 0 && len(names) == 0 {
+		r.log.Debug("find by ids or names skipped due to empty ids and names")
+
 		return make([]*entity.Tag, 0), nil
 	}
 
@@ -133,26 +160,16 @@ func (r *tagRepository) FindByIDsOrNames(
 
 	query = db.WithRowLock(ctx, query)
 	if err := query.Find(&items).Error; err != nil {
-		r.log.Error(
-			"find by ids or names failed",
-			zap.Error(err),
-			zap.Strings("ids", ids),
-			zap.Strings("names", names),
-		)
-
 		return nil, entityerror.ErrTagRetrievalFailed(err)
 	}
+
+	r.log.Info("find by ids or names completed", zap.Int("count", len(items)))
 
 	return items, nil
 }
 
 func (r *tagRepository) FindAll(ctx context.Context) ([]*entity.Tag, error) {
 	r.log.Info("find all started", zap.Any("param", nil))
-
-	type tagWithCount struct {
-		entity.Tag
-		UsageCount int `gorm:"column:usage_count"`
-	}
 
 	var results []tagWithCount
 
@@ -163,8 +180,6 @@ func (r *tagRepository) FindAll(ctx context.Context) ([]*entity.Tag, error) {
 		Find(&results).Error
 
 	if err != nil {
-		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
-
 		return nil, entityerror.ErrTagRetrievalFailed(err)
 	}
 
@@ -196,12 +211,6 @@ func (r *tagRepository) FindUpdatedSince(
 
 	err := query.Order("updated_at ASC").Find(&items).Error
 	if err != nil {
-		r.log.Error(
-			"find updated since failed",
-			zap.Error(err),
-			zap.Time("since", since),
-		)
-
 		return nil, entityerror.ErrTagRetrievalFailed(err)
 	}
 
@@ -215,8 +224,6 @@ func (r *tagRepository) Delete(ctx context.Context, id string) error {
 
 	tagModel := &entity.Tag{}
 	if err := r.conn(ctx).Where("id = ?", id).Delete(tagModel).Error; err != nil {
-		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
-
 		return entityerror.ErrTagDeleteFailed(err)
 	}
 

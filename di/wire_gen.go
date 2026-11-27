@@ -11,8 +11,14 @@ import (
 	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	"github.com/bryanfks-dev/logos/internal/repository/gathering"
+	"github.com/bryanfks-dev/logos/internal/repository/preacher"
+	"github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	"github.com/bryanfks-dev/logos/internal/repository/sermon_series"
+	"github.com/bryanfks-dev/logos/internal/repository/tag"
+	"github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	"github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
+	"github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
 	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
@@ -30,12 +36,12 @@ func NewContainer() (*Container, error) {
 	manager := fs.NewManager()
 	etcController := http.NewEtcController()
 	errorController := http.NewErrorController(logger)
-	sermonNoteRepository := repository.NewSermonNoteRepository(gormDB, manager, logger)
-	gatheringRepository := repository.NewGatheringRepository(gormDB, logger)
-	sermonSeriesRepository := repository.NewSermonSeriesRepository(gormDB, logger)
-	preacherRepository := repository.NewPreacherRepository(gormDB, logger)
-	tagRepository := repository.NewTagRepository(gormDB, logger)
-	pullSyncChangesUsecaseOption := &usecase.PullSyncChangesUsecaseOption{
+	sermonNoteRepository := sermonnote.NewSermonNoteRepository(gormDB, manager, logger)
+	gatheringRepository := gathering.NewGatheringRepository(gormDB, logger)
+	sermonSeriesRepository := sermonseries.NewSermonSeriesRepository(gormDB, logger)
+	preacherRepository := preacher.NewPreacherRepository(gormDB, logger)
+	tagRepository := tag.NewTagRepository(gormDB, logger)
+	pullSyncChangesUsecaseOption := &pullsyncchanges.PullSyncChangesUsecaseOption{
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
 		SermonSeriesRepository: sermonSeriesRepository,
@@ -43,8 +49,8 @@ func NewContainer() (*Container, error) {
 		TagRepository:          tagRepository,
 		Log:                    logger,
 	}
-	pullSyncChangesUsecase := usecase.NewPullSyncChangesUsecase(pullSyncChangesUsecaseOption)
-	pushSyncChangesUsecaseOption := &usecase.PushSyncChangesUsecaseOption{
+	pullSyncChangesUsecase := pullsyncchanges.NewPullSyncChangesUsecase(pullSyncChangesUsecaseOption)
+	pushSyncChangesUsecaseOption := &pushsyncchanges.PushSyncChangesUsecaseOption{
 		TxManager:              txManager,
 		SermonNoteRepository:   sermonNoteRepository,
 		GatheringRepository:    gatheringRepository,
@@ -53,15 +59,15 @@ func NewContainer() (*Container, error) {
 		TagRepository:          tagRepository,
 		Log:                    logger,
 	}
-	pushSyncChangesUsecase := usecase.NewPushSyncChangesUsecase(pushSyncChangesUsecaseOption)
+	pushSyncChangesUsecase := pushsyncchanges.NewPushSyncChangesUsecase(pushSyncChangesUsecaseOption)
 	syncController := http.NewSyncController(pullSyncChangesUsecase, pushSyncChangesUsecase, logger)
-	uploadSermonNoteAttachmentFileUsecaseOption := &usecase.UploadSermonNoteAttachmentFileUsecaseOption{
+	uploadSermonNoteAttachmentFileUsecaseOption := &uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecaseOption{
 		SermonNoteRepository: sermonNoteRepository,
 		FsManager:            manager,
 		Config:               viper,
 		Log:                  logger,
 	}
-	uploadSermonNoteAttachmentFileUsecase := usecase.NewUploadSermonNoteAttachmentFileUsecase(uploadSermonNoteAttachmentFileUsecaseOption)
+	uploadSermonNoteAttachmentFileUsecase := uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase(uploadSermonNoteAttachmentFileUsecaseOption)
 	sermonNoteController := http.NewSermonNoteController(uploadSermonNoteAttachmentFileUsecase, logger)
 	routeConfigOption := &route.RouteConfigOption{
 		App:                  echo,
@@ -107,7 +113,7 @@ type Container struct {
 	SyncController       *http.SyncController
 	SermonNoteController *http.SermonNoteController
 
-	PullSyncChangesUsecase                *usecase.PullSyncChangesUsecase
-	PushSyncChangesUsecase                *usecase.PushSyncChangesUsecase
-	UploadSermonNoteAttachmentFileUsecase *usecase.UploadSermonNoteAttachmentFileUsecase
+	PullSyncChangesUsecase                *pullsyncchanges.PullSyncChangesUsecase
+	PushSyncChangesUsecase                *pushsyncchanges.PushSyncChangesUsecase
+	UploadSermonNoteAttachmentFileUsecase *uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase
 }

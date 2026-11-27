@@ -1,4 +1,4 @@
-package repository
+package gathering
 
 import (
 	"context"
@@ -11,32 +11,8 @@ import (
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-type GatheringRepository interface {
-	Create(ctx context.Context, gathering *entity.Gathering) error
-	Update(ctx context.Context, gathering *entity.Gathering) error
-	FindByID(ctx context.Context, id string) (*entity.Gathering, error)
-	FindByIDs(ctx context.Context, ids []string) ([]*entity.Gathering, error)
-	FindAll(ctx context.Context) ([]*entity.Gathering, error)
-	FindUpdatedSince(
-		ctx context.Context,
-		since time.Time,
-	) ([]*entity.Gathering, error)
-	Delete(ctx context.Context, id string) error
-}
-
-type gatheringRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
-}
-
-func NewGatheringRepository(db *gorm.DB, log *zap.Logger) GatheringRepository {
-	return &gatheringRepository{
-		db:  db,
-		log: log,
-	}
-}
 
 func (r *gatheringRepository) conn(ctx context.Context) *gorm.DB {
 	if tx := correlation.GetTx(ctx); tx != nil {
@@ -53,16 +29,31 @@ func (r *gatheringRepository) Create(
 	r.log.Info("create started", zap.Any("param", gathering))
 
 	if err := r.conn(ctx).Create(gathering).Error; err != nil {
-		r.log.Error(
-			"create failed",
-			zap.Error(err),
-			zap.Any("param", gathering),
-		)
-
 		return entityerror.ErrGatheringCreationFailed(err)
 	}
 
 	r.log.Info("create completed", zap.Any("param", gathering))
+
+	return nil
+}
+
+func (r *gatheringRepository) CreateBatch(
+	ctx context.Context,
+	gatherings []*entity.Gathering,
+) error {
+	r.log.Info("create batch started", zap.Int("count", len(gatherings)))
+
+	if len(gatherings) == 0 {
+		r.log.Debug("create batch skipped due to empty slice")
+
+		return nil
+	}
+
+	if err := r.conn(ctx).CreateInBatches(gatherings, 500).Error; err != nil {
+		return entityerror.ErrGatheringCreationFailed(err)
+	}
+
+	r.log.Info("create batch completed", zap.Int("count", len(gatherings)))
 
 	return nil
 }
@@ -74,16 +65,36 @@ func (r *gatheringRepository) Update(
 	r.log.Info("update started", zap.Any("param", gathering))
 
 	if err := r.conn(ctx).Save(gathering).Error; err != nil {
-		r.log.Error(
-			"update failed",
-			zap.Error(err),
-			zap.Any("param", gathering),
-		)
-
 		return entityerror.ErrGatheringUpdateFailed(err)
 	}
 
 	r.log.Info("update completed", zap.Any("param", gathering))
+
+	return nil
+}
+
+func (r *gatheringRepository) UpdateBatch(
+	ctx context.Context,
+	gatherings []*entity.Gathering,
+) error {
+	r.log.Info("update batch started", zap.Int("count", len(gatherings)))
+
+	if len(gatherings) == 0 {
+		r.log.Debug("update batch skipped due to empty slice")
+
+		return nil
+	}
+
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}
+
+	if err := r.conn(ctx).Clauses(onConflict).CreateInBatches(gatherings, 500).Error; err != nil {
+		return entityerror.ErrGatheringUpdateFailed(err)
+	}
+
+	r.log.Info("update batch completed", zap.Int("count", len(gatherings)))
 
 	return nil
 }
@@ -97,8 +108,6 @@ func (r *gatheringRepository) FindByID(
 	var item entity.Gathering
 
 	if err := r.conn(ctx).Where("id = ?", id).First(&item).Error; err != nil {
-		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
-
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrGatheringNotFound(id)
 		}
@@ -115,7 +124,11 @@ func (r *gatheringRepository) FindByIDs(
 	ctx context.Context,
 	ids []string,
 ) ([]*entity.Gathering, error) {
+	r.log.Info("find by ids started", zap.Strings("ids", ids))
+
 	if len(ids) == 0 {
+		r.log.Debug("find by ids skipped due to empty ids")
+
 		return make([]*entity.Gathering, 0), nil
 	}
 
@@ -126,14 +139,10 @@ func (r *gatheringRepository) FindByIDs(
 		r.conn(ctx).Unscoped().Where("id IN ?", ids),
 	)
 	if err := query.Find(&items).Error; err != nil {
-		r.log.Error(
-			"find by ids failed",
-			zap.Error(err),
-			zap.Strings("ids", ids),
-		)
-
 		return nil, entityerror.ErrGatheringRetrievalFailed(err)
 	}
+
+	r.log.Info("find by ids completed", zap.Int("count", len(items)))
 
 	return items, nil
 }
@@ -146,8 +155,6 @@ func (r *gatheringRepository) FindAll(
 	var items []*entity.Gathering
 
 	if err := r.conn(ctx).Order("sort_order ASC").Find(&items).Error; err != nil {
-		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
-
 		return nil, entityerror.ErrGatheringRetrievalFailed(err)
 	}
 
@@ -171,12 +178,6 @@ func (r *gatheringRepository) FindUpdatedSince(
 
 	err := query.Order("updated_at ASC").Find(&items).Error
 	if err != nil {
-		r.log.Error(
-			"find updated since failed",
-			zap.Error(err),
-			zap.Time("since", since),
-		)
-
 		return nil, entityerror.ErrGatheringRetrievalFailed(err)
 	}
 
@@ -190,8 +191,6 @@ func (r *gatheringRepository) Delete(ctx context.Context, id string) error {
 
 	gatheringModel := &entity.Gathering{}
 	if err := r.conn(ctx).Where("id = ?", id).Delete(gatheringModel).Error; err != nil {
-		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
-
 		return entityerror.ErrGatheringDeleteFailed(err)
 	}
 

@@ -5,8 +5,16 @@ import (
 	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/internal/delivery/http"
 	"github.com/bryanfks-dev/logos/internal/delivery/http/route"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	"github.com/bryanfks-dev/logos/internal/repository/bible"
+	"github.com/bryanfks-dev/logos/internal/repository/gathering"
+	"github.com/bryanfks-dev/logos/internal/repository/preacher"
+	sermonnote "github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	sermonseries "github.com/bryanfks-dev/logos/internal/repository/sermon_series"
+	syncoutbox "github.com/bryanfks-dev/logos/internal/repository/sync_outbox"
+	"github.com/bryanfks-dev/logos/internal/repository/tag"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
+	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
 	"github.com/bryanfks-dev/logos/pkg/config"
 	"github.com/google/wire"
 )
@@ -24,22 +32,27 @@ var InfrastructureSet = wire.NewSet(
 )
 
 var RepositorySet = wire.NewSet(
-	repository.NewGatheringRepository,
-	repository.NewSermonSeriesRepository,
-	repository.NewPreacherRepository,
-	repository.NewTagRepository,
-	repository.NewSermonNoteRepository,
-	repository.NewBibleRepository,
-	repository.NewSyncOutboxRepository,
+	gathering.NewGatheringRepository,
+	sermonseries.NewSermonSeriesRepository,
+	preacher.NewPreacherRepository,
+	tag.NewTagRepository,
+	sermonnote.NewSermonNoteRepository,
+	bible.NewBibleRepository,
+	syncoutbox.NewSyncOutboxRepository,
 )
 
 var UsecaseSet = wire.NewSet(
-	wire.Struct(new(usecase.PullSyncChangesUsecaseOption), "*"),
-	usecase.NewPullSyncChangesUsecase,
-	wire.Struct(new(usecase.PushSyncChangesUsecaseOption), "*"),
-	usecase.NewPushSyncChangesUsecase,
-	wire.Struct(new(usecase.UploadSermonNoteAttachmentFileUsecaseOption), "*"),
-	usecase.NewUploadSermonNoteAttachmentFileUsecase,
+	wire.Struct(new(pullsyncchanges.PullSyncChangesUsecaseOption), "*"),
+	pullsyncchanges.NewPullSyncChangesUsecase,
+	wire.Struct(new(pushsyncchanges.PushSyncChangesUsecaseOption), "*"),
+	pushsyncchanges.NewPushSyncChangesUsecase,
+	wire.Struct(
+		new(
+			uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecaseOption,
+		),
+		"*",
+	),
+	uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase,
 )
 
 var DeliverySet = wire.NewSet(

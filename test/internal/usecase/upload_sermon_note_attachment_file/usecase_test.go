@@ -1,4 +1,4 @@
-package usecase_test
+package uploadsermonnoteattachmentfile_test
 
 import (
 	"bytes"
@@ -13,9 +13,8 @@ import (
 	"uuid"
 
 	"github.com/bryanfks-dev/logos/infra/fs"
-	"github.com/bryanfks-dev/logos/internal/model"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	sermonnote "github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
 	"github.com/bryanfks-dev/logos/pkg/constant"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
@@ -29,7 +28,11 @@ import (
 
 func setupAttachmentUploadTestEnv(
 	t *testing.T,
-) (*gorm.DB, *usecase.UploadSermonNoteAttachmentFileUsecase, string) {
+) (
+	*gorm.DB,
+	*uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecase,
+	string,
+) {
 	dbName := fmt.Sprintf(
 		"file:attachment_upload_test_%s?mode=memory&cache=shared",
 		uuid.NewV7().String(),
@@ -52,7 +55,7 @@ func setupAttachmentUploadTestEnv(
 
 	log := zap.NewNop()
 	fsManager := fs.NewManager()
-	sermonNoteRepo := repository.NewSermonNoteRepository(
+	sermonNoteRepo := sermonnote.NewSermonNoteRepository(
 		testDB,
 		fsManager,
 		log,
@@ -62,8 +65,8 @@ func setupAttachmentUploadTestEnv(
 	v := viper.New()
 	v.Set("app.path", appPath)
 
-	u := usecase.NewUploadSermonNoteAttachmentFileUsecase(
-		&usecase.UploadSermonNoteAttachmentFileUsecaseOption{
+	u := uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase(
+		&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecaseOption{
 			SermonNoteRepository: sermonNoteRepo,
 			FsManager:            fsManager,
 			Config:               v,
@@ -97,11 +100,14 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 		func(t *testing.T) {
 			testDB, u, _ := setupAttachmentUploadTestEnv(t)
 
-			res, err := u.Call(ctx, &model.UploadSermonNoteAttachmentFileInput{
-				ID:          "missing-att",
-				ContentHash: "abc",
-				File:        bytes.NewReader([]byte("data")),
-			})
+			res, err := u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   "missing-att",
+					AttachmentHash: "abc",
+					File:           bytes.NewReader([]byte("data")),
+				},
+			)
 			assert.Nil(t, res)
 			assert.ErrorIs(
 				t,
@@ -124,11 +130,14 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(deletedAtt).Error)
 
-			res, err = u.Call(ctx, &model.UploadSermonNoteAttachmentFileInput{
-				ID:          deletedAtt.ID,
-				ContentHash: "hash",
-				File:        bytes.NewReader([]byte("data")),
-			})
+			res, err = u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   deletedAtt.ID,
+					AttachmentHash: "hash",
+					File:           bytes.NewReader([]byte("data")),
+				},
+			)
 			assert.Nil(t, res)
 			assert.ErrorIs(
 				t,
@@ -158,15 +167,18 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			}
 			require.NoError(t, testDB.Create(att).Error)
 
-			res, err := u.Call(ctx, &model.UploadSermonNoteAttachmentFileInput{
-				ID:          att.ID,
-				ContentHash: "DEADBEEF",
-				File:        bytes.NewReader([]byte("ignored")),
-			})
+			res, err := u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   att.ID,
+					AttachmentHash: "DEADBEEF",
+					File:           bytes.NewReader([]byte("ignored")),
+				},
+			)
 			require.NoError(t, err)
-			assert.Equal(t, att.ID, res.ID)
-			assert.Equal(t, "deadbeef", res.ChecksumSHA256)
-			assert.Equal(t, "stored", res.Status)
+			assert.Equal(t, att.ID, res.AttachmentID)
+			assert.Equal(t, "deadbeef", res.AttachmentChecksumSHA256)
+			assert.Equal(t, constant.UploadStatusStored, res.Status)
 
 			_, statErr := os.Stat(
 				filepath.Join(appPath, ".tmp", att.ID+".part"),
@@ -191,15 +203,18 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 				FileSize:       12,
 				StoragePath:    "",
 				ChecksumSHA256: "0000000000000000",
-				Status:         constant.UploadStatusNotUploaded,
+				Status:         constant.UploadStatusStored,
 			}
 			require.NoError(t, testDB.Create(att).Error)
 
-			res, err := u.Call(ctx, &model.UploadSermonNoteAttachmentFileInput{
-				ID:          att.ID,
-				ContentHash: "wrong-hash",
-				File:        bytes.NewReader([]byte("corrupt bytes")),
-			})
+			res, err := u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   att.ID,
+					AttachmentHash: "wrong-hash",
+					File:           bytes.NewReader([]byte("corrupt bytes")),
+				},
+			)
 			assert.Nil(t, res)
 			assert.ErrorIs(
 				t,
@@ -216,7 +231,7 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 			require.NoError(t, testDB.First(&failedAtt, "id = ?", att.ID).Error)
 			assert.Equal(
 				t,
-				constant.UploadStatusNotUploaded,
+				constant.UploadStatusStored,
 				failedAtt.Status,
 			)
 		},
@@ -243,22 +258,31 @@ func TestUploadSermonNoteAttachmentFileUsecase_Call(t *testing.T) {
 				FileSize:       int64(len(payload)),
 				StoragePath:    "",
 				ChecksumSHA256: hashHex,
-				Status:         constant.UploadStatusNotUploaded,
+				Status:         constant.UploadStatusStored,
 				CreatedAt:      createdAt,
 			}
 			require.NoError(t, testDB.Create(att).Error)
 
-			res, err := u.Call(ctx, &model.UploadSermonNoteAttachmentFileInput{
-				ID:          att.ID,
-				ContentHash: hashHex,
-				File:        bytes.NewReader(payload),
-			})
+			res, err := u.Call(
+				ctx,
+				&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileInput{
+					AttachmentID:   att.ID,
+					AttachmentHash: hashHex,
+					File:           bytes.NewReader(payload),
+				},
+			)
 			require.NoError(t, err)
-			assert.Equal(t, att.ID, res.ID)
-			assert.Equal(t, hashHex, res.ChecksumSHA256)
-			assert.Equal(t, "stored", res.Status)
+			assert.Equal(t, att.ID, res.AttachmentID)
+			assert.Equal(t, hashHex, res.AttachmentChecksumSHA256)
+			assert.Equal(t, constant.UploadStatusUploaded, res.Status)
 
-			expectedPath := filepath.Join(appPath, "2026", att.ID+".pdf")
+			expectedPath := filepath.Join(
+				appPath,
+				"notes",
+				"2026",
+				"11",
+				att.ID+".pdf",
+			)
 			storedBytes, err := os.ReadFile(expectedPath)
 			require.NoError(t, err)
 			assert.Equal(t, payload, storedBytes)

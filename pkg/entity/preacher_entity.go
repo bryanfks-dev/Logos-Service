@@ -19,6 +19,11 @@ type Preacher struct {
 	SermonNotes []SermonNote `gorm:"foreignKey:PreacherID;references:ID"`
 }
 
+type PreacherFilter struct {
+	NamePrefix     string
+	IncludeDeleted bool
+}
+
 func (Preacher) TableName() string {
 	return "preachers"
 }
@@ -29,9 +34,4 @@ func (e *Preacher) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	return nil
-}
-
-type PreacherFilter struct {
-	NamePrefix     string
-	IncludeDeleted bool
 }

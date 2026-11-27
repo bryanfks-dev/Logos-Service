@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/converter"
 	"github.com/bryanfks-dev/logos/internal/model/request"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,7 +113,7 @@ func TestSyncPushChangesResultToResponse(t *testing.T) {
 
 	t.Run("converts result to response", func(t *testing.T) {
 		syncedAt := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
-		result := &model.SyncPushChangesResult{
+		result := &pushsyncchanges.SyncPushChangesResult{
 			SyncedAt:          syncedAt,
 			MissingContentIDs: []string{"n1", "n2"},
 			Conflicts:         []string{"n3"},
@@ -146,7 +147,7 @@ func TestSyncPullChangesResultToResponse(t *testing.T) {
 	t.Run(
 		"converts full pull result with datetime server time",
 		func(t *testing.T) {
-			result := &model.SyncPullChangesResult{
+			result := &pullsyncchanges.SyncPullChangesResult{
 				ServerTime: now,
 				SermonNotes: []*entity.SermonNote{
 					{

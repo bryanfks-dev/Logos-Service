@@ -10,21 +10,22 @@ import (
 	params "github.com/bryanfks-dev/logos/internal/model/param"
 	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/internal/model/response"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	apperror "github.com/bryanfks-dev/logos/pkg/error"
 	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 )
 
 type SyncController struct {
-	pullSyncChangesUsecase *usecase.PullSyncChangesUsecase
-	pushSyncChangesUsecase *usecase.PushSyncChangesUsecase
+	pullSyncChangesUsecase *pullsyncchanges.PullSyncChangesUsecase
+	pushSyncChangesUsecase *pushsyncchanges.PushSyncChangesUsecase
 	log                    *zap.Logger
 }
 
 func NewSyncController(
-	pullSyncChangesUsecase *usecase.PullSyncChangesUsecase,
-	pushSyncChangesUsecase *usecase.PushSyncChangesUsecase,
+	pullSyncChangesUsecase *pullsyncchanges.PullSyncChangesUsecase,
+	pushSyncChangesUsecase *pushsyncchanges.PushSyncChangesUsecase,
 	log *zap.Logger,
 ) *SyncController {
 	return &SyncController{

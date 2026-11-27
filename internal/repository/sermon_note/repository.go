@@ -1,4 +1,4 @@
-package repository
+package sermonnote
 
 import (
 	"context"
@@ -9,64 +9,12 @@ import (
 
 	"github.com/bryanfks-dev/logos/infra/db"
 	"github.com/bryanfks-dev/logos/infra/db/correlation"
-	"github.com/bryanfks-dev/logos/infra/fs"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-type SermonNoteRepository interface {
-	Create(ctx context.Context, note *entity.SermonNote) error
-	Update(ctx context.Context, note *entity.SermonNote) error
-	FindByID(ctx context.Context, id string) (*entity.SermonNote, error)
-	FindByIDUnscoped(ctx context.Context, id string) (*entity.SermonNote, error)
-	FindByIDsUnscoped(
-		ctx context.Context,
-		ids []string,
-	) ([]*entity.SermonNote, error)
-	FindAll(
-		ctx context.Context,
-		filter entity.SermonNoteFilter,
-	) ([]*entity.SermonNote, error)
-	Search(ctx context.Context, query string) ([]*entity.SermonNote, error)
-	FindByScripture(
-		ctx context.Context,
-		query entity.ScriptureQuery,
-	) ([]*entity.SermonNote, error)
-	FindUpdatedSince(
-		ctx context.Context,
-		since time.Time,
-	) ([]*entity.SermonNote, error)
-	Delete(ctx context.Context, id string) error
-	Restore(ctx context.Context, id string) error
-	FindAttachmentByID(
-		ctx context.Context,
-		id string,
-	) (*entity.SermonNoteAttachment, error)
-	UpdateAttachment(
-		ctx context.Context,
-		attachment *entity.SermonNoteAttachment,
-	) error
-}
-
-type sermonNoteRepository struct {
-	db        *gorm.DB
-	fsManager fs.Manager
-	log       *zap.Logger
-}
-
-func NewSermonNoteRepository(
-	db *gorm.DB,
-	fsManager fs.Manager,
-	log *zap.Logger,
-) SermonNoteRepository {
-	return &sermonNoteRepository{
-		db:        db,
-		fsManager: fsManager,
-		log:       log,
-	}
-}
 
 func (r *sermonNoteRepository) conn(ctx context.Context) *gorm.DB {
 	if tx := correlation.GetTx(ctx); tx != nil {
@@ -146,36 +94,35 @@ func (r *sermonNoteRepository) hydrateNoteRelations(
 	r.hydrateNoteFile(note)
 }
 
-func (r *sermonNoteRepository) saveChildren(
+func (r *sermonNoteRepository) saveChildrenBatch(
 	ctx context.Context,
-	note *entity.SermonNote,
+	notes []*entity.SermonNote,
+	deleteExisting bool,
 ) error {
+	if len(notes) == 0 {
+		return nil
+	}
+
 	db := r.conn(ctx)
 
-	noteVerseModel := &entity.NoteVerse{}
-	if err := db.Where("note_id = ?", note.ID).Delete(noteVerseModel).Error; err != nil {
-		return err
-	}
+	noteIDs := make([]string, 0, len(notes))
+	allVerses := make([]entity.NoteVerse, 0)
+	allNoteTags := make([]entity.NoteTag, 0)
+	allFTS := make([]entity.NotesFTS, 0, len(notes))
 
-	if len(note.Verses) > 0 {
+	for _, note := range notes {
+		if note == nil {
+			continue
+		}
+
+		noteIDs = append(noteIDs, note.ID)
+
 		for i := range note.Verses {
 			note.Verses[i].NoteID = note.ID
+			allVerses = append(allVerses, note.Verses[i])
 		}
 
-		if err := db.Create(&note.Verses).Error; err != nil {
-			return err
-		}
-	}
-
-	noteTagModel := &entity.NoteTag{}
-	if err := db.Where("note_id = ?", note.ID).Delete(noteTagModel).Error; err != nil {
-		return err
-	}
-
-	if len(note.Tags) > 0 {
-		noteTags := make([]entity.NoteTag, 0, len(note.Tags))
 		seenTagIDs := make(map[string]struct{}, len(note.Tags))
-
 		for _, tag := range note.Tags {
 			if tag.ID == "" {
 				continue
@@ -190,32 +137,61 @@ func (r *sermonNoteRepository) saveChildren(
 				NoteID: note.ID,
 				TagID:  tag.ID,
 			}
-			noteTags = append(noteTags, noteTag)
+			allNoteTags = append(allNoteTags, noteTag)
 		}
 
-		if len(noteTags) > 0 {
-			if err := db.Create(&noteTags).Error; err != nil {
-				return err
+		fts := note.FTS
+		if fts == nil {
+			fts = &entity.NotesFTS{
+				Title:     note.Title,
+				PlainText: note.PlainText,
 			}
 		}
+
+		fts.NoteID = note.ID
+		allFTS = append(allFTS, *fts)
 	}
 
-	notesFTSModel := &entity.NotesFTS{}
-	if err := db.Where("note_id = ?", note.ID).Delete(notesFTSModel).Error; err != nil {
-		return err
+	if len(noteIDs) == 0 {
+		return nil
 	}
 
-	fts := note.FTS
-	if fts == nil {
-		fts = &entity.NotesFTS{
-			Title:     note.Title,
-			PlainText: note.PlainText,
+	if deleteExisting {
+		noteVerseModel := &entity.NoteVerse{}
+		if err := db.Where("note_id IN ?", noteIDs).Delete(noteVerseModel).Error; err != nil {
+			return err
+		}
+
+		noteTagModel := &entity.NoteTag{}
+		if err := db.Where("note_id IN ?", noteIDs).Delete(noteTagModel).Error; err != nil {
+			return err
+		}
+
+		notesFTSModel := &entity.NotesFTS{}
+		if err := db.Where("note_id IN ?", noteIDs).Delete(notesFTSModel).Error; err != nil {
+			return err
 		}
 	}
 
-	fts.NoteID = note.ID
+	if len(allVerses) > 0 {
+		if err := db.CreateInBatches(&allVerses, 500).Error; err != nil {
+			return err
+		}
+	}
 
-	return db.Create(fts).Error
+	if len(allNoteTags) > 0 {
+		if err := db.CreateInBatches(&allNoteTags, 500).Error; err != nil {
+			return err
+		}
+	}
+
+	if len(allFTS) > 0 {
+		if err := db.CreateInBatches(&allFTS, 500).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *sermonNoteRepository) Create(
@@ -226,25 +202,57 @@ func (r *sermonNoteRepository) Create(
 
 	db := r.conn(ctx)
 
-	if err := db.Create(note).Error; err != nil {
-		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
-
+	if err := db.Omit(clause.Associations).Create(note).Error; err != nil {
 		return entityerror.ErrSermonNoteCreationFailed(err)
 	}
 
-	if err := r.saveChildren(ctx, note); err != nil {
-		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
-
+	notes := []*entity.SermonNote{note}
+	if err := r.saveChildrenBatch(ctx, notes, true); err != nil {
 		return entityerror.ErrSermonNoteCreationFailed(err)
 	}
 
 	if err := r.commitNoteFile(ctx, note); err != nil {
-		r.log.Error("create failed", zap.Error(err), zap.Any("param", note))
-
 		return entityerror.ErrSermonNoteCreationFailed(err)
 	}
 
 	r.log.Info("create completed", zap.Any("param", note))
+
+	return nil
+}
+
+func (r *sermonNoteRepository) CreateBatch(
+	ctx context.Context,
+	notes []*entity.SermonNote,
+) error {
+	r.log.Info("create batch started", zap.Int("count", len(notes)))
+
+	if len(notes) == 0 {
+		r.log.Debug("create batch skipped due to empty slice")
+
+		return nil
+	}
+
+	db := r.conn(ctx)
+
+	if err := db.Omit(clause.Associations).CreateInBatches(notes, 500).Error; err != nil {
+		return entityerror.ErrSermonNoteCreationFailed(err)
+	}
+
+	if err := r.saveChildrenBatch(ctx, notes, false); err != nil {
+		return entityerror.ErrSermonNoteCreationFailed(err)
+	}
+
+	for _, note := range notes {
+		if note == nil {
+			continue
+		}
+
+		if err := r.commitNoteFile(ctx, note); err != nil {
+			return entityerror.ErrSermonNoteCreationFailed(err)
+		}
+	}
+
+	r.log.Info("create batch completed", zap.Int("count", len(notes)))
 
 	return nil
 }
@@ -259,25 +267,69 @@ func (r *sermonNoteRepository) Update(
 
 	db := r.conn(ctx)
 
-	if err := db.Save(note).Error; err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
-
+	if err := db.Omit(clause.Associations).Save(note).Error; err != nil {
 		return entityerror.ErrSermonNoteUpdateFailed(err)
 	}
 
-	if err := r.saveChildren(ctx, note); err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
-
+	notes := []*entity.SermonNote{note}
+	if err := r.saveChildrenBatch(ctx, notes, true); err != nil {
 		return entityerror.ErrSermonNoteUpdateFailed(err)
 	}
 
 	if err := r.commitNoteFile(ctx, note); err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", note))
-
 		return entityerror.ErrSermonNoteUpdateFailed(err)
 	}
 
 	r.log.Info("update completed", zap.Any("param", note))
+
+	return nil
+}
+
+func (r *sermonNoteRepository) UpdateBatch(
+	ctx context.Context,
+	notes []*entity.SermonNote,
+) error {
+	r.log.Info("update batch started", zap.Int("count", len(notes)))
+
+	if len(notes) == 0 {
+		r.log.Debug("update batch skipped due to empty slice")
+
+		return nil
+	}
+
+	for _, note := range notes {
+		if note == nil {
+			continue
+		}
+
+		r.ensureNoteFilePath(note)
+	}
+
+	db := r.conn(ctx)
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}
+
+	if err := db.Omit(clause.Associations).Clauses(onConflict).CreateInBatches(notes, 500).Error; err != nil {
+		return entityerror.ErrSermonNoteUpdateFailed(err)
+	}
+
+	if err := r.saveChildrenBatch(ctx, notes, true); err != nil {
+		return entityerror.ErrSermonNoteUpdateFailed(err)
+	}
+
+	for _, note := range notes {
+		if note == nil {
+			continue
+		}
+
+		if err := r.commitNoteFile(ctx, note); err != nil {
+			return entityerror.ErrSermonNoteUpdateFailed(err)
+		}
+	}
+
+	r.log.Info("update batch completed", zap.Int("count", len(notes)))
 
 	return nil
 }
@@ -291,8 +343,6 @@ func (r *sermonNoteRepository) FindByID(
 	var note entity.SermonNote
 
 	if err := r.conn(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&note).Error; err != nil {
-		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
-
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrSermonNoteNotFound(id)
 		}
@@ -316,12 +366,6 @@ func (r *sermonNoteRepository) FindByIDUnscoped(
 	var note entity.SermonNote
 
 	if err := r.conn(ctx).Unscoped().Where("id = ?", id).First(&note).Error; err != nil {
-		r.log.Error(
-			"find by id unscoped failed",
-			zap.Error(err),
-			zap.Any("param", id),
-		)
-
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrSermonNoteNotFound(id)
 		}
@@ -340,7 +384,11 @@ func (r *sermonNoteRepository) FindByIDsUnscoped(
 	ctx context.Context,
 	ids []string,
 ) ([]*entity.SermonNote, error) {
+	r.log.Info("find by ids unscoped started", zap.Strings("ids", ids))
+
 	if len(ids) == 0 {
+		r.log.Debug("find by ids unscoped skipped due to empty ids")
+
 		return make([]*entity.SermonNote, 0), nil
 	}
 
@@ -351,18 +399,14 @@ func (r *sermonNoteRepository) FindByIDsUnscoped(
 		r.conn(ctx).Unscoped().Where("id IN ?", ids),
 	)
 	if err := query.Find(&notes).Error; err != nil {
-		r.log.Error(
-			"find by ids unscoped failed",
-			zap.Error(err),
-			zap.Strings("ids", ids),
-		)
-
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
 	for _, note := range notes {
 		r.hydrateNoteFile(note)
 	}
+
+	r.log.Info("find by ids unscoped completed", zap.Int("count", len(notes)))
 
 	return notes, nil
 }
@@ -420,8 +464,6 @@ func (r *sermonNoteRepository) FindAll(
 	var notes []*entity.SermonNote
 
 	if err := query.Preload("Verses").Preload("Tags").Find(&notes).Error; err != nil {
-		r.log.Error("find all failed", zap.Error(err), zap.Any("param", filter))
-
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
@@ -451,8 +493,6 @@ func (r *sermonNoteRepository) Search(
 		Find(&notes).Error
 
 	if err != nil {
-		r.log.Error("search failed", zap.Error(err), zap.Any("param", query))
-
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
@@ -480,12 +520,6 @@ func (r *sermonNoteRepository) FindByScripture(
 	var notes []*entity.SermonNote
 
 	if err := dbQuery.Distinct("sermon_notes.*").Find(&notes).Error; err != nil {
-		r.log.Error(
-			"find by scripture failed",
-			zap.Error(err),
-			zap.Any("param", query),
-		)
-
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
@@ -499,8 +533,6 @@ func (r *sermonNoteRepository) Delete(ctx context.Context, id string) error {
 
 	sermonNoteModel := &entity.SermonNote{}
 	if err := r.conn(ctx).Where("id = ?", id).Delete(sermonNoteModel).Error; err != nil {
-		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
-
 		return entityerror.ErrSermonNoteDeleteFailed(err)
 	}
 
@@ -514,8 +546,6 @@ func (r *sermonNoteRepository) Restore(ctx context.Context, id string) error {
 
 	sermonNoteModel := &entity.SermonNote{}
 	if err := r.conn(ctx).Unscoped().Model(sermonNoteModel).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
-		r.log.Error("restore failed", zap.Error(err), zap.Any("param", id))
-
 		return entityerror.ErrSermonNoteUpdateFailed(err)
 	}
 
@@ -543,12 +573,6 @@ func (r *sermonNoteRepository) FindUpdatedSince(
 		Preload("Tags").
 		Find(&notes).Error
 	if err != nil {
-		r.log.Error(
-			"find updated since failed",
-			zap.Error(err),
-			zap.Time("since", since),
-		)
-
 		return nil, entityerror.ErrSermonNoteRetrievalFailed(err)
 	}
 
@@ -565,7 +589,11 @@ func (r *sermonNoteRepository) FindAttachmentByID(
 	ctx context.Context,
 	id string,
 ) (*entity.SermonNoteAttachment, error) {
+	r.log.Info("find attachment by id started", zap.String("id", id))
+
 	if id == "" {
+		r.log.Debug("find attachment by id skipped due to empty id")
+
 		return nil, entityerror.ErrSermonNoteAttachmentNotFound(id)
 	}
 
@@ -577,14 +605,10 @@ func (r *sermonNoteRepository) FindAttachmentByID(
 			return nil, entityerror.ErrSermonNoteAttachmentNotFound(id)
 		}
 
-		r.log.Error(
-			"find attachment by id failed",
-			zap.Error(err),
-			zap.String("id", id),
-		)
-
 		return nil, entityerror.ErrSermonNoteAttachmentRetrievalFailed(err)
 	}
+
+	r.log.Info("find attachment by id completed", zap.String("id", id))
 
 	return &attachment, nil
 }
@@ -593,10 +617,12 @@ func (r *sermonNoteRepository) UpdateAttachment(
 	ctx context.Context,
 	attachment *entity.SermonNoteAttachment,
 ) error {
+	r.log.Info("update attachment started")
+
 	if attachment == nil {
-		return entityerror.ErrSermonNoteAttachmentUpdateFailed(
-			errors.New("attachment is nil"),
-		)
+		err := errors.New("attachment is nil")
+
+		return entityerror.ErrSermonNoteAttachmentUpdateFailed(err)
 	}
 
 	updates := map[string]any{
@@ -611,14 +637,10 @@ func (r *sermonNoteRepository) UpdateAttachment(
 		Where("id = ?", attachment.ID).
 		Updates(updates).Error
 	if err != nil {
-		r.log.Error(
-			"update attachment failed",
-			zap.Error(err),
-			zap.String("id", attachment.ID),
-		)
-
 		return entityerror.ErrSermonNoteAttachmentUpdateFailed(err)
 	}
+
+	r.log.Info("update attachment completed", zap.String("id", attachment.ID))
 
 	return nil
 }

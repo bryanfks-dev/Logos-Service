@@ -116,7 +116,7 @@ func TestBeforeCreateHooks(t *testing.T) {
 			assertUUIDv7(t, attachment.ID)
 			assert.Equal(
 				t,
-				constant.UploadStatusNotUploaded,
+				constant.UploadStatusStored,
 				attachment.Status,
 			)
 
@@ -131,14 +131,18 @@ func TestBeforeCreateHooks(t *testing.T) {
 				constant.UploadStatusUploaded,
 				attachmentExisting.Status,
 			)
+
+			var nilAttachment *entity.SermonNoteAttachment
+			assert.False(t, nilAttachment.IsUploadedWithValidHash("abc123"))
+
 			assert.True(t, (&entity.SermonNoteAttachment{
 				Status:         constant.UploadStatusUploaded,
 				ChecksumSHA256: "abc123",
-			}).IsUploadedWithHash("ABC123"))
+			}).IsUploadedWithValidHash("ABC123"))
 			assert.False(t, (&entity.SermonNoteAttachment{
 				Status:         constant.UploadStatusProcessing,
 				ChecksumSHA256: "abc123",
-			}).IsUploadedWithHash("abc123"))
+			}).IsUploadedWithValidHash("abc123"))
 		},
 	)
 

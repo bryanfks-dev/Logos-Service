@@ -13,5 +13,3 @@ type BibleFTS struct {
 func (BibleFTS) TableName() string {
 	return "bible_fts"
 }
-
-type BibleFts = BibleFTS

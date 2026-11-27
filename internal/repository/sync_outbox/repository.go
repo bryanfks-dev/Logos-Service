@@ -1,4 +1,4 @@
-package repository
+package syncoutbox
 
 import (
 	"context"
@@ -11,31 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type SyncOutboxRepository interface {
-	Enqueue(ctx context.Context, entry *entity.SyncOutboxEntry) error
-	GetPendingBatch(
-		ctx context.Context,
-		limit int,
-	) ([]*entity.SyncOutboxEntry, error)
-	MarkSynced(ctx context.Context, ids []string) error
-	ClearSynced(ctx context.Context, before time.Time) error
-}
-
-type syncOutboxRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
-}
-
-func NewSyncOutboxRepository(
-	db *gorm.DB,
-	log *zap.Logger,
-) SyncOutboxRepository {
-	return &syncOutboxRepository{
-		db:  db,
-		log: log,
-	}
-}
-
 func (r *syncOutboxRepository) conn(ctx context.Context) *gorm.DB {
 	if tx := correlation.GetTx(ctx); tx != nil {
 		return tx.WithContext(ctx)
@@ -46,17 +21,15 @@ func (r *syncOutboxRepository) conn(ctx context.Context) *gorm.DB {
 
 func (r *syncOutboxRepository) Enqueue(
 	ctx context.Context,
-	entry *entity.SyncOutboxEntry,
+	outbox *entity.SyncOutbox,
 ) error {
-	r.log.Info("enqueue started", zap.Any("param", entry))
+	r.log.Info("enqueue started", zap.Any("param", outbox))
 
-	if err := r.conn(ctx).Create(entry).Error; err != nil {
-		r.log.Error("enqueue failed", zap.Error(err), zap.Any("param", entry))
-
+	if err := r.conn(ctx).Create(outbox).Error; err != nil {
 		return entityerror.ErrSyncOutboxEnqueueFailed(err)
 	}
 
-	r.log.Info("enqueue completed", zap.Any("param", entry))
+	r.log.Info("enqueue completed", zap.Any("param", outbox))
 
 	return nil
 }
@@ -64,24 +37,18 @@ func (r *syncOutboxRepository) Enqueue(
 func (r *syncOutboxRepository) GetPendingBatch(
 	ctx context.Context,
 	limit int,
-) ([]*entity.SyncOutboxEntry, error) {
+) ([]*entity.SyncOutbox, error) {
 	r.log.Info("get pending batch started", zap.Any("param", limit))
 
-	var entries []*entity.SyncOutboxEntry
+	var outboxes []*entity.SyncOutbox
 
-	if err := r.conn(ctx).Order("queued_at ASC").Limit(limit).Find(&entries).Error; err != nil {
-		r.log.Error(
-			"get pending batch failed",
-			zap.Error(err),
-			zap.Any("param", limit),
-		)
-
+	if err := r.conn(ctx).Order("queued_at ASC").Limit(limit).Find(&outboxes).Error; err != nil {
 		return nil, entityerror.ErrSyncOutboxRetrievalFailed(err)
 	}
 
 	r.log.Info("get pending batch completed", zap.Any("param", limit))
 
-	return entries, nil
+	return outboxes, nil
 }
 
 func (r *syncOutboxRepository) MarkSynced(
@@ -90,10 +57,8 @@ func (r *syncOutboxRepository) MarkSynced(
 ) error {
 	r.log.Info("mark synced started", zap.Any("param", ids))
 
-	outboxModel := &entity.SyncOutboxEntry{}
+	outboxModel := &entity.SyncOutbox{}
 	if err := r.conn(ctx).Where("id IN ?", ids).Delete(outboxModel).Error; err != nil {
-		r.log.Error("mark synced failed", zap.Error(err), zap.Any("param", ids))
-
 		return entityerror.ErrSyncOutboxMarkSyncedFailed(err)
 	}
 
@@ -108,14 +73,8 @@ func (r *syncOutboxRepository) ClearSynced(
 ) error {
 	r.log.Info("clear synced started", zap.Time("before", before))
 
-	outboxModel := &entity.SyncOutboxEntry{}
+	outboxModel := &entity.SyncOutbox{}
 	if err := r.conn(ctx).Where("queued_at <= ?", before).Delete(outboxModel).Error; err != nil {
-		r.log.Error(
-			"clear synced failed",
-			zap.Error(err),
-			zap.Time("before", before),
-		)
-
 		return entityerror.ErrSyncOutboxClearSyncedFailed(err)
 	}
 

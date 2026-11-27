@@ -135,15 +135,18 @@ func TestManager_EnsureDir(t *testing.T) {
 	)
 }
 
-func TestManager_WriteTempAndHash_MoveAtomic_RemoveFile(t *testing.T) {
+func TestManager_WriteTempAndHashTempFile_MoveAtomic_RemoveFile(t *testing.T) {
 	manager := fs.NewManager()
 	require.NotNil(t, manager)
 
-	t.Run("WriteTempAndHash validates inputs", func(t *testing.T) {
-		_, _, err := manager.WriteTempAndHash("", strings.NewReader("abc"))
+	t.Run("WriteTempAndHashTempFile validates inputs", func(t *testing.T) {
+		_, _, err := manager.WriteTempAndHashTempFile(
+			"",
+			strings.NewReader("abc"),
+		)
 		assert.EqualError(t, err, "temp file path is required")
 
-		_, _, err = manager.WriteTempAndHash(
+		_, _, err = manager.WriteTempAndHashTempFile(
 			filepath.Join(t.TempDir(), "a.part"),
 			nil,
 		)
@@ -151,7 +154,7 @@ func TestManager_WriteTempAndHash_MoveAtomic_RemoveFile(t *testing.T) {
 	})
 
 	t.Run(
-		"WriteTempAndHash streams, hashes, and MoveAtomic moves atomically",
+		"WriteTempAndHashTempFile streams, hashes, and MoveAtomic moves atomically",
 		func(t *testing.T) {
 			baseDir := t.TempDir()
 			tmpPath := filepath.Join(baseDir, ".tmp", "att-1.part")
@@ -161,7 +164,7 @@ func TestManager_WriteTempAndHash_MoveAtomic_RemoveFile(t *testing.T) {
 			sum := sha256.Sum256([]byte(payload))
 			expectedHash := hex.EncodeToString(sum[:])
 
-			gotHash, written, err := manager.WriteTempAndHash(
+			gotHash, written, err := manager.WriteTempAndHashTempFile(
 				tmpPath,
 				strings.NewReader(payload),
 			)

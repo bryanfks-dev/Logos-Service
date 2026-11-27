@@ -1,4 +1,4 @@
-package repository
+package sermonseries
 
 import (
 	"context"
@@ -11,38 +11,8 @@ import (
 	entityerror "github.com/bryanfks-dev/logos/pkg/error/entity"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-type SermonSeriesRepository interface {
-	Create(ctx context.Context, series *entity.SermonSeries) error
-	Update(ctx context.Context, series *entity.SermonSeries) error
-	FindByID(ctx context.Context, id string) (*entity.SermonSeries, error)
-	FindByIDs(
-		ctx context.Context,
-		ids []string,
-	) ([]*entity.SermonSeries, error)
-	FindAll(ctx context.Context) ([]*entity.SermonSeries, error)
-	FindUpdatedSince(
-		ctx context.Context,
-		since time.Time,
-	) ([]*entity.SermonSeries, error)
-	Delete(ctx context.Context, id string) error
-}
-
-type sermonSeriesRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
-}
-
-func NewSermonSeriesRepository(
-	db *gorm.DB,
-	log *zap.Logger,
-) SermonSeriesRepository {
-	return &sermonSeriesRepository{
-		db:  db,
-		log: log,
-	}
-}
 
 func (r *sermonSeriesRepository) conn(ctx context.Context) *gorm.DB {
 	if tx := correlation.GetTx(ctx); tx != nil {
@@ -59,12 +29,31 @@ func (r *sermonSeriesRepository) Create(
 	r.log.Info("create started", zap.Any("param", series))
 
 	if err := r.conn(ctx).Create(series).Error; err != nil {
-		r.log.Error("create failed", zap.Error(err), zap.Any("param", series))
-
 		return entityerror.ErrSermonSeriesCreationFailed(err)
 	}
 
 	r.log.Info("create completed", zap.Any("param", series))
+
+	return nil
+}
+
+func (r *sermonSeriesRepository) CreateBatch(
+	ctx context.Context,
+	series []*entity.SermonSeries,
+) error {
+	r.log.Info("create batch started", zap.Int("count", len(series)))
+
+	if len(series) == 0 {
+		r.log.Debug("create batch skipped due to empty slice")
+
+		return nil
+	}
+
+	if err := r.conn(ctx).CreateInBatches(series, 500).Error; err != nil {
+		return entityerror.ErrSermonSeriesCreationFailed(err)
+	}
+
+	r.log.Info("create batch completed", zap.Int("count", len(series)))
 
 	return nil
 }
@@ -76,12 +65,36 @@ func (r *sermonSeriesRepository) Update(
 	r.log.Info("update started", zap.Any("param", series))
 
 	if err := r.conn(ctx).Save(series).Error; err != nil {
-		r.log.Error("update failed", zap.Error(err), zap.Any("param", series))
-
 		return entityerror.ErrSermonSeriesUpdateFailed(err)
 	}
 
 	r.log.Info("update completed", zap.Any("param", series))
+
+	return nil
+}
+
+func (r *sermonSeriesRepository) UpdateBatch(
+	ctx context.Context,
+	series []*entity.SermonSeries,
+) error {
+	r.log.Info("update batch started", zap.Int("count", len(series)))
+
+	if len(series) == 0 {
+		r.log.Debug("update batch skipped due to empty slice")
+
+		return nil
+	}
+
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}
+
+	if err := r.conn(ctx).Clauses(onConflict).CreateInBatches(series, 500).Error; err != nil {
+		return entityerror.ErrSermonSeriesUpdateFailed(err)
+	}
+
+	r.log.Info("update batch completed", zap.Int("count", len(series)))
 
 	return nil
 }
@@ -95,8 +108,6 @@ func (r *sermonSeriesRepository) FindByID(
 	var item entity.SermonSeries
 
 	if err := r.conn(ctx).Where("id = ?", id).First(&item).Error; err != nil {
-		r.log.Error("find by id failed", zap.Error(err), zap.Any("param", id))
-
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entityerror.ErrSermonSeriesNotFound(id)
 		}
@@ -113,7 +124,11 @@ func (r *sermonSeriesRepository) FindByIDs(
 	ctx context.Context,
 	ids []string,
 ) ([]*entity.SermonSeries, error) {
+	r.log.Info("find by ids started", zap.Strings("ids", ids))
+
 	if len(ids) == 0 {
+		r.log.Debug("find by ids skipped due to empty ids")
+
 		return make([]*entity.SermonSeries, 0), nil
 	}
 
@@ -124,14 +139,10 @@ func (r *sermonSeriesRepository) FindByIDs(
 		r.conn(ctx).Unscoped().Where("id IN ?", ids),
 	)
 	if err := query.Find(&items).Error; err != nil {
-		r.log.Error(
-			"find by ids failed",
-			zap.Error(err),
-			zap.Strings("ids", ids),
-		)
-
 		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
+
+	r.log.Info("find by ids completed", zap.Int("count", len(items)))
 
 	return items, nil
 }
@@ -144,8 +155,6 @@ func (r *sermonSeriesRepository) FindAll(
 	var items []*entity.SermonSeries
 
 	if err := r.conn(ctx).Find(&items).Error; err != nil {
-		r.log.Error("find all failed", zap.Error(err), zap.Any("param", nil))
-
 		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
 
@@ -169,12 +178,6 @@ func (r *sermonSeriesRepository) FindUpdatedSince(
 
 	err := query.Order("updated_at ASC").Find(&items).Error
 	if err != nil {
-		r.log.Error(
-			"find updated since failed",
-			zap.Error(err),
-			zap.Time("since", since),
-		)
-
 		return nil, entityerror.ErrSermonSeriesRetrievalFailed(err)
 	}
 
@@ -188,8 +191,6 @@ func (r *sermonSeriesRepository) Delete(ctx context.Context, id string) error {
 
 	seriesModel := &entity.SermonSeries{}
 	if err := r.conn(ctx).Where("id = ?", id).Delete(seriesModel).Error; err != nil {
-		r.log.Error("delete failed", zap.Error(err), zap.Any("param", id))
-
 		return entityerror.ErrSermonSeriesDeleteFailed(err)
 	}
 

@@ -12,6 +12,10 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
   - Layers must never bypass intermediate layers: `delivery` must NEVER call `repository` or `gateway` directly.
   - Lower layers must never depend on higher layers: `repository` and `gateway` must not call `usecase`, and `usecase` must not depend on `delivery` or HTTP transport primitives (e.g., `echo.Context`, HTTP status codes).
 
+- **Methods Must Belong to Layer Structs**:
+  - Every operational and helper method in a struct-based layer (`delivery`, `usecase`, `repository`, `gateway`, `infra`) must be defined as a method on its corresponding layer struct (e.g., `*SermonNoteController`, `*CreateSermonNoteUsecase`, `*sermonNoteRepository`, `*storageGateway`), never as standalone package-level functions.
+  - Aside from constructors (`New...`), pure stateless converters (`internal/model/converter/`), and shared utilities (`pkg/util/`), do not define free functions in layer packages—attach layer-specific helpers as unexported methods on the layer struct (while keeping pure entity-level domain logic as methods on `pkg/entity/` structs).
+
 ## Layer Responsibilities
 
 1. **Delivery Layer (`internal/delivery/`)**:
@@ -52,6 +56,18 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
    - **Single Usecase Per Action & `Call` Entrypoint**:
      - Each usecase must do only one job (a single, focused action or operation) and follow the naming format `<Action><AggregateEntity>Usecase` (e.g., `CreateSermonNoteUsecase`, `PullSyncChangesUsecase`, `PushSyncChangesUsecase`) rather than grouping multiple independent operations onto one struct.
      - Every usecase must expose `Call(ctx context.Context, ...)` as its sole exported method (the single entrypoint); all other helper methods on the usecase struct must be unexported.
+   - **Directory & File Layout (Factory + Implementation)**:
+     - Each usecase must live in its own snake-case directory under `internal/usecase/`: `internal/usecase/<action>_<aggregate_entity>/` (e.g., `internal/usecase/push_sync_changes/`).
+     - Its Go package name must be the concatenated lowercase single-word form without underscores (e.g., `package pushsyncchanges`).
+     - Each usecase directory must contain at minimum:
+       - `factory.go`: the usecase struct, constructor `*Option` struct (if any), and `New<Action><AggregateEntity>Usecase(...)` constructor.
+       - `usecase.go`: `Call(...)` (the entrypoint method), its input/result/`*Option` structs (if any), and pure unexported helper methods (including helper method `*Option` structs) on the primary usecase struct.
+     - **Usecase Input & Result Types**:
+       - Define entrypoint input and result structs directly inside the usecase's `usecase.go` (above `Call(...)`) rather than creating separate model structs in `internal/model/`.
+     - **Keep `usecase.go` Thin (Separate Helper Struct Files)**:
+       - Do NOT define dedicated helper/state structs (collaborator structs with their own associated methods, other than the usecase struct, `*Option` parameter structs, or input/result structs) inside `usecase.go`.
+       - Move code outside `usecase.go` into dedicated file(s) inside the same usecase directory (e.g., `upserter.go`, `tag_planner.go`) ONLY when there is a dedicated helper/state struct and its associated methods.
+       - Keep pure unexported helper methods attached directly to the primary usecase struct (and their parameter `*Option` structs, without their own dedicated state struct) inside `usecase.go`.
 
 3. **Repository Layer (`internal/repository/`)**:
    - Manages data persistence, queries, and mappings to and from the database.
@@ -59,8 +75,18 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
      - Always define and export a repository interface (e.g., `<AggregateEntity>Repository`) implemented by an unexported concrete struct (e.g., `<aggregateEntity>Repository`).
      - Constructors must return the repository interface type (e.g., `New<AggregateEntity>Repository(...) <AggregateEntity>Repository`) so usecases and DI depend on the abstraction.
    - **Repository Naming Convention**:
-     - Repositories must be named strictly after their corresponding aggregate root entity, suffixed with `_repository` (e.g., `<aggregate_entity>_repository.go` and `<AggregateEntity>Repository`).
-     - Exactly one repository per Aggregate Root (e.g., `sermon_note_repository.go` / `SermonNoteRepository`, `gathering_repository.go` / `GatheringRepository`).
+     - Repositories must be named strictly after their corresponding aggregate root entity, suffixed with `Repository` (e.g., `<AggregateEntity>Repository`).
+     - Exactly one repository per Aggregate Root (e.g., `internal/repository/sermon_note/` / `SermonNoteRepository`, `internal/repository/gathering/` / `GatheringRepository`).
+   - **Directory & File Layout (Factory + Implementation)**:
+     - Each repository must live in its own snake-case directory under `internal/repository/`: `internal/repository/<aggregate_entity>/` (e.g., `internal/repository/sermon_note/`).
+     - Its Go package name must be the concatenated lowercase single-word form without underscores (e.g., `package sermonnote`).
+     - Each repository directory must contain at minimum:
+       - `factory.go`: the exported `<AggregateEntity>Repository` interface, unexported `<aggregateEntity>Repository` struct, and `New<AggregateEntity>Repository(...)` constructor.
+       - `repository.go`: the persistence methods defined on the `<AggregateEntity>Repository` interface (and their query `*Option` structs if needed for interface entrypoints).
+     - **Keep `repository.go` Thin (Separate Helper Struct Files)**:
+       - Do NOT define helper structs (e.g., scan/projection structs, internal helper `*Option` structs) inside `repository.go`.
+       - Move code outside `repository.go` into dedicated file(s) inside the same repository directory (e.g., `tag_with_count.go`) ONLY when there is a dedicated helper struct and its associated methods.
+       - Keep pure unexported helper methods attached directly to the primary repository struct (without their own dedicated helper struct) inside `repository.go`.
    - **Repository Error Naming**:
      - Persistence error definitions and constructors must use operation-level failure naming rather than method-specific names:
        - Prefer `Err<Entity>RetrievalFailed` over `Err<Entity>FindByIDFailed` or `Err<Entity>FindAllFailed`.
@@ -122,11 +148,11 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
     - **Controllers**: `<aggregate_entity>_controller.go` and `<AggregateEntity>Controller`
       - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_controller.go` and `SermonNoteController`.
       - *Example*: For aggregate entity `Gathering` $\rightarrow$ `gathering_controller.go` and `GatheringController`.
-    - **Repositories**: `<aggregate_entity>_repository.go` and `<AggregateEntity>Repository`
-      - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_repository.go` and `SermonNoteRepository`.
-      - *Example*: For aggregate entity `Gathering` $\rightarrow$ `gathering_repository.go` and `GatheringRepository`.
-    - **Usecases**: `<action>_<aggregate_entity>_usecase.go` and `<Action><AggregateEntity>Usecase`
-      - *Example*: For aggregate entity `SermonNote` and action `Create` $\rightarrow$ `create_sermon_note_usecase.go` and `CreateSermonNoteUsecase`.
+    - **Repositories**: `internal/repository/<aggregate_entity>/` containing `factory.go` and `repository.go`, defining `<AggregateEntity>Repository`
+      - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `internal/repository/sermon_note/{factory.go,repository.go}` (`package sermonnote`) and `SermonNoteRepository`.
+      - *Example*: For aggregate entity `Gathering` $\rightarrow$ `internal/repository/gathering/{factory.go,repository.go}` (`package gathering`) and `GatheringRepository`.
+    - **Usecases**: `internal/usecase/<action>_<aggregate_entity>/` containing `factory.go` and `usecase.go`, defining `<Action><AggregateEntity>Usecase`
+      - *Example*: For aggregate entity `SermonNote` and action `Create` $\rightarrow$ `internal/usecase/create_sermon_note/{factory.go,usecase.go}` (`package createsermonnote`) and `CreateSermonNoteUsecase`.
     - **Converters**: `<aggregate_entity>_converter.go`
       - *Example*: For aggregate entity `SermonNote` $\rightarrow$ `sermon_note_converter.go`.
       - *Example*: For aggregate entity `Gathering` $\rightarrow$ `gathering_converter.go`.
@@ -140,3 +166,12 @@ $$\text{Delivery} \longrightarrow \text{Usecase} \longrightarrow \text{Repositor
 - Usecases do not need to create interfaces; concrete structs are sufficient for construction and dependency injection.
 - Register all constructors in `di/providers.go` and update Wire injection with `make wire` or `make build`.
 - Assume constructor-injected attributes on application-layer structs (controllers, usecases, repositories, gateways) are always non-nil; never add `nil` checks for struct attributes or receivers inside layer methods.
+
+## Logging (Usecase & Repository)
+
+- Always log using the injected `*zap.Logger` in both `internal/usecase/` and `internal/repository/`:
+  - **Entry (`Info`)**: Log at `Info` level when entering a usecase (`Call`) or repository operation (e.g., `"... started"`).
+  - **Completion (`Info`)**: Log at `Info` level when the usecase or repository operation finishes successfully (e.g., `"... completed"`).
+  - **Errors (`Error` — Usecase Only)**: Log at `Error` level in `internal/usecase/` whenever an error occurs (include `zap.Error(err)`). Do NOT log errors at `Error` level in `internal/repository/`; return the wrapped error to the usecase instead.
+  - **Unfulfilled Business Requirements (`Debug`)**: Log at `Debug` level when a business requirement, domain rule, or precondition is not fulfilled (e.g., skipped stale update, conflict detected, missing/empty input condition, or already-completed idempotent check).
+- **Level Discipline**: Use `Debug` solely for unfulfilled business requirements/preconditions; use `Info` (entry/completion) or `Error` (usecase errors only) for everything else.

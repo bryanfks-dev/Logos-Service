@@ -3,17 +3,18 @@ package converter
 import (
 	"time"
 
-	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/request"
 	"github.com/bryanfks-dev/logos/internal/model/response"
+	pullsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/pull_sync_changes"
+	pushsyncchanges "github.com/bryanfks-dev/logos/internal/usecase/push_sync_changes"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 )
 
 func SyncPushChangesRequestToSyncChangesBatch(
 	req *request.SyncPushChangesRequest,
-) *model.SyncChangesBatch {
+) *pushsyncchanges.SyncChangesBatch {
 	if req == nil {
-		return &model.SyncChangesBatch{
+		return &pushsyncchanges.SyncChangesBatch{
 			SermonNotes:  make([]*entity.SermonNote, 0),
 			Gatherings:   make([]*entity.Gathering, 0),
 			SermonSeries: make([]*entity.SermonSeries, 0),
@@ -100,7 +101,7 @@ func SyncPushChangesRequestToSyncChangesBatch(
 		tags = append(tags, t)
 	}
 
-	return &model.SyncChangesBatch{
+	return &pushsyncchanges.SyncChangesBatch{
 		SermonNotes:  notes,
 		Gatherings:   gatherings,
 		SermonSeries: seriesList,
@@ -110,7 +111,7 @@ func SyncPushChangesRequestToSyncChangesBatch(
 }
 
 func SyncPushChangesResultToResponse(
-	result *model.SyncPushChangesResult,
+	result *pushsyncchanges.SyncPushChangesResult,
 ) *response.SyncPushChangesResponse {
 	if result == nil {
 		return &response.SyncPushChangesResponse{
@@ -128,7 +129,7 @@ func SyncPushChangesResultToResponse(
 }
 
 func SyncPullChangesResultToResponse(
-	result *model.SyncPullChangesResult,
+	result *pullsyncchanges.SyncPullChangesResult,
 ) *response.SyncPullChangesResponse {
 	if result == nil {
 		return &response.SyncPullChangesResponse{

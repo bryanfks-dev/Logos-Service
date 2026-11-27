@@ -15,6 +15,66 @@ type SyncPushChangesRequest struct {
 	Tags         []SyncTagChangesItem       `json:"tags,omitempty"`
 }
 
+type SyncGatheringChangesItem struct {
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	ColorHex  string     `json:"color_hex,omitempty"`
+	SortOrder int        `json:"sort_order,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+type SyncSeriesChangesItem struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+}
+
+type SyncPreacherChangesItem struct {
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	ChurchName string     `json:"church_name,omitempty"`
+	CreatedAt  *time.Time `json:"created_at,omitempty"`
+	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+}
+
+type SyncTagChangesItem struct {
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+type SyncNoteChangesItem struct {
+	ID          string                     `json:"id"`
+	GatheringID *string                    `json:"gathering_id,omitempty"`
+	SeriesID    *string                    `json:"series_id,omitempty"`
+	PreacherID  *string                    `json:"preacher_id,omitempty"`
+	Title       string                     `json:"title"`
+	SermonDate  *time.Time                 `json:"sermon_date,omitempty"`
+	ContentHash string                     `json:"content_hash,omitempty"`
+	PlainText   string                     `json:"plain_text,omitempty"`
+	ContentJSON string                     `json:"content_json,omitempty"`
+	Version     int                        `json:"version"`
+	Tags        []string                   `json:"tags,omitempty"`
+	Verses      []SyncNoteVerseChangesItem `json:"verses,omitempty"`
+	IsDeleted   bool                       `json:"is_deleted,omitempty"`
+	CreateadAt  *time.Time                 `json:"created_at,omitempty"`
+	UpdatedAt   *time.Time                 `json:"updated_at,omitempty"`
+}
+
+type SyncNoteVerseChangesItem struct {
+	ID          string `json:"id,omitempty"`
+	Translation string `json:"translation"`
+	BookID      int    `json:"book_id"`
+	Chapter     int    `json:"chapter"`
+	VerseStart  int    `json:"verse_start"`
+	VerseEnd    *int   `json:"verse_end,omitempty"`
+	DisplayRef  string `json:"display_ref"`
+}
+
 func (r SyncPushChangesRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.SermonNotes),
@@ -23,15 +83,6 @@ func (r SyncPushChangesRequest) Validate() error {
 		validation.Field(&r.Preachers),
 		validation.Field(&r.Tags),
 	)
-}
-
-type SyncGatheringChangesItem struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	ColorHex  string     `json:"color_hex,omitempty"`
-	SortOrder int        `json:"sort_order,omitempty"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 func (i SyncGatheringChangesItem) Validate() error {
@@ -51,14 +102,6 @@ func (i SyncGatheringChangesItem) Validate() error {
 	)
 }
 
-type SyncSeriesChangesItem struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
-}
-
 func (i SyncSeriesChangesItem) Validate() error {
 	return validation.ValidateStruct(&i,
 		validation.Field(&i.ID, validation.Length(0, 36)),
@@ -68,14 +111,6 @@ func (i SyncSeriesChangesItem) Validate() error {
 			validation.Length(1, 255),
 		),
 	)
-}
-
-type SyncPreacherChangesItem struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	ChurchName string     `json:"church_name,omitempty"`
-	CreatedAt  *time.Time `json:"created_at,omitempty"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 }
 
 func (i SyncPreacherChangesItem) Validate() error {
@@ -90,13 +125,6 @@ func (i SyncPreacherChangesItem) Validate() error {
 	)
 }
 
-type SyncTagChangesItem struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-}
-
 func (i SyncTagChangesItem) Validate() error {
 	return validation.ValidateStruct(&i,
 		validation.Field(&i.ID, validation.Length(0, 36)),
@@ -106,24 +134,6 @@ func (i SyncTagChangesItem) Validate() error {
 			validation.Length(1, 100),
 		),
 	)
-}
-
-type SyncNoteChangesItem struct {
-	ID          string                     `json:"id"`
-	GatheringID *string                    `json:"gathering_id,omitempty"`
-	SeriesID    *string                    `json:"series_id,omitempty"`
-	PreacherID  *string                    `json:"preacher_id,omitempty"`
-	Title       string                     `json:"title"`
-	SermonDate  *time.Time                 `json:"sermon_date,omitempty"`
-	ContentHash string                     `json:"content_hash,omitempty"`
-	PlainText   string                     `json:"plain_text,omitempty"`
-	ContentJSON string                     `json:"content_json,omitempty"`
-	Version     int                        `json:"version"`
-	Tags        []string                   `json:"tags,omitempty"`
-	Verses      []SyncNoteVerseChangesItem `json:"verses,omitempty"`
-	IsDeleted   bool                       `json:"is_deleted,omitempty"`
-	CreateadAt  *time.Time                 `json:"created_at,omitempty"`
-	UpdatedAt   *time.Time                 `json:"updated_at,omitempty"`
 }
 
 func (i SyncNoteChangesItem) Validate() error {
@@ -145,16 +155,6 @@ func (i SyncNoteChangesItem) Validate() error {
 		),
 		validation.Field(&i.Verses),
 	)
-}
-
-type SyncNoteVerseChangesItem struct {
-	ID          string `json:"id,omitempty"`
-	Translation string `json:"translation"`
-	BookID      int    `json:"book_id"`
-	Chapter     int    `json:"chapter"`
-	VerseStart  int    `json:"verse_start"`
-	VerseEnd    *int   `json:"verse_end,omitempty"`
-	DisplayRef  string `json:"display_ref"`
 }
 
 func (v SyncNoteVerseChangesItem) Validate() error {

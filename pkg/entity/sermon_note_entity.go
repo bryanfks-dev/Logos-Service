@@ -41,6 +41,25 @@ type SermonNote struct {
 	Attachments []SermonNoteAttachment `gorm:"foreignKey:NoteID;references:ID"`
 }
 
+type SermonNoteFilter struct {
+	GatheringID    *string
+	SeriesID       *string
+	PreacherID     *string
+	TagID          *string
+	StartDate      *time.Time
+	EndDate        *time.Time
+	IncludeDeleted bool
+	UpdatedSince   *time.Time
+}
+
+type ScriptureQuery struct {
+	Translation string
+	BookID      int
+	Chapter     int
+	VerseStart  int
+	VerseEnd    *int
+}
+
 func (SermonNote) TableName() string {
 	return "sermon_notes"
 }
@@ -83,23 +102,4 @@ func (e *SermonNote) IsContentMissingFor(incoming *SermonNote) bool {
 	}
 
 	return incoming.ContentHash != storedHash
-}
-
-type SermonNoteFilter struct {
-	GatheringID    *string
-	SeriesID       *string
-	PreacherID     *string
-	TagID          *string
-	StartDate      *time.Time
-	EndDate        *time.Time
-	IncludeDeleted bool
-	UpdatedSince   *time.Time
-}
-
-type ScriptureQuery struct {
-	Translation string
-	BookID      int
-	Chapter     int
-	VerseStart  int
-	VerseEnd    *int
 }

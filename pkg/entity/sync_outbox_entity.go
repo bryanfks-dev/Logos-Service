@@ -32,5 +32,3 @@ func (e *SyncOutbox) BeforeCreate(tx *gorm.DB) error {
 
 	return nil
 }
-
-type SyncOutboxEntry = SyncOutbox

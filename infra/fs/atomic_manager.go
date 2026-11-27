@@ -13,7 +13,7 @@ import (
 type Manager interface {
 	EnsureDir(dirPath string) error
 	WriteFileAtomic(filePath string, data []byte) error
-	WriteTempAndHash(tmpPath string, r io.Reader) (string, int64, error)
+	WriteTempAndHashTempFile(tmpPath string, r io.Reader) (string, int64, error)
 	MoveAtomic(srcPath string, dstPath string) error
 	RemoveFile(filePath string) error
 }
@@ -76,7 +76,7 @@ func (m *manager) WriteFileAtomic(filePath string, data []byte) error {
 	return nil
 }
 
-func (m *manager) WriteTempAndHash(
+func (m *manager) WriteTempAndHashTempFile(
 	tmpPath string,
 	r io.Reader,
 ) (string, int64, error) {

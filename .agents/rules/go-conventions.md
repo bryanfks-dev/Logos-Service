@@ -62,12 +62,19 @@
     defer file.Close()
     ```
 
+- **File-Top & Pre/Post-Constructor Declarations (`struct`, Global `const` and `var`)**:
+  - Place all `type` declarations (including `struct` and `interface` definitions) and package-level (global) `const` and `var` declarations before any operational/business functions or methods (and at the top of the file when there is no constructor):
+    - **Before the `New...` constructor function**: Place the app-layer component's primary `interface`/`struct` definitions, its constructor `*Option` struct (if any), and any `const`/`var` declarations used by the constructor.
+    - **After the `New...` constructor function (and before business/operational methods)**: Place helper `struct` definitions (such as internal `*Option` or helper structs) and package-level `const`/`var` declarations used by the business/operational logic (e.g., `Call(...)` and helper methods).
+  - Never place `struct` definitions, global `const` blocks, or global `var` declarations between or below operational/business functions or methods.
+
 # Component & File Naming Rules
 
 - **Aggregate Entity Alignment with Layer Suffix**:
-  - File names and type definitions for layer components (controllers, repositories, usecases, converters) must be named after their corresponding aggregate entity with the layer suffix:
-    - Filename pattern: `<aggregate_entity>_<kind_of_layer>.go` (e.g., `sermon_note_controller.go`, `sermon_note_repository.go`, `sermon_note_converter.go`).
-    - Type pattern: `<AggregateEntity><KindOfLayer>` (e.g., `SermonNoteController`, `SermonNoteRepository`).
+  - File names, directory names, and type definitions for layer components (controllers, repositories, usecases, converters) must be named after their corresponding aggregate entity:
+    - Controllers & Converters: `<aggregate_entity>_<kind_of_layer>.go` (e.g., `sermon_note_controller.go`, `sermon_note_converter.go`) and `<AggregateEntity><KindOfLayer>`.
+    - Repositories: `internal/repository/<aggregate_entity>/{factory.go,repository.go}` (`package <aggregateentity>`) and `<AggregateEntity>Repository`.
+    - Usecases: `internal/usecase/<action>_<aggregate_entity>/{factory.go,usecase.go}` (`package <action><aggregateentity>`) and `<Action><AggregateEntity>Usecase`.
   - Do not abbreviate or drop parts of the aggregate entity name (e.g., avoid `note_controller.go`, use `sermon_note_controller.go`).
 
 - **Converter Function Naming Rules**:
@@ -99,7 +106,8 @@
 # Go Package Naming Rules (Effective Go)
 
 - **Directory Alignment**:
-  - The package name must match the base name of the directory where the file resides (e.g., a file in `internal/delivery/` must use `package delivery`).
+  - For single-word directories, the package name must match the base name of the directory where the file resides (e.g., a file in `internal/delivery/` must use `package delivery`).
+  - For snake-case component directories (such as `internal/repository/sermon_note/` or `internal/usecase/push_sync_changes/`), the Go package name must be the concatenated lowercase single-word form without underscores (e.g., `package sermonnote`, `package pushsyncchanges`).
   - All Go files in the same directory must declare the exact same package name (except black-box tests which append `_test`).
 
 - **Lowercase & Single Word**:

@@ -19,8 +19,9 @@ import (
 	"github.com/bryanfks-dev/logos/internal/delivery/http/middleware"
 	"github.com/bryanfks-dev/logos/internal/model"
 	"github.com/bryanfks-dev/logos/internal/model/response"
-	"github.com/bryanfks-dev/logos/internal/repository"
-	"github.com/bryanfks-dev/logos/internal/usecase"
+	sermonnote "github.com/bryanfks-dev/logos/internal/repository/sermon_note"
+	uploadsermonnoteattachmentfile "github.com/bryanfks-dev/logos/internal/usecase/upload_sermon_note_attachment_file"
+	"github.com/bryanfks-dev/logos/pkg/constant"
 	"github.com/bryanfks-dev/logos/pkg/entity"
 	"github.com/labstack/echo/v5"
 	"github.com/spf13/viper"
@@ -56,7 +57,7 @@ func setupSermonNoteControllerTestEnv(
 
 	log := zap.NewNop()
 	fsManager := fs.NewManager()
-	sermonNoteRepo := repository.NewSermonNoteRepository(
+	sermonNoteRepo := sermonnote.NewSermonNoteRepository(
 		testDB,
 		fsManager,
 		log,
@@ -66,8 +67,8 @@ func setupSermonNoteControllerTestEnv(
 	v := viper.New()
 	v.Set("app.path", appPath)
 
-	uploadUsecase := usecase.NewUploadSermonNoteAttachmentFileUsecase(
-		&usecase.UploadSermonNoteAttachmentFileUsecaseOption{
+	uploadUsecase := uploadsermonnoteattachmentfile.NewUploadSermonNoteAttachmentFileUsecase(
+		&uploadsermonnoteattachmentfile.UploadSermonNoteAttachmentFileUsecaseOption{
 			SermonNoteRepository: sermonNoteRepo,
 			FsManager:            fsManager,
 			Config:               v,
@@ -177,12 +178,13 @@ func TestSermonNoteController_UploadAttachmentFile(t *testing.T) {
 
 			var res model.APIResponse[response.UploadSermonNoteAttachmentFileResponse]
 			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+			require.NotNil(t, res.Data)
 			assert.Equal(t, att.ID, res.Data.ID)
 			assert.Equal(t, hashHex, res.Data.ChecksumSHA256)
-			assert.Equal(t, "stored", res.Data.Status)
+			assert.Equal(t, constant.UploadStatusUploaded, res.Data.Status)
 
 			stored, err := os.ReadFile(
-				filepath.Join(appPath, "2026", att.ID+".pdf"),
+				filepath.Join(appPath, "notes", "2026", "11", att.ID+".pdf"),
 			)
 			require.NoError(t, err)
 			assert.Equal(t, payload, stored)

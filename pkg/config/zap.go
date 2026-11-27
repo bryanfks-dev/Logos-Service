@@ -8,6 +8,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var loggerLevel = map[string]zapcore.Level{
+	"debug": zap.DebugLevel,
+	"info":  zap.InfoLevel,
+	"warn":  zap.WarnLevel,
+	"error": zap.ErrorLevel,
+	"panic": zap.PanicLevel,
+	"fatal": zap.FatalLevel,
+}
+
 func NewLogger(cfg *viper.Viper) *zap.Logger {
 	zapConfig := zap.NewProductionConfig()
 
@@ -21,13 +30,4 @@ func NewLogger(cfg *viper.Viper) *zap.Logger {
 	}
 
 	return logger
-}
-
-var loggerLevel = map[string]zapcore.Level{
-	"debug": zap.DebugLevel,
-	"info":  zap.InfoLevel,
-	"warn":  zap.WarnLevel,
-	"error": zap.ErrorLevel,
-	"panic": zap.PanicLevel,
-	"fatal": zap.FatalLevel,
 }
